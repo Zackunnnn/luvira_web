@@ -1,50 +1,64 @@
-import React from 'react';
-import { HeartHandshake, Feather, Sparkles } from 'lucide-react';
+'use client'; // Required for client-side Zustand store hydration
 
-const PILLARS = [
-  {
-    icon: HeartHandshake,
-    title: 'Modest',
-    subtitle: 'Daya Tutup Sempurna',
-    description: 'Desain presisi yang menutup aurat kaki dengan sempurna, mendukung penampilan wudhu-friendly dan santun di segala suasana.',
-    badgeColor: 'bg-deep-forest/10 text-deep-forest',
-  },
-  {
-    icon: Feather,
-    title: 'Comfortable',
-    subtitle: 'Ultra-Soft Combed Cotton',
-    description: 'Serat katun combed pilihan yang sangat lembut di kulit, dingin, menyerap keringat dengan baik, dan anti-bau sepanjang hari.',
-    badgeColor: 'bg-leaf-olive/15 text-leaf-olive',
-  },
-  {
-    icon: Sparkles,
-    title: 'Chic',
-    subtitle: 'Aesthetically Minimalist',
-    description: 'Pilihan palet warna earth tone dan pastel yang elegan, mudah dipadukan dengan berbagai gaya busana dan sandal favoritmu.',
-    badgeColor: 'bg-dusty-rose/20 text-dusty-rose-hover',
-  },
-];
+import React, { useState, useEffect } from 'react';
+import { HeartHandshake, Feather, Sparkles } from 'lucide-react';
+import { useContentStore } from '@/store/useContentStore';
+import { DEFAULT_SITE_CONTENT } from '@/data/defaultContent';
 
 export const AboutLuvira: React.FC = () => {
+  const { content } = useContentStore();
+  const [mounted, setMounted] = useState(false);
+
+  // FIX: Prevent Zustand hydration mismatch — defer dynamic copy until client mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const aboutCopy = mounted ? content.about : DEFAULT_SITE_CONTENT.about;
+
+  const PILLARS_CONFIG = [
+    {
+      icon: HeartHandshake,
+      title: aboutCopy.pillars.modest.title,
+      subtitle: aboutCopy.pillars.modest.subtitle,
+      description: aboutCopy.pillars.modest.description,
+      badgeColor: 'bg-deep-forest/10 text-deep-forest',
+    },
+    {
+      icon: Feather,
+      title: aboutCopy.pillars.comfortable.title,
+      subtitle: aboutCopy.pillars.comfortable.subtitle,
+      description: aboutCopy.pillars.comfortable.description,
+      badgeColor: 'bg-leaf-olive/15 text-leaf-olive',
+    },
+    {
+      icon: Sparkles,
+      title: aboutCopy.pillars.chic.title,
+      subtitle: aboutCopy.pillars.chic.subtitle,
+      description: aboutCopy.pillars.chic.description,
+      badgeColor: 'bg-dusty-rose/20 text-dusty-rose-hover',
+    },
+  ];
+
   return (
     <section className="py-12 px-4 sm:px-6 lg:px-12 bg-white border-y border-deep-forest/10">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Header Title */}
         <div className="text-center max-w-2xl mx-auto space-y-2">
           <span className="text-xs font-extrabold tracking-widest text-leaf-olive uppercase bg-leaf-olive/10 px-3 py-1 rounded-full inline-block">
-            Tentang Luvira
+            {aboutCopy.badge}
           </span>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-deep-forest tracking-tight">
-            Filosofi Kenikmatan Melangkah
+            {aboutCopy.title}
           </h2>
           <p className="text-xs sm:text-sm text-muted-charcoal/70 leading-relaxed">
-            Luvira hadir dari pemahaman mendalam akan kebutuhan muslimah modern yang mendambakan kaus kaki berkualitas tinggi — menghadirkan harmoni sempurna antara estetika, fungsi ergonomis, dan keanggunan.
+            {aboutCopy.description}
           </p>
         </div>
 
         {/* 3 Pillars Grid */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
-          {PILLARS.map((pillar, idx) => {
+          {PILLARS_CONFIG.map((pillar, idx) => {
             const Icon = pillar.icon;
             return (
               <div
@@ -85,3 +99,4 @@ export const AboutLuvira: React.FC = () => {
     </section>
   );
 };
+

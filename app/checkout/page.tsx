@@ -1,24 +1,31 @@
 // checkout/page.tsx — Checkout page for the Luvira e-commerce storefront.
 // Displays customer delivery form (left) and order summary (right) on desktop,
-// stacked vertically on mobile. Submits structured order to WhatsApp.
+// stacked vertically on mobile. Integrates with the Sandbox Payment Simulation Gateway.
 
 'use client'; // Required for form state, validation, and navigation hooks
 
 import React, { useState, useEffect } from 'react'; // React core + hooks
 import Image from 'next/image'; // Next.js optimized image component
 import Link from 'next/link'; // Next.js client-side navigation
-import { useRouter } from 'next/navigation'; // Programmatic navigation hook
 import { useCartStore } from '@/store/useCartStore'; // Zustand cart state
-import { generateWhatsAppUrl } from '@/lib/whatsapp'; // WhatsApp payload generator
 import { CustomerInfo } from '@/types/product'; // TypeScript type for customer form
 import { Input, Textarea } from '@/components/ui/Input'; // Reusable form input components
 import { Button } from '@/components/ui/Button'; // Reusable button component
-import { ArrowLeft, MessageSquare, ShieldCheck, ShoppingBag, Truck, CheckCircle2 } from 'lucide-react'; // Icons
+import { SandboxPaymentModal } from '@/components/checkout/SandboxPaymentModal'; // Sandbox Payment Gateway Modal
+import { BrandLogo } from '@/components/ui/BrandLogo'; // Universal official brand logo
+import {
+  ArrowLeft,
+  ShieldCheck,
+  ShoppingBag,
+  Truck,
+  CheckCircle2,
+  CreditCard,
+  Sparkles,
+} from 'lucide-react'; // Icons
 
 export default function CheckoutPage() {
-  const router = useRouter(); // For redirecting after submission
-  // Access cart state and actions
-  const { items, getTotalPrice, getTotalItems, clearCart } = useCartStore();
+  // Access cart state and totals from Zustand store
+  const { items, getTotalPrice, getTotalItems } = useCartStore();
 
   // FIX: Prevent Zustand hydration mismatch — defer cart data until client mount
   const [mounted, setMounted] = useState(false);
@@ -36,8 +43,9 @@ export default function CheckoutPage() {
 
   // Field-level validation error messages
   const [errors, setErrors] = useState<Partial<Record<keyof CustomerInfo, string>>>({});
-  // Submission loading state to prevent double-submit
-  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // State to control Sandbox Payment Simulation Gateway Modal visibility
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState<boolean>(false);
 
   // Compute cart totals only after client mount (avoid hydration mismatch)
   const totalPrice = mounted ? getTotalPrice() : 0;
@@ -78,23 +86,16 @@ export default function CheckoutPage() {
     return Object.keys(newErrors).length === 0; // True if no errors
   };
 
-  // Form submission handler — validates, generates WhatsApp URL, and opens it
+  // Form submission handler — validates form fields, then opens the Sandbox Gateway Modal
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault(); // Prevent default form submission
-    if (!validate()) return; // Stop if validation fails
+    if (!validate()) {
+      // Scroll to the first error if on small screen
+      return;
+    }
 
-    setIsSubmitting(true); // Show loading state
-    const waUrl = generateWhatsAppUrl(items, formData); // Build WhatsApp deep link
-
-    // Open WhatsApp in a new tab with the pre-formatted order message
-    window.open(waUrl, '_blank');
-
-    // After a short delay, clear cart and redirect back to home
-    setTimeout(() => {
-      setIsSubmitting(false);
-      clearCart(); // Empty the cart after successful order
-      router.push('/'); // Navigate back to homepage
-    }, 1000);
+    // Open the interactive Sandbox Payment Simulation Modal
+    setIsPaymentModalOpen(true);
   };
 
   return (
@@ -102,23 +103,24 @@ export default function CheckoutPage() {
     <div className="min-h-screen bg-warm-cream text-muted-charcoal flex flex-col justify-between">
       <div>
         {/* ========== TOP NAVIGATION BAR ========== */}
-        {/* Deep forest green header with back link and page title */}
-        <div className="bg-deep-forest text-warm-cream p-4 sticky top-0 z-30 shadow-xs">
+        {/* Deep forest green header with back link, official logo, and secure badge */}
+        <div className="bg-deep-forest text-warm-cream p-3 sm:p-4 sticky top-0 z-30 shadow-xs">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 flex items-center justify-between">
             {/* Back to shop link */}
             <Link
               href="/"
               className="p-1.5 rounded-full hover:bg-white/10 text-warm-cream transition-all flex items-center gap-1.5 text-xs font-semibold"
             >
-              <ArrowLeft className="w-4 h-4" /> {/* Arrow icon */}
-              <span>Kembali ke Toko</span>
+              <ArrowLeft className="w-4 h-4" />
+              <span>Kembali</span>
             </Link>
-            {/* Page title */}
-            <h1 className="font-extrabold text-sm sm:text-base tracking-wide uppercase">
-              Checkout Pesanan Luvira
-            </h1>
-            {/* Spacer for centering the title */}
-            <div className="w-20"></div>
+            {/* Official Brand Logo */}
+            <BrandLogo size="sm" theme="dark" asLink />
+            {/* Secure Checkout indicator */}
+            <div className="flex items-center gap-1 text-[11px] font-bold text-leaf-olive bg-leaf-olive/20 px-2.5 py-1 rounded-full border border-leaf-olive/30">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Secure Checkout</span>
+            </div>
           </div>
         </div>
 
@@ -137,7 +139,6 @@ export default function CheckoutPage() {
               <p className="text-xs text-muted-charcoal/60">
                 Silakan pilih produk kaus kaki terlebih dahulu sebelum melakukan checkout.
               </p>
-              {/* FIX: Use Link styled as button instead of nesting <button> inside <a> */}
               <Link
                 href="/"
                 className="inline-flex items-center justify-center px-4 py-2.5 text-sm font-medium rounded-2xl bg-deep-forest text-warm-cream hover:bg-deep-forest-hover shadow-sm shadow-deep-forest/20 transition-all duration-200 active:scale-95"
@@ -155,10 +156,15 @@ export default function CheckoutPage() {
                   {/* Form card container */}
                   <div className="bg-white p-6 rounded-3xl border border-deep-forest/10 shadow-sm space-y-4">
                     {/* Form section header */}
-                    <h2 className="font-bold text-base text-deep-forest flex items-center gap-2 border-b border-deep-forest/10 pb-3">
-                      <CheckCircle2 className="w-5 h-5 text-leaf-olive" />
-                      <span>Data Pengiriman Pemesan</span>
-                    </h2>
+                    <div className="flex items-center justify-between border-b border-deep-forest/10 pb-3">
+                      <h2 className="font-bold text-base text-deep-forest flex items-center gap-2">
+                        <CheckCircle2 className="w-5 h-5 text-leaf-olive" />
+                        <span>Data Pengiriman Pemesan</span>
+                      </h2>
+                      <span className="text-[11px] font-semibold text-leaf-olive bg-leaf-olive/10 px-2.5 py-0.5 rounded-full">
+                        Wajib Diisi
+                      </span>
+                    </div>
 
                     {/* Nama Lengkap input field */}
                     <Input
@@ -197,17 +203,22 @@ export default function CheckoutPage() {
                     />
                   </div>
 
-                  {/* Info Note — explaining what happens after submission */}
+                  {/* Info Note — explaining the Sandbox Gateway experience */}
                   <div className="bg-deep-forest/5 p-4 rounded-2xl border border-deep-forest/10 text-xs text-muted-charcoal/80 flex items-start gap-3">
                     <ShieldCheck className="w-5 h-5 text-deep-forest shrink-0 mt-0.5" />
-                    <p className="leading-relaxed text-xs">
-                      Setelah klik tombol di bawah, Anda akan otomatis terhubung ke WhatsApp Resmi Luvira. Admin kami akan mengonfirmasi total ongkir & rekening pembayaran.
-                    </p>
+                    <div className="space-y-1">
+                      <p className="font-bold text-deep-forest">
+                        Simulasi Pembayaran Instan (Sandbox Gateway)
+                      </p>
+                      <p className="leading-relaxed text-xs text-muted-charcoal/80">
+                        Setelah mengisi data di atas, Anda dapat mencoba simulasi pembayaran via QRIS atau Virtual Account. Setelah transaksi terverifikasi, detail pesanan & invoice akan diteruskan ke WhatsApp Admin.
+                      </p>
+                    </div>
                   </div>
                 </form>
               </div>
 
-              {/* RIGHT COLUMN: Order Summary & WhatsApp Submit CTA */}
+              {/* RIGHT COLUMN: Order Summary & Sandbox Payment CTA */}
               <div className="lg:col-span-5 space-y-4 lg:sticky lg:top-24">
                 {/* Order summary card */}
                 <div className="bg-white p-6 rounded-3xl border border-deep-forest/10 shadow-sm space-y-4">
@@ -282,19 +293,25 @@ export default function CheckoutPage() {
                     </div>
                   </div>
 
-                  {/* WhatsApp Submit Button — triggers the form via form="checkout-form" */}
-                  <Button
-                    form="checkout-form" // Links this button to the form above
-                    type="submit"
-                    variant="primary"
-                    fullWidth
-                    size="lg"
-                    disabled={isSubmitting}
-                    className="bg-emerald-700 hover:bg-emerald-800 text-white shadow-xl py-4 text-sm font-bold mt-2"
-                  >
-                    <MessageSquare className="w-5 h-5 fill-white text-emerald-700" />
-                    <span>Kirim Pesanan via WhatsApp</span>
-                  </Button>
+                  {/* CTA Button: Triggers form validation and opens Sandbox Payment Modal */}
+                  <div className="pt-2 space-y-2">
+                    <Button
+                      form="checkout-form" // Links this button to the form above
+                      type="submit"
+                      variant="primary"
+                      fullWidth
+                      size="lg"
+                      className="bg-deep-forest hover:bg-deep-forest/90 text-warm-cream shadow-xl py-4 text-sm font-extrabold flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <CreditCard className="w-5 h-5 text-leaf-olive" />
+                      <span>Bayar via Sandbox Gateway</span>
+                      <Sparkles className="w-4 h-4 text-dusty-rose animate-pulse" />
+                    </Button>
+
+                    <p className="text-[11px] text-center text-muted-charcoal/60">
+                      ✨ Uji coba transaksi langsung dengan QRIS & Virtual Account simulasi.
+                    </p>
+                  </div>
                 </div>
               </div>
 
@@ -303,9 +320,18 @@ export default function CheckoutPage() {
         </div>
       </div>
 
+      {/* ========== SANDBOX PAYMENT MODAL ========== */}
+      <SandboxPaymentModal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        items={cartItems}
+        customerInfo={formData}
+        totalPrice={totalPrice}
+      />
+
       {/* ========== FOOTER ========== */}
       <footer className="p-6 text-center text-xs text-muted-charcoal/60 border-t border-deep-forest/10">
-        🔒 Transaksi Aman & Terpercaya via Luvira Official Store WhatsApp
+        🔒 Transaksi Aman & Terpercaya via Luvira Sandbox Payment Simulator & Official WhatsApp
       </footer>
     </div>
   );

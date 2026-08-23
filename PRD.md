@@ -3,7 +3,7 @@
 ## 1. Overview
 Luvira is a premium modest sock brand delivering ergonomic, aesthetic, and ultra-comfortable socks tailored for modern lifestyle and active wear. Tagline: **"Modest • Comfortable • Chic"**.
 
-The goal of this project is to build a high-conversion, mobile-first public e-commerce storefront for Luvira, optimized for Instagram link-in-bio traffic with seamless direct-to-WhatsApp checkout.
+The goal of this project is to build a high-conversion, mobile-first public e-commerce storefront for Luvira, optimized for Instagram link-in-bio traffic with seamless direct-to-WhatsApp checkout and an interactive **Sandbox Payment Simulation Gateway**.
 
 ---
 
@@ -32,10 +32,14 @@ The goal of this project is to build a high-conversion, mobile-first public e-co
 - **Background**: Warm Cream (`#FDFBF7`) - Soft off-white base for luxury cozy feel
 - **Text**: Muted Charcoal (`#2D3748`) - Deep neutral for high-contrast readable typography
 
+### Brand Visual Assets:
+- **Official Floral Emblem Logo**: Transparent luxury emblem (`/brand/luvira-logo.png`).
+- **Universal Logo Component (`components/ui/BrandLogo.tsx`)**: Aspect ratio preserved rendering across 4 size tiers (`sm`, `md`, `lg`, `xl`) with adaptive contrast wrapper for light and dark backgrounds.
+
 ### UI Aesthetics:
 - Rounded corners (`rounded-2xl` / `rounded-3xl`)
 - Soft shadows (`shadow-sm`, `shadow-md`)
-- Micro-interactions (hover, active press, color variant previews)
+- Micro-interactions (hover, active press, color variant previews, copy feedbacks, countdown timers)
 
 ---
 
@@ -54,9 +58,36 @@ The goal of this project is to build a high-conversion, mobile-first public e-co
    - "Lanjut ke Checkout" navigation button
 6. **Checkout Page (`/checkout`)**:
    - Form fields: Nama Lengkap, Nomor WhatsApp, Alamat Lengkap, Catatan Pesanan
+   - Client-side validation for required inputs and phone format
    - Order Summary breakdown
-   - Structured WhatsApp message payload generator (`generateWhatsAppUrl`)
-   - "Kirim Pesanan via WhatsApp" direct deep-link launcher
+   - "Bayar via Sandbox Gateway" action CTA button
+7. **Sandbox Payment Simulation Gateway (`components/checkout/SandboxPaymentModal.tsx`)**:
+   - Modal simulation dialog supporting **QRIS Luvira Instant** and **BCA/Mandiri Virtual Account (Sandbox)**.
+   - **QRIS View**: Mockup QR code with dynamic 15-minute countdown expiration timer.
+   - **VA View**: Bank switcher (BCA / Mandiri) with interactive "Salin VA" button and copied toast feedback.
+   - **Verification State**: 2.5-second realistic processing loader with dynamic status feedback.
+   - **Success Receipt**: Animated checkmark, unique sandbox invoice ID (`LVR-SBX-XXXX`), payment method, and transaction timestamp.
+   - Direct WhatsApp forwarder dispatching the verified order payload.
+8. **Admin Dashboard CMS (`/admin`)**:
+   - Quick stats panel: total products, total variants, reset-to-default action.
+   - Full CRUD form for adding/editing products: name, model, price, badge, description, features, and dynamic color variants.
+   - Image upload via `FileReader.readAsDataURL()` for zero-cost Base64 image embedding.
+   - Product catalog table with inline price editing, per-variant stock toggle, and delete confirmation modal.
+   - All changes persist to `localStorage` and sync to the public storefront (`/`) in real-time.
+9. **Dynamic Copywriting & Site Content CMS (`/admin` - Tab Editor Copywriting)**:
+   - Dynamic control of Hero Section (announcement banner, logo tagline, badge, H1 headline, subheadline, CTA, trust badges).
+   - Dynamic control of About Brand Section (badge, title, description, and 3 pillars: Modest, Comfortable, Chic).
+   - Dynamic control of Feature Highlights (badge, title, description, and 4 tech features: Split Toe, Black Sole, Anti-Slip, Combed Cotton).
+   - Dynamic control of Cart and Catalog Microcopy (promo banner, empty cart states, section headings).
+   - 1-Click seasonal copywriting presets: *Ramadan/Umroh*, *Payday Sale*, and *Mahasiswi Aktif*.
+   - 100% Zero-Cost persistence via `useContentStore` in `localStorage` (`luvira-site-content`).
+10. **Product Detail Modal & Dynamic Storytelling UX (`components/products/ProductDetailModal.tsx`)**:
+    - Interactive dialog triggered via product thumbnail, title, or quick-view eye icon.
+    - Dynamic color swatch switcher updating high-resolution preview image and real-time stock indicator (`Ready Stock` vs `Stok Habis`).
+    - Data-driven storytelling accordions dynamically rendering `product.features` array without hardcoding.
+    - Syar'i material education (100% combed cotton, non-see-through modesty, wudhu-friendly fit).
+    - Practical care guide for fabric and elasticity longevity.
+    - Sticky action bar with quantity counter (+/-), dynamic subtotal calculation, and instant add-to-cart cart drawer synchronization.
 
 ---
 
@@ -87,10 +118,11 @@ export interface Product {
   variants: ColorVariant[];
 }
 
-export interface CartItem {
-  product: Product;
-  selectedVariant: ColorVariant;
-  quantity: number;
+export interface SiteContent {
+  hero: HeroContent;
+  about: AboutContent;
+  features: FeaturesContent;
+  microcopy: MicrocopyContent;
 }
 ```
 
@@ -107,11 +139,34 @@ Zustand or React Context store (`/store/useCartStore.ts`):
 - `getTotalPrice()`
 - Persistence via `localStorage`
 
+Dynamic Product Catalog store (`/store/useProductStore.ts`):
+- `products`: `Product[]` (initialized from `MOCK_PRODUCTS` seed data)
+- `addProduct(product: Product)`
+- `updateProduct(id: string, updatedData: Partial<Product>)`
+- `deleteProduct(id: string)`
+- `toggleVariantStock(productId: string, variantId: string)`
+- `resetToDefaultProducts()`
+- `getProductById(id: string)`
+- `getTotalVariants()`
+- Persistence via `localStorage` (key: `luvira-product-storage`)
+- Public storefront (`app/page.tsx`, `HeroSection.tsx`) reads from this store instead of static `data/products.ts`
+
+Dynamic Site Copywriting store (`/store/useContentStore.ts`):
+- `content`: `SiteContent` (initialized from `DEFAULT_SITE_CONTENT` seed data)
+- `updateHeroContent(payload: Partial<HeroContent>)`
+- `updateAboutContent(payload: Partial<AboutContent>)`
+- `updateFeaturesContent(payload: Partial<FeaturesContent>)`
+- `updateMicrocopy(payload: Partial<MicrocopyContent>)`
+- `resetToDefaultContent()`
+- Persistence via `localStorage` (key: `luvira-site-content`)
+- Public storefront components (`HeroSection`, `AboutLuvira`, `FeatureHighlight`, `CartDrawer`, `page.tsx`) connect reactively with SSR hydration safeguards.
+
 ---
 
 ## 8. WhatsApp Integration Specs
 Structured text message format sent to Luvira store WhatsApp (+6281234567890):
 
+### Standard Format (Without Sandbox Verification):
 ```text
 Halo Admin Luvira, saya ingin memesan:
 
@@ -124,10 +179,35 @@ Total Items: 3 pasang
 Total Harga: Rp 108.000 (Belum termasuk ongkir)
 
 👤 *DATA PEMESAN:*
-Nama: [Nama Input]
-No. HP/WA: [No HP Input]
-Alamat: [Alamat Input]
-Catatan: [Catatan Input]
+Nama: Siti Aisyah
+No. HP/WA: 081234567890
+Alamat: Jl. Melati No. 12, Kebayoran Baru, Jakarta Selatan
+Catatan: Titip di pos satpam
+
+Terima kasih!
+```
+
+### Sandbox Verified Format (With Simulation Receipt):
+```text
+Halo Admin Luvira, saya ingin memesan:
+
+⚡ *STATUS PEMBAYARAN: [SANDBOX VERIFIED - LVR-SBX-7492]*
+Metode: QRIS Luvira Instant (Lunas Simulasi)
+Waktu: 23 Agu 2026, 08:45 WIB
+
+📦 *DETAIL PESANAN:*
+1. Emboss Split Toe - Nude Cream (2x) - Rp 70.000
+2. Anti Slip Split Toe - Sage Green (1x) - Rp 38.000
+
+💰 *TOTAL SPESIFIKASI:*
+Total Items: 3 pasang
+Total Harga: Rp 108.000 (Lunas via Sandbox)
+
+👤 *DATA PEMESAN:*
+Nama: Siti Aisyah
+No. HP/WA: 081234567890
+Alamat: Jl. Melati No. 12, Kebayoran Baru, Jakarta Selatan
+Catatan: Titip di pos satpam
 
 Terima kasih!
 ```
@@ -139,6 +219,7 @@ Terima kasih!
 - Color variant changes immediately update the product thumbnail card.
 - Cart drawer properly syncs items, quantity, and total calculations.
 - WhatsApp deep-link properly encodes characters and opens `https://wa.me/...`.
+- Sandbox Payment Simulation executes with 2.5-second verification delay, generated invoice ID, and copied feedback.
 - Codebase builds cleanly with `npm run build` without TypeScript errors.
 
 ---
@@ -148,10 +229,139 @@ Terima kasih!
 - **Phase 2**: Core UI Components (Buttons, Swatches, Cards, Hero, Features, Filter, CartDrawer).
 - **Phase 3**: Page Assembly (Home & Checkout Page with WhatsApp URL helper).
 - **Phase 4**: Verification & Automatic Changelog update.
+- **Phase 5**: Sandbox Payment Simulation Gateway & WhatsApp payload verification.
+- **Phase 6**: Dynamic Product Catalog Store (`useProductStore`) & Admin Dashboard CMS (`/admin`).
+- **Phase 7**: Dynamic Site Copywriting CMS (`useContentStore`) & seasonal preset manager.
+- **Phase 8**: Product Detail Modal & Dynamic Storytelling UX (`ProductDetailModal.tsx`).
+- **Phase 9**: Aesthetic Digital Receipt Generator (`DigitalReceiptModal.tsx`) & Local Order History Store (`useOrderStore`).
+- **Phase 10**: Mobile Link-in-Bio & SEO Engine Optimization (`sitemap.ts`, `robots.ts`, `manifest.ts`, `JsonLd.tsx`, OpenGraph).
+- **Phase 11**: Official Transparent Floral Logo Integration (`BrandLogo.tsx`, Favicon & Web App Icons).
 
 ---
 
 ## 16. Changelog
+
+### [v1.7.0 - Official Transparent Floral Logo Integration] - 2026-08-23
+
+#### [Added]
+- **Universal BrandLogo Component (`components/ui/BrandLogo.tsx`)**:
+  - Reusable logo component loading `/brand/luvira-logo.png` with 4 size variants and automatic light/dark contrast container.
+- **Global Favicon & Web App Icon Integration (`app/layout.tsx`, `app/manifest.ts`)**:
+  - Configured official floral logo as website favicon, apple icon, and PWA manifest icon.
+
+#### [Changed]
+- **Unified Visual Identity across Storefront**:
+  - Integrated official emblem logo on Header Navbar (`HeroSection.tsx`), Storefront Footer (`app/page.tsx`), Sandbox Payment Modal (`SandboxPaymentModal.tsx`), Digital Receipt (`DigitalReceiptModal.tsx`), Checkout Page (`checkout/page.tsx`), and Admin Portal (`admin/page.tsx`).
+
+### [v1.6.0 - Mobile Link-in-Bio & SEO Engine Optimization] - 2026-08-23
+
+#### [Added]
+- **SEO & Social OpenGraph Metadata (`app/layout.tsx`)**:
+  - Configured title template, canonical URL, Indonesian keywords, and OpenGraph/Twitter Card previews.
+- **Dynamic Sitemap & Robots Engine (`app/sitemap.ts`, `app/robots.ts`)**:
+  - Dynamic XML sitemap generation and robots.txt crawler access control restricting `/admin`.
+- **Web App Manifest (`app/manifest.ts`)**:
+  - PWA Add-to-Home screen configuration with brand theme colors and icons.
+- **Schema.org Structured Data (`components/seo/JsonLd.tsx`)**:
+  - Injected `Organization`, `WebSite`, and `ItemList / Product` JSON-LD schemas for Google Rich Snippets.
+
+#### [Changed]
+- **Mobile Link-in-Bio UX (320px–430px) & Safe Area Padding (`app/page.tsx`)**:
+  - Upgraded sticky checkout bar with 44px minimum touch targets and iOS safe area padding.
+
+### [v1.5.0 - Aesthetic Digital Receipt Generator & Admin Order History Log] - 2026-08-23
+
+#### [Added]
+- **Order History Management (`store/useOrderStore.ts`)**:
+  - Zero-cost client-side persistent storage (`luvira-orders-storage`) tracking customer orders, invoice codes, purchased items, and total prices.
+  - Automatically receives order records from `SandboxPaymentModal.tsx` upon payment simulation completion.
+- **Aesthetic Digital Receipt (`components/checkout/DigitalReceiptModal.tsx`)**:
+  - Luxury branded invoice card with `window.print` PDF isolation styles, itemized breakdown, and verification QR code.
+- **Admin Order History Dashboard (`app/admin/page.tsx`)**:
+  - Order table with real-time status switcher, direct WhatsApp confirmation messaging, and digital receipt viewer.
+
+### [v1.4.1 - 100% Dynamic Feature Customization & Material Flexibility] - 2026-08-23
+
+#### [Added]
+- **Dynamic Feature Items Array (`types/content.ts`, `data/defaultContent.ts`)**:
+  - `features.items` converted into a flexible `FeatureItem[]` array, removing fixed slot keys.
+  - Full admin freedom to rename any feature/material (e.g., `"100% Premium Nylon"`, `"Ergonomic Split Toe"`), set custom badges, and add/remove feature cards.
+- **Admin Tech Features CMS Manager (`app/admin/page.tsx`)**:
+  - Interactive controls to add, edit, and delete tech feature cards dynamically.
+
+#### [Changed]
+- **Zero-Hardcoded UI (`FeatureHighlight.tsx`, `ProductDetailModal.tsx`)**:
+  - Cleaned all hardcoded material/feature titles from UI components; all content reads dynamically from product/content stores.
+
+### [v1.4.0 - Product Detail Modal & Dynamic Storytelling UX] - 2026-08-23
+
+#### [Added]
+- **Interactive Product Detail Modal (`components/products/ProductDetailModal.tsx`)**:
+  - High-resolution visual showcase with real-time color variant swatch switching.
+  - Dynamic stock status indicator (`Ready Stock` vs `Stok Habis`) per color variant.
+  - Data-driven storytelling accordions dynamically rendering `product.features` without hardcoded models.
+  - Syar'i material deep-dive (100% combed cotton, modesty coverage, wudhu-friendly).
+  - Practical care guide for fabric elasticity and washing.
+  - Sticky bottom action bar with quantity counter (+/-), subtotal calculation, and direct add-to-cart integration with `useCartStore`.
+- **Product Card Storytelling Trigger (`components/products/ProductCard.tsx`)**:
+  - Clickable thumbnail, title, and quick-view eye button opening the deep-dive storytelling modal.
+
+#### [Changed]
+- **Polished Luxury Modest Copywriting (`data/defaultContent.ts`)**:
+  - Elevated brand narratives across Hero, About 3 Pillars, and Features to reflect premium syar'i activewear positioning.
+
+### [v1.3.0 - Dynamic Site Copywriting CMS] - 2026-08-23
+
+#### [Added]
+- **Dynamic Site Copywriting Store (`store/useContentStore.ts`)**:
+  - Zustand store with `localStorage` persistence (`luvira-site-content`) managing marketing text across the site.
+  - Action methods: `updateHeroContent`, `updateAboutContent`, `updateFeaturesContent`, `updateMicrocopy`, and `resetToDefaultContent`.
+  - Initial seed data defined in `data/defaultContent.ts` and type contracts in `types/content.ts`.
+- **Copywriting Editor Tab in Admin CMS (`app/admin/page.tsx`)**:
+  - Tab Switcher: **[Manajemen Produk & Varian]** and **[Editor Copywriting & Konten]**.
+  - Form sections for Hero & Promo Strip, About 3 Pillars, 4 Tech Features, and Cart/Catalog Microcopy.
+  - 1-Click seasonal theme presets: *🌙 Ramadan / Umroh*, *⚡ Payday Sale*, and *🎒 Mahasiswi Aktif*.
+  - Sticky bottom save bar with toast feedback and reset confirmation modal.
+
+#### [Changed]
+- **Public Storefront Reactivity (`HeroSection`, `AboutLuvira`, `FeatureHighlight`, `CartDrawer`, `page.tsx`)**:
+  - All public storefront sections now consume dynamic copy from `useContentStore`.
+  - Hydration safeguards ensure 0 SSR/hydration mismatch while updating immediately upon client edits.
+
+### [v1.2.0 - Dynamic Catalog & Admin CMS] - 2026-08-23
+
+#### [Added]
+- **Dynamic Product Catalog Store (`store/useProductStore.ts`)**:
+  - Zustand store with `localStorage` persistence for managing the entire product catalog dynamically.
+  - CRUD actions: `addProduct`, `updateProduct`, `deleteProduct`, `toggleVariantStock`, `resetToDefaultProducts`.
+  - Initializes from `MOCK_PRODUCTS` seed data; all admin changes persist in browser.
+- **Admin Dashboard CMS (`app/admin/page.tsx`)**:
+  - Quick stats panel displaying total active products and total color variants.
+  - Full product form supporting name, model, price, original price, badge (with presets), description, and dynamic features list.
+  - Dynamic variant manager with color name, hex picker, image upload (Base64 via `FileReader`), and stock toggle.
+  - Product catalog table with inline price editing, per-variant stock toggle, and delete confirmation modal.
+  - "Reset ke Data Default" functionality with confirmation dialog.
+
+#### [Changed]
+- **Public Storefront Sync (`app/page.tsx`, `HeroSection.tsx`)**:
+  - Replaced static `MOCK_PRODUCTS` import with dynamic `useProductStore` reads.
+  - All admin changes (add/edit/delete/stock) reflect instantly on the public storefront.
+  - Added hydration-safe guards for product data loaded from localStorage.
+
+### [v1.1.0 - Sandbox Payment Gateway] - 2026-08-23
+
+#### [Added]
+- **Interactive Sandbox Payment Modal (`components/checkout/SandboxPaymentModal.tsx`)**:
+  - Modal simulation dialog supporting **QRIS Luvira Instant** and **BCA/Mandiri Virtual Account**.
+  - QRIS view with realistic QR Code graphic and active 15-minute countdown expiration timer.
+  - Virtual Account view with bank switching (BCA & Mandiri) and interactive "Salin VA" button with copied toast feedback.
+  - 2.5-second realistic verification loading state with multi-step status feedback.
+  - Success receipt displaying animated checkmark, unique randomized invoice ID format (`LVR-SBX-XXXX`), payment method, and formatted timestamp.
+  - Direct WhatsApp button forwarding the verified order payload.
+- **WhatsApp Verification Helper (`lib/whatsapp.ts`)**:
+  - Added `SandboxPaymentDetails` interface and updated `generateWhatsAppUrl` to embed `[SANDBOX VERIFIED - No. Invoice]` status and transaction metadata into the WhatsApp payload.
+- **Checkout Form Integration (`app/checkout/page.tsx`)**:
+  - Updated submit action to validate required fields before launching the Sandbox modal.
 
 ### [v0.4.0 - Premium UI & Responsive Refactor] - 2026-08-13
 
@@ -200,4 +410,3 @@ Terima kasih!
   - Created `lib/whatsapp.ts` with `generateWhatsAppUrl()` helper for structured order payload format.
   - Created `app/page.tsx` assembling mobile-first storefront layout with sticky bottom checkout action bar.
   - Created `app/checkout/page.tsx` with customer information form, order summary breakdown, field validation, and direct-to-WhatsApp order dispatching.
-

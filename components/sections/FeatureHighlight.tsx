@@ -1,62 +1,68 @@
-import React from 'react';
-import { Footprints, Shield, Wind, Sparkles } from 'lucide-react';
+// FeatureHighlight.tsx — Dynamically showcases sock technology and material features.
+// Completely data-driven from useContentStore (featuresCopy.items array) — no hardcoded feature titles or limits.
 
-const FEATURES = [
-  {
-    icon: Footprints,
-    title: 'Ergonomic Split Toe',
-    subtitle: 'Jempol Terpisah Resisi',
-    description: 'Konstruksi rajut khusus memisahkan ibu jari kaki secara alami, memberikan kebebasan bergerak dan fleksibilitas optimal saat memakai sandal jepit.',
-    color: 'bg-leaf-olive/10 text-leaf-olive',
-  },
-  {
-    icon: Shield,
-    title: 'Anti-Dirty Black Sole',
-    subtitle: 'Sol Gelap Tahan Noda',
-    description: 'Bagian bawah telapak berwarna gelap tahan noda debu & tanah, menjaga tampilan kaus kaki tetap bersih dan rapi sepanjang harian.',
-    color: 'bg-deep-forest/10 text-deep-forest',
-  },
-  {
-    icon: Shield,
-    title: 'Silicon Anti-Slip Grid',
-    subtitle: 'Cengkeraman Maksimal',
-    description: 'Lapisan bintik silicon mikroskopis di area telapak mencegah risiko tergelincir saat berjalan di atas keramik mulus maupun sajadah.',
-    color: 'bg-dusty-rose/20 text-dusty-rose-hover',
-  },
-  {
-    icon: Wind,
-    title: 'Breathable Combed Cotton',
-    subtitle: 'Serat Ultra Adem',
-    description: 'Serat katun combed grade A berpori halus yang menyerap keringat dengan sempurna, menjaga kaki tetap segar dan bebas odor seharian.',
-    color: 'bg-amber-500/10 text-amber-700',
-  },
+'use client'; // Required for client-side Zustand store hydration
+
+import React, { useState, useEffect } from 'react';
+import { Footprints, Shield, Wind, Sparkles, Layers, CheckCircle2 } from 'lucide-react';
+import { useContentStore } from '@/store/useContentStore';
+import { DEFAULT_SITE_CONTENT } from '@/data/defaultContent';
+
+// Available icons and vibrant palette for feature cards
+const FEATURE_ICONS = [Footprints, Shield, Sparkles, Wind, Layers, CheckCircle2];
+const FEATURE_COLORS = [
+  'bg-leaf-olive/10 text-leaf-olive',
+  'bg-deep-forest/10 text-deep-forest',
+  'bg-dusty-rose/20 text-dusty-rose-hover',
+  'bg-amber-500/10 text-amber-700',
+  'bg-teal-500/10 text-teal-700',
+  'bg-indigo-500/10 text-indigo-700',
 ];
 
 export const FeatureHighlight: React.FC = () => {
+  const { content } = useContentStore();
+  const [mounted, setMounted] = useState(false);
+
+  // FIX: Prevent Zustand hydration mismatch — defer dynamic copy until client mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const featuresCopy = mounted ? content.features : DEFAULT_SITE_CONTENT.features;
+
+  // Fallback to default items array if undefined or empty
+  const items = Array.isArray(featuresCopy.items)
+    ? featuresCopy.items
+    : DEFAULT_SITE_CONTENT.features.items;
+
   return (
     <section id="features" className="py-12 px-4 sm:px-6 lg:px-12 max-w-7xl mx-auto">
+      {/* Section Header */}
       <div className="text-center max-w-2xl mx-auto space-y-2 mb-8">
         <span className="text-xs font-extrabold tracking-widest text-deep-forest uppercase bg-deep-forest/10 px-3 py-1 rounded-full inline-block">
-          Teknologi Kaus Kaki Luvira
+          {featuresCopy.badge}
         </span>
         <h2 className="text-2xl sm:text-3xl font-extrabold text-deep-forest tracking-tight">
-          Inovasi Ergonomis & Material Premium
+          {featuresCopy.title}
         </h2>
         <p className="text-xs sm:text-sm text-muted-charcoal/70">
-          Setiap pasang Luvira diproduksi dengan ketelitian tinggi untuk menghadirkan kenyamanan kelas wahid.
+          {featuresCopy.description}
         </p>
       </div>
 
+      {/* Dynamic Feature Cards Grid — renders 100% data-driven from items array */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {FEATURES.map((feature, idx) => {
-          const Icon = feature.icon;
+        {items.map((feature, idx) => {
+          const Icon = FEATURE_ICONS[idx % FEATURE_ICONS.length];
+          const colorClass = FEATURE_COLORS[idx % FEATURE_COLORS.length];
+
           return (
             <div
-              key={idx}
+              key={feature.id || idx}
               className="p-5 bg-white border border-deep-forest/10 rounded-3xl shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 space-y-3 flex flex-col justify-between"
             >
               <div className="space-y-3">
-                <div className={`w-11 h-11 rounded-2xl ${feature.color} flex items-center justify-center`}>
+                <div className={`w-11 h-11 rounded-2xl ${colorClass} flex items-center justify-center`}>
                   <Icon className="w-5 h-5" />
                 </div>
                 <div>

@@ -4,10 +4,12 @@
 
 'use client'; // Required for client-side Zustand state and onClick handlers
 
-import React from 'react'; // React core
+import React, { useState, useEffect } from 'react'; // React core + hooks
 import Image from 'next/image'; // Next.js optimized image component
 import Link from 'next/link'; // Next.js client-side navigation link
 import { useCartStore } from '@/store/useCartStore'; // Zustand cart store
+import { useContentStore } from '@/store/useContentStore'; // Zustand dynamic content store
+import { DEFAULT_SITE_CONTENT } from '@/data/defaultContent'; // Fallback seed content
 import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight, Truck } from 'lucide-react'; // Icon imports
 import { Button } from '@/components/ui/Button'; // Reusable Button component
 
@@ -15,6 +17,14 @@ export const CartDrawer: React.FC = () => {
   // Destructure all required cart state and actions from Zustand store
   const { items, isOpen, closeCart, updateQuantity, removeItem, getTotalPrice, getTotalItems } =
     useCartStore();
+
+  const { content } = useContentStore();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const microcopy = mounted ? content.microcopy : DEFAULT_SITE_CONTENT.microcopy;
 
   // Early return: don't render anything if drawer is closed
   if (!isOpen) return null;
@@ -67,7 +77,7 @@ export const CartDrawer: React.FC = () => {
           {/* Shipping Promo Banner — informational strip below header */}
           <div className="bg-leaf-olive/15 px-4 py-2 text-xs font-semibold text-deep-forest flex items-center gap-2 border-b border-leaf-olive/20">
             <Truck className="w-4 h-4 text-leaf-olive shrink-0" /> {/* Truck icon */}
-            <span>Promo Subsidi Ongkir Otomatis untuk Semua Pesanan!</span>
+            <span>{microcopy.cartPromo}</span>
           </div>
 
           {/* Scrollable Items List — flex-1 to fill remaining vertical space */}
@@ -81,15 +91,15 @@ export const CartDrawer: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="font-bold text-base text-muted-charcoal">
-                    Keranjang Masih Kosong
+                    {microcopy.cartEmptyTitle}
                   </h3>
                   <p className="text-xs text-muted-charcoal/60 mt-1">
-                    Yuk pilih koleksi kaos kaki favoritmu dan rasakan kenyamanannya!
+                    {microcopy.cartEmptySubtitle}
                   </p>
                 </div>
                 {/* Button to close drawer so user can browse products */}
                 <Button onClick={closeCart} variant="primary" size="sm">
-                  Mulai Belanja Now
+                  {microcopy.cartCta}
                 </Button>
               </div>
             ) : (

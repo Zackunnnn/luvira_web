@@ -4,22 +4,40 @@
 
 'use client'; // Required for client-side interactivity (useState, onClick, etc.)
 
-import React, { useState } from 'react'; // React core + state hook
+import React, { useState, useEffect } from 'react'; // React core + state hook
 import Image from 'next/image'; // Next.js optimized image component
 import { ShoppingBag, Sparkles, ShieldCheck, Heart, ArrowDown } from 'lucide-react'; // Icon imports
 import { useCartStore } from '@/store/useCartStore'; // Zustand cart store for cart state
-import { MOCK_PRODUCTS } from '@/data/products'; // Mock product data for hero spotlight
+import { useProductStore } from '@/store/useProductStore'; // Zustand product catalog store
+import { useContentStore } from '@/store/useContentStore'; // Zustand dynamic copywriting store
+import { DEFAULT_SITE_CONTENT } from '@/data/defaultContent'; // Fallback seed content
 import { Button } from '@/components/ui/Button'; // Reusable Button component
+import { BrandLogo } from '@/components/ui/BrandLogo'; // Universal official brand logo
 
 export const HeroSection: React.FC = () => {
   // Access cart state for header cart button badge count
   const { openCart, getTotalItems } = useCartStore();
   const totalItems = getTotalItems(); // Calculate total items currently in cart
 
-  // Select the first product as the hero spotlight feature product
-  const spotlightProduct = MOCK_PRODUCTS[0]; // Emboss Split Toe — best seller
+  // Access dynamic product catalog from Zustand store
+  const { products } = useProductStore();
+
+  // Access dynamic site content from Zustand store
+  const { content } = useContentStore();
+
+  // FIX: Prevent Zustand hydration mismatch — defer store data until client mount
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Use dynamic content once mounted on client, fallback to default during SSR
+  const heroCopy = mounted ? content.hero : DEFAULT_SITE_CONTENT.hero;
+
+  // Select the first product as the hero spotlight feature product (if catalog is not empty)
+  const spotlightProduct = mounted && products.length > 0 ? products[0] : null;
   // Track which color variant is currently displayed in the spotlight card
-  const [activeVariant, setActiveVariant] = useState(spotlightProduct.variants[0]);
+  const [activeVariant, setActiveVariant] = useState(products[0]?.variants[0] ?? null);
 
   // Smooth scroll handler for "Pilih Koleksi Sekarang" CTA button
   const scrollToCatalog = () => {
@@ -36,28 +54,15 @@ export const HeroSection: React.FC = () => {
         {/* Announcement strip — promotional banner at the very top */}
         <div className="bg-deep-forest text-warm-cream text-center text-xs py-1.5 px-4 font-medium tracking-wide flex items-center justify-center gap-2">
           <Sparkles className="w-3.5 h-3.5 text-dusty-rose animate-pulse" /> {/* Animated sparkle icon */}
-          <span>Gratis Ongkir & Special Bundle Promo Kaos Kaki Premium Luvira</span>
+          <span>{heroCopy.announcement}</span>
           <Sparkles className="w-3.5 h-3.5 text-dusty-rose animate-pulse" />
         </div>
 
         {/* Main Navigation Bar — Logo, desktop links, and cart button */}
-        <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-3.5 flex items-center justify-between">
-          {/* Brand Logo & Tagline cluster */}
-          <div className="flex items-center gap-4">
-            <div className="flex flex-col">
-              {/* Logo text "LUVIRA" with accent dot */}
-              <div className="flex items-center gap-1.5">
-                <span className="text-2xl sm:text-3xl font-black tracking-wider text-deep-forest font-serif">
-                  LUVIRA
-                </span>
-                {/* Dusty rose accent dot beside logo */}
-                <span className="w-2.5 h-2.5 rounded-full bg-dusty-rose inline-block"></span>
-              </div>
-              {/* Tagline below logo */}
-              <span className="text-[10px] sm:text-xs tracking-widest uppercase font-semibold text-leaf-olive -mt-0.5">
-                Modest • Comfortable • Chic
-              </span>
-            </div>
+        <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-3 flex items-center justify-between">
+          {/* Brand Logo */}
+          <div className="flex items-center">
+            <BrandLogo size="md" theme="light" />
           </div>
 
           {/* Desktop Quick Nav Links — hidden on mobile, visible on md+ */}
@@ -105,17 +110,17 @@ export const HeroSection: React.FC = () => {
               {/* Feature badge pill */}
               <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-deep-forest/10 text-deep-forest text-xs font-bold border border-deep-forest/20 shadow-xs">
                 <Sparkles className="w-3.5 h-3.5 text-dusty-rose" />
-                <span>✦ 100% Premium Cotton • Wudhu & Activity Friendly</span>
+                <span>{heroCopy.badge}</span>
               </div>
 
               {/* Main headline — responsive sizing */}
               <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-deep-forest leading-tight tracking-tight">
-                Kemewahan Langkah dalam Setiap Pasang Kaus Kaki.
+                {heroCopy.headline}
               </h1>
 
               {/* Sub-headline paragraph */}
               <p className="text-xs sm:text-base text-muted-charcoal/80 leading-relaxed max-w-2xl">
-                Inovasi Split-Toe & Anti-Slip berpadu dengan bahan serat katun ultra-lembut. Dirancang untuk kenyamanan sepanjang hari, estetika modest, dan gaya yang tetap chic.
+                {heroCopy.subheadline}
               </p>
 
               {/* CTA button row + trust indicators */}
@@ -127,23 +132,24 @@ export const HeroSection: React.FC = () => {
                   size="lg"
                   className="shadow-xl shadow-deep-forest/20 text-sm sm:text-base font-bold py-4 px-8"
                 >
-                  <span>Pilih Koleksi Sekarang</span>
+                  <span>{heroCopy.ctaText}</span>
                   <ArrowDown className="w-4 h-4 animate-bounce" /> {/* Animated arrow */}
                 </Button>
 
                 {/* Trust indicators / micro-badges */}
                 <div className="flex items-center gap-4 text-xs font-semibold text-muted-charcoal/80 justify-center">
                   <span className="flex items-center gap-1.5">
-                    <ShieldCheck className="w-4 h-4 text-dusty-rose" /> Garansi Anti-Meral
+                    <ShieldCheck className="w-4 h-4 text-dusty-rose" /> {heroCopy.trustBadge1}
                   </span>
                   <span className="flex items-center gap-1.5">
-                    <Heart className="w-4 h-4 text-leaf-olive fill-leaf-olive/20" /> 10.000+ Muslimah Choice
+                    <Heart className="w-4 h-4 text-leaf-olive fill-leaf-olive/20" /> {heroCopy.trustBadge2}
                   </span>
                 </div>
               </div>
             </div>
 
             {/* RIGHT COLUMN: Interactive Product Spotlight Showcase Card */}
+            {spotlightProduct && activeVariant && (
             <div className="lg:col-span-5">
               {/* Spotlight container with gradient border and shadow */}
               <div className="relative rounded-3xl bg-gradient-to-br from-white to-warm-cream p-4 sm:p-6 border border-deep-forest/15 shadow-xl mt-6 lg:mt-0">
@@ -195,6 +201,7 @@ export const HeroSection: React.FC = () => {
                 </div>
               </div>
             </div>
+            )}
 
           </div>
         </div>
