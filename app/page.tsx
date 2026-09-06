@@ -37,6 +37,19 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true); // Signal that client-side hydration is complete
+    
+    // Cross-tab synchronization: Automatically update the storefront when admin saves changes in another tab
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'luvira-product-storage') {
+        useProductStore.persist.rehydrate();
+      }
+      if (e.key === 'luvira-content-storage') {
+        useContentStore.persist.rehydrate();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   // Read products only after mount to avoid hydration mismatch with localStorage data

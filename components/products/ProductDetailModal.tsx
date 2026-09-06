@@ -105,7 +105,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
   // Handle Add to Cart
   const handleAddToCart = () => {
-    if (!selectedVariant.inStock) return;
+    if (selectedVariant.stock === 0) return;
 
     addItem(product, selectedVariant, quantity);
     setIsAdded(true);
@@ -176,10 +176,17 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
                 {/* Stock Status Watermark / Pill */}
                 <div className="absolute bottom-3 right-3 z-10">
-                  {selectedVariant.inStock ? (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-white/90 backdrop-blur-xs text-leaf-olive px-2.5 py-1 rounded-full shadow-xs border border-leaf-olive/20">
-                      <CheckCircle2 className="w-3 h-3" /> Ready Stock
-                    </span>
+                  {selectedVariant.stock > 0 ? (
+                    <div className="flex flex-col items-end gap-1.5">
+                      {selectedVariant.stock <= 5 && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-amber-500 text-white px-2.5 py-1 rounded-full shadow-xs">
+                          <AlertCircle className="w-3 h-3" /> Sisa {selectedVariant.stock} pcs
+                        </span>
+                      )}
+                      <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-white/90 backdrop-blur-xs text-leaf-olive px-2.5 py-1 rounded-full shadow-xs border border-leaf-olive/20">
+                        <CheckCircle2 className="w-3 h-3" /> Ready Stock
+                      </span>
+                    </div>
                   ) : (
                     <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-dusty-rose text-white px-2.5 py-1 rounded-full shadow-xs">
                       <AlertCircle className="w-3 h-3" /> Stok Habis
@@ -206,9 +213,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                           isSelected
                             ? 'border-deep-forest scale-110 shadow-md ring-2 ring-deep-forest/30'
                             : 'border-white shadow-2xs hover:scale-105'
-                        } ${!v.inStock ? 'opacity-50' : ''}`}
+                        } ${v.stock === 0 ? 'opacity-50' : ''}`}
                         style={{ backgroundColor: v.hex }}
-                        title={`${v.name} ${v.inStock ? '(Ready)' : '(Habis)'}`}
+                        title={`${v.name} ${v.stock > 0 ? `(Stok: ${v.stock})` : '(Habis)'}`}
                       >
                         {isSelected && (
                           <Check
@@ -413,7 +420,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               <button
                 type="button"
                 onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
-                disabled={quantity <= 1 || !selectedVariant.inStock}
+                disabled={quantity <= 1 || selectedVariant.stock === 0}
                 className="p-1.5 rounded-xl text-muted-charcoal hover:text-deep-forest hover:bg-white transition-all disabled:opacity-40 cursor-pointer"
                 aria-label="Kurangi Jumlah"
               >
@@ -427,7 +434,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               <button
                 type="button"
                 onClick={() => setQuantity((prev) => prev + 1)}
-                disabled={!selectedVariant.inStock}
+                disabled={selectedVariant.stock === 0 || quantity >= selectedVariant.stock}
                 className="p-1.5 rounded-xl text-muted-charcoal hover:text-deep-forest hover:bg-white transition-all disabled:opacity-40 cursor-pointer"
                 aria-label="Tambah Jumlah"
               >
@@ -448,7 +455,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           {/* CTA Action Button */}
           <Button
             onClick={handleAddToCart}
-            disabled={!selectedVariant.inStock}
+            disabled={selectedVariant.stock === 0}
             variant={isAdded ? 'secondary' : 'primary'}
             size="lg"
             className="flex-1 sm:max-w-xs font-bold text-sm py-3.5 shadow-md transition-all duration-300"
@@ -457,7 +464,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               <>
                 <Check className="w-4 h-4" /> Masuk Keranjang!
               </>
-            ) : !selectedVariant.inStock ? (
+            ) : selectedVariant.stock === 0 ? (
               <>Varian Stok Habis</>
             ) : (
               <>

@@ -36,7 +36,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent opening modal when clicking quick-add
-    if (!selectedVariant.inStock) return;
+    if (selectedVariant.stock === 0) return;
 
     addItem(product, selectedVariant, 1);
     setAdded(true);
@@ -75,10 +75,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             </div>
 
             {/* Stock indicator badge if out of stock */}
-            {!selectedVariant.inStock && (
+            {selectedVariant.stock === 0 && (
               <div className="absolute bottom-3 left-3 z-10">
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-dusty-rose text-white px-2 py-0.5 rounded-full shadow-xs">
                   <AlertCircle className="w-3 h-3" /> Stok Habis
+                </span>
+              </div>
+            )}
+
+            {/* Low stock indicator */}
+            {selectedVariant.stock > 0 && selectedVariant.stock <= 5 && (
+              <div className="absolute bottom-3 left-3 z-10">
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-amber-500 text-white px-2 py-0.5 rounded-full shadow-xs">
+                  <AlertCircle className="w-3 h-3" /> Sisa {selectedVariant.stock} pcs
                 </span>
               </div>
             )}
@@ -149,7 +158,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         <div className="px-4 sm:px-5 pb-4 sm:pb-5">
           <Button
             onClick={handleAddToCart}
-            disabled={!selectedVariant.inStock}
+            disabled={selectedVariant.stock === 0}
             variant={added ? 'secondary' : 'primary'}
             fullWidth
             size="md"
@@ -159,7 +168,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               <>
                 <Check className="w-4 h-4" /> Masuk Keranjang!
               </>
-            ) : !selectedVariant.inStock ? (
+            ) : selectedVariant.stock === 0 ? (
               <>Varian Stok Habis</>
             ) : (
               <>

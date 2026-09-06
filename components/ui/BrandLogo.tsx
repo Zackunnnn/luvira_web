@@ -1,9 +1,8 @@
-// BrandLogo.tsx — Luxurious Native Typography & Accent Dot Brand Logo for Luvira.
-// 100% vector & CSS native without external image dependencies or checkerboard artifacts.
-// Supports light & dark themes with responsive sizing.
+// BrandLogo.tsx
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export interface BrandLogoProps {
   size?: 'sm' | 'md' | 'lg';
@@ -12,37 +11,35 @@ export interface BrandLogoProps {
   theme?: 'light' | 'dark';
 }
 
+const heightMap = {
+  sm: 40,
+  md: 56,
+  lg: 72,
+};
+
 export const BrandLogo: React.FC<BrandLogoProps> = ({
   size = 'md',
   className = '',
   asLink = true,
   theme = 'light',
 }) => {
+  const h = heightMap[size];
   const isDark = theme === 'dark';
 
-  const textSize = {
-    sm: 'text-lg',
-    md: 'text-2xl sm:text-3xl',
-    lg: 'text-3xl sm:text-4xl',
-  }[size];
-
-  const subTextSize = {
-    sm: 'text-[8px] tracking-[0.2em]',
-    md: 'text-[10px] tracking-[0.25em]',
-    lg: 'text-xs tracking-[0.3em]',
-  }[size];
-
   const content = (
-    <div className={`inline-flex flex-col items-center justify-center text-center select-none ${className}`}>
-      <div className="flex items-center gap-1.5">
-        <span className={`font-serif font-bold tracking-wider ${textSize} ${isDark ? 'text-[#FDFBF7]' : 'text-[#1E4D48]'}`}>
-          LUVIRA
-        </span>
-        <span className="w-2 h-2 rounded-full bg-[#D78A7E] inline-block animate-pulse" />
-      </div>
-      <span className={`font-sans font-semibold uppercase mt-0.5 ${subTextSize} ${isDark ? 'text-[#748E44]/90' : 'text-[#748E44]'}`}>
-        Modest • Comfortable • Chic
-      </span>
+    <div
+      className={`inline-flex items-center justify-center ${isDark ? 'bg-white/95 rounded-xl px-3 py-1.5' : ''} ${className}`}
+      style={{ height: h + (isDark ? 12 : 0) }}
+    >
+      <Image
+        src="/logo-luvira.png"
+        alt="Luvira"
+        width={672}
+        height={374}
+        style={{ height: h, width: 'auto' }}
+        className="object-contain"
+        priority
+      />
     </div>
   );
 

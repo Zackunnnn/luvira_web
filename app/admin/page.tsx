@@ -52,15 +52,11 @@ import {
   MessageCircle,
   Clock,
   Printer,
+  Tag,
+  Folder,
 } from 'lucide-react';
 
-// ========== MODEL OPTIONS ==========
-const MODEL_OPTIONS: { value: ModelType; label: string }[] = [
-  { value: 'emboss', label: 'Emboss Split Toe' },
-  { value: 'black-sole', label: 'Black Sole Split Toe' },
-  { value: 'anti-slip', label: 'Anti Slip Split Toe' },
-  { value: 'classic', label: 'Classic Full Coverage' },
-];
+
 
 // ========== BADGE PRESETS ==========
 const BADGE_PRESETS = [
@@ -78,7 +74,7 @@ const createEmptyVariant = (): ColorVariant => ({
   name: '',
   hex: '#E8D5C4',
   image: '',
-  inStock: true,
+  stock: 50,
 });
 
 // ========== PRODUCT FORM STATE TYPE ==========
@@ -124,10 +120,13 @@ export default function AdminPage() {
   // ========== PRODUCT STORE ==========
   const {
     products,
+    categories,
     addProduct,
     updateProduct,
     deleteProduct,
-    toggleVariantStock,
+    updateVariantStock,
+    addCategory,
+    deleteCategory,
     resetToDefaultProducts,
     getTotalVariants,
   } = useProductStore();
@@ -179,6 +178,12 @@ export default function AdminPage() {
   const [showClearOrdersConfirm, setShowClearOrdersConfirm] = useState(false);
   const [selectedReceiptOrder, setSelectedReceiptOrder] = useState<Order | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [deleteOrderConfirmId, setDeleteOrderConfirmId] = useState<string | null>(null);
+
+  // Category Modal State
+  const [showCategoryModal, setShowCategoryModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryIcon, setNewCategoryIcon] = useState('Tag');
 
   // ========== INLINE PRICE EDIT STATE ==========
   const [inlineEditId, setInlineEditId] = useState<string | null>(null);
@@ -232,17 +237,50 @@ export default function AdminPage() {
     const reader = new FileReader();
     reader.onload = (e) => {
       const base64DataUrl = e.target?.result as string;
-      const updatedVariants = [...formData.variants];
-      updatedVariants[variantIndex] = {
-        ...updatedVariants[variantIndex],
-        image: base64DataUrl,
+
+      // Compress image using Canvas to avoid LocalStorage QuotaExceededError (5MB limit)
+      const img = new window.Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_WIDTH = 800;
+        const MAX_HEIGHT = 800;
+        let width = img.width;
+        let height = img.height;
+
+        if (width > height) {
+          if (width > MAX_WIDTH) {
+            height *= MAX_WIDTH / width;
+            width = MAX_WIDTH;
+          }
+        } else {
+          if (height > MAX_HEIGHT) {
+            width *= MAX_HEIGHT / height;
+            height = MAX_HEIGHT;
+          }
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          // Compress to webp at 70% quality (usually < 100kb)
+          const compressedDataUrl = canvas.toDataURL('image/webp', 0.7);
+
+          const updatedVariants = [...formData.variants];
+          updatedVariants[variantIndex] = {
+            ...updatedVariants[variantIndex],
+            image: compressedDataUrl,
+          };
+          setFormData((prev) => ({ ...prev, variants: updatedVariants }));
+          setFormErrors((prev) => {
+            const next = { ...prev };
+            delete next[`variant-image-${variantIndex}`];
+            return next;
+          });
+        }
       };
-      setFormData((prev) => ({ ...prev, variants: updatedVariants }));
-      setFormErrors((prev) => {
-        const next = { ...prev };
-        delete next[`variant-image-${variantIndex}`];
-        return next;
-      });
+      img.src = base64DataUrl;
     };
     reader.onerror = () => {
       setFormErrors((prev) => ({
@@ -349,7 +387,7 @@ export default function AdminPage() {
   const updateVariantField = (
     index: number,
     field: keyof ColorVariant,
-    value: string | boolean
+    value: string | boolean | number
   ) => {
     const updatedVariants = [...formData.variants];
     updatedVariants[index] = { ...updatedVariants[index], [field]: value };
@@ -657,34 +695,43 @@ export default function AdminPage() {
 
             {/* Add / Edit Form Section */}
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <h2 className="text-lg font-extrabold text-deep-forest flex items-center gap-2">
                   <Edit3 className="w-5 h-5 text-leaf-olive" />
                   <span>{editingProductId ? 'Edit Produk' : 'Tambah Produk Baru'}</span>
                 </h2>
-                <button
-                  onClick={() => {
-                    if (showForm && editingProductId) {
-                      setEditingProductId(null);
-                      setFormData(createEmptyForm());
-                      setFormErrors({});
-                    }
-                    setShowForm(!showForm);
-                  }}
-                  className="px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 bg-deep-forest text-warm-cream hover:bg-deep-forest/90 shadow-xs"
-                >
-                  {showForm ? (
-                    <>
-                      <ChevronUp className="w-3.5 h-3.5" />
-                      <span>Tutup Form</span>
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Tambah Produk</span>
-                    </>
-                  )}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowCategoryModal(true)}
+                    className="px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 bg-white border border-leaf-olive text-leaf-olive hover:bg-leaf-olive hover:text-white shadow-xs"
+                  >
+                    <Folder className="w-3.5 h-3.5" />
+                    <span>Kelola Kategori</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      if (showForm && editingProductId) {
+                        setEditingProductId(null);
+                        setFormData(createEmptyForm());
+                        setFormErrors({});
+                      }
+                      setShowForm(!showForm);
+                    }}
+                    className="px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 bg-deep-forest text-warm-cream hover:bg-deep-forest/90 shadow-xs"
+                  >
+                    {showForm ? (
+                      <>
+                        <ChevronUp className="w-3.5 h-3.5" />
+                        <span>Tutup Form</span>
+                      </>
+                    ) : (
+                      <>
+                        <Plus className="w-3.5 h-3.5" />
+                        <span>Tambah Produk</span>
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
               {showForm && (
@@ -711,9 +758,9 @@ export default function AdminPage() {
                         }
                         className="w-full px-4 py-3 bg-white border border-muted-charcoal/20 rounded-2xl text-sm text-muted-charcoal focus:outline-none focus:ring-2 focus:ring-deep-forest/40 focus:border-deep-forest transition-all duration-200 cursor-pointer"
                       >
-                        {MODEL_OPTIONS.map((opt) => (
-                          <option key={opt.value} value={opt.value}>
-                            {opt.label}
+                        {categories.map((cat) => (
+                          <option key={cat.id} value={cat.id}>
+                            {cat.label}
                           </option>
                         ))}
                       </select>
@@ -851,25 +898,16 @@ export default function AdminPage() {
                             Varian #{idx + 1}
                           </span>
                           <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => updateVariantField(idx, 'inStock', !variant.inStock)}
-                              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold border cursor-pointer transition-all ${
-                                variant.inStock
-                                  ? 'bg-leaf-olive/10 text-leaf-olive border-leaf-olive/20'
-                                  : 'bg-dusty-rose/10 text-dusty-rose border-dusty-rose/20'
-                              }`}
-                            >
-                              {variant.inStock ? (
-                                <>
-                                  <ToggleRight className="w-3.5 h-3.5" /> Ready
-                                </>
-                              ) : (
-                                <>
-                                  <ToggleLeft className="w-3.5 h-3.5" /> Out of Stock
-                                </>
-                              )}
-                            </button>
+                            <div className="flex items-center gap-2 bg-white px-2 py-1 rounded-lg border border-deep-forest/10 shadow-xs">
+                              <label className="text-[10px] font-bold text-deep-forest">Stok:</label>
+                              <input
+                                type="number"
+                                min="0"
+                                value={variant.stock}
+                                onChange={(e) => updateVariantField(idx, 'stock', parseInt(e.target.value) || 0)}
+                                className="w-14 px-2 py-0.5 text-xs text-center border-b border-muted-charcoal/20 focus:outline-none focus:border-deep-forest"
+                              />
+                            </div>
                             {formData.variants.length > 1 && (
                               <button
                                 type="button"
@@ -959,6 +997,17 @@ export default function AdminPage() {
                               >
                                 <Upload className="w-3.5 h-3.5" />
                               </button>
+                              {/* FIX: Tombol clear agar user bisa switch dari Base64 kembali ke URL */}
+                              {variant.image && (
+                                <button
+                                  type="button"
+                                  onClick={() => updateVariantField(idx, 'image', '')}
+                                  className="p-2 text-dusty-rose bg-dusty-rose/5 hover:bg-dusty-rose/10 rounded-xl border border-dusty-rose/15 cursor-pointer transition-all"
+                                  title="Hapus gambar — ketik URL baru atau upload ulang"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </div>
                             {formErrors[`variant-image-${idx}`] && (
                               <p className="text-[10px] text-rose-500">
@@ -1048,7 +1097,7 @@ export default function AdminPage() {
                     {products.map((product) => (
                       <div
                         key={product.id}
-                        className="bg-white p-4 sm:p-5 rounded-2xl border border-deep-forest/10 shadow-xs hover:shadow-md transition-shadow duration-200"
+                        className="group bg-white p-4 sm:p-5 rounded-2xl border border-deep-forest/10 shadow-xs hover:shadow-md transition-shadow duration-200"
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                           <div className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl bg-warm-cream overflow-hidden shrink-0 border border-deep-forest/10">
@@ -1078,7 +1127,7 @@ export default function AdminPage() {
                                 </span>
                               )}
                               <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-deep-forest/10 text-deep-forest">
-                                {MODEL_OPTIONS.find((m) => m.value === product.model)?.label}
+                                {categories.find((c) => c.id === product.model)?.label}
                               </span>
                             </div>
 
@@ -1135,20 +1184,24 @@ export default function AdminPage() {
                               {product.variants.map((v) => (
                                 <button
                                   key={v.id}
-                                  onClick={() => toggleVariantStock(product.id, v.id)}
-                                  title={`${v.name} — ${
-                                    v.inStock
-                                      ? 'Ready (klik untuk ubah Habis)'
-                                      : 'Out of Stock (klik untuk ubah Ready)'
-                                  }`}
+                                  onClick={() => {
+                                    const val = window.prompt(`Update stok untuk ${v.name}:`, v.stock.toString());
+                                    if (val !== null) {
+                                      const newStock = parseInt(val, 10);
+                                      if (!isNaN(newStock)) {
+                                        updateVariantStock(product.id, v.id, newStock);
+                                      }
+                                    }
+                                  }}
+                                  title={`${v.name} — ${v.stock > 0 ? `Stok: ${v.stock}` : 'Habis'} (klik untuk ubah)`}
                                   className={`w-6 h-6 rounded-full border-2 transition-all cursor-pointer relative ${
-                                    v.inStock
+                                    v.stock > 0
                                       ? 'border-leaf-olive/40 shadow-xs'
                                       : 'border-dusty-rose/40 opacity-40'
                                   }`}
                                   style={{ backgroundColor: v.hex }}
                                 >
-                                  {!v.inStock && (
+                                  {v.stock === 0 && (
                                     <span className="absolute inset-0 flex items-center justify-center">
                                       <X className="w-3 h-3 text-white drop-shadow-[0_0_2px_rgba(0,0,0,0.8)]" />
                                     </span>
@@ -1156,7 +1209,7 @@ export default function AdminPage() {
                                 </button>
                               ))}
                               <span className="text-[10px] text-muted-charcoal/50 ml-1">
-                                {product.variants.filter((v) => v.inStock).length}/
+                                {product.variants.filter((v) => v.stock > 0).length}/
                                 {product.variants.length} aktif
                               </span>
                             </div>
@@ -1931,7 +1984,7 @@ export default function AdminPage() {
                               </span>
                             </td>
 
-                            {/* Status Dropdown */}
+                            {/* Status Dropdown — mendukung status Sandbox + Midtrans */}
                             <td className="py-3.5 px-4 align-top">
                               <select
                                 value={order.status}
@@ -1942,13 +1995,28 @@ export default function AdminPage() {
                                 className={`px-2.5 py-1 rounded-xl text-[11px] font-bold border transition-all cursor-pointer focus:outline-none ${
                                   order.status === 'Selesai'
                                     ? 'bg-deep-forest text-white border-deep-forest'
+                                    : order.status === 'Lunas'
+                                    ? 'bg-emerald-600 text-white border-emerald-600'
                                     : order.status === 'Diproses'
                                     ? 'bg-amber-600 text-white border-amber-600'
+                                    : order.status === 'Menunggu Pembayaran'
+                                    ? 'bg-amber-500/15 text-amber-700 border-amber-500/30'
+                                    : order.status === 'Gagal'
+                                    ? 'bg-dusty-rose/15 text-dusty-rose border-dusty-rose/30'
                                     : 'bg-leaf-olive/15 text-leaf-olive border-leaf-olive/30'
                                 }`}
                               >
                                 <option value="Sandbox Verified" className="bg-white text-muted-charcoal">
                                   Sandbox Verified
+                                </option>
+                                <option value="Lunas" className="bg-white text-muted-charcoal">
+                                  ✅ Lunas (Midtrans)
+                                </option>
+                                <option value="Menunggu Pembayaran" className="bg-white text-muted-charcoal">
+                                  ⏳ Menunggu Pembayaran
+                                </option>
+                                <option value="Gagal" className="bg-white text-muted-charcoal">
+                                  ❌ Gagal / Expired
                                 </option>
                                 <option value="Diproses" className="bg-white text-muted-charcoal">
                                   Diproses
@@ -1983,13 +2051,10 @@ export default function AdminPage() {
                                   <MessageCircle className="w-4 h-4" />
                                 </a>
 
-                                {/* Delete Order */}
+                                {/* FIX: Delete Order dengan konfirmasi (sebelumnya langsung hapus) */}
                                 <button
                                   type="button"
-                                  onClick={() => {
-                                    deleteOrder(order.id);
-                                    showSuccess(`Pesanan ${order.invoiceNumber} berhasil dihapus.`);
-                                  }}
+                                  onClick={() => setDeleteOrderConfirmId(order.id)}
                                   className="p-1.5 text-dusty-rose bg-dusty-rose/5 hover:bg-dusty-rose/15 rounded-lg transition-all cursor-pointer"
                                   title="Hapus dari Riwayat"
                                 >
@@ -2121,6 +2186,129 @@ export default function AdminPage() {
               >
                 Ya, Bersihkan
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========== DELETE ORDER CONFIRMATION MODAL ========== */}
+      {/* FIX: Sebelumnya tombol hapus order langsung delete tanpa konfirmasi */}
+      {deleteOrderConfirmId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200">
+          <div className="bg-warm-cream p-6 rounded-3xl shadow-2xl border border-deep-forest/15 max-w-sm w-full space-y-4 text-center animate-in zoom-in-95 duration-200">
+            <div className="w-14 h-14 rounded-full bg-dusty-rose/15 flex items-center justify-center mx-auto">
+              <AlertTriangle className="w-7 h-7 text-dusty-rose" />
+            </div>
+            <h3 className="text-base font-bold text-muted-charcoal">Hapus Pesanan?</h3>
+            <p className="text-xs text-muted-charcoal/70">
+              Pesanan &quot;{orders.find((o) => o.id === deleteOrderConfirmId)?.invoiceNumber}&quot; akan dihapus
+              permanen dari riwayat.
+            </p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setDeleteOrderConfirmId(null)}
+                className="flex-1 px-4 py-2.5 text-sm font-bold text-muted-charcoal bg-muted-charcoal/5 hover:bg-muted-charcoal/10 rounded-2xl cursor-pointer transition-all"
+              >
+                Batal
+              </button>
+              <button
+                onClick={() => {
+                  const order = orders.find((o) => o.id === deleteOrderConfirmId);
+                  deleteOrder(deleteOrderConfirmId);
+                  showSuccess(`Pesanan ${order?.invoiceNumber} berhasil dihapus.`);
+                  setDeleteOrderConfirmId(null);
+                }}
+                className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-dusty-rose hover:bg-dusty-rose/90 rounded-2xl cursor-pointer transition-all shadow-sm"
+              >
+                Ya, Hapus
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========== CATEGORY MANAGEMENT MODAL ========== */}
+      {showCategoryModal && (
+        <div className="fixed inset-0 bg-deep-forest/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl w-full max-w-lg p-6 shadow-2xl relative animate-in zoom-in-95 duration-200 border border-deep-forest/10 overflow-y-auto max-h-[90vh]">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-black text-deep-forest flex items-center gap-2">
+                <Folder className="w-5 h-5 text-leaf-olive" />
+                Kelola Kategori Model
+              </h3>
+              <button
+                onClick={() => setShowCategoryModal(false)}
+                className="p-2 bg-warm-cream text-muted-charcoal/60 hover:text-deep-forest hover:bg-leaf-olive/20 rounded-full transition-all cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4 mb-8">
+              {categories.map((cat) => (
+                <div key={cat.id} className="flex items-center justify-between p-4 rounded-xl bg-warm-cream border border-deep-forest/10">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white rounded-lg text-dusty-rose">
+                      <Tag className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="font-bold text-sm text-deep-forest">{cat.label}</div>
+                      <div className="text-[10px] font-mono text-muted-charcoal/60">ID: {cat.id}</div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      if(window.confirm(`Yakin ingin menghapus kategori ${cat.label}?`)) {
+                        deleteCategory(cat.id);
+                        showSuccess(`Kategori ${cat.label} dihapus!`);
+                      }
+                    }}
+                    className="p-2 text-dusty-rose hover:bg-dusty-rose/10 rounded-lg transition-all cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div className="border-t border-deep-forest/10 pt-6 space-y-4">
+              <h4 className="font-bold text-sm text-deep-forest">Tambah Kategori Baru</h4>
+              <Input
+                label="Nama Kategori (Label)"
+                placeholder="Contoh: Sport Socks"
+                value={newCategoryName}
+                onChange={(e) => setNewCategoryName(e.target.value)}
+              />
+              <div className="w-full space-y-1.5">
+                <label className="block text-xs font-semibold text-muted-charcoal">
+                  Pilih Ikon Default
+                </label>
+                <select
+                  value={newCategoryIcon}
+                  onChange={(e) => setNewCategoryIcon(e.target.value)}
+                  className="w-full px-4 py-3 bg-white border border-muted-charcoal/20 rounded-2xl text-sm text-muted-charcoal focus:outline-none focus:ring-2 focus:ring-deep-forest/40 focus:border-deep-forest transition-all cursor-pointer"
+                >
+                  <option value="Tag">Tag</option>
+                  <option value="Folder">Folder</option>
+                  <option value="Sparkles">Sparkles</option>
+                  <option value="Layers">Layers</option>
+                  <option value="ShieldCheck">Shield</option>
+                  <option value="Flame">Flame</option>
+                </select>
+              </div>
+              <Button
+                onClick={() => {
+                  if(!newCategoryName.trim()) return;
+                  const newId = newCategoryName.toLowerCase().replace(/[^a-z0-9]/g, '-');
+                  addCategory({ id: newId, label: newCategoryName, iconName: newCategoryIcon });
+                  setNewCategoryName('');
+                  showSuccess(`Kategori ${newCategoryName} berhasil ditambahkan!`);
+                }}
+                disabled={!newCategoryName.trim()}
+                className="w-full"
+              >
+                Tambah Kategori
+              </Button>
             </div>
           </div>
         </div>

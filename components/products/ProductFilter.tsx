@@ -1,29 +1,40 @@
 import React from 'react';
 import { FilterCategory } from '@/types/product';
-import { Sparkles, Layers, ShieldCheck, Footprints, Flame } from 'lucide-react';
+import { Sparkles, Layers, ShieldCheck, Flame, Tag, Folder } from 'lucide-react';
+import { useProductStore } from '@/store/useProductStore';
 
 interface ProductFilterProps {
   activeFilter: FilterCategory;
   onFilterChange: (filter: FilterCategory) => void;
 }
 
-const CATEGORIES: { id: FilterCategory; label: string; icon: React.ElementType }[] = [
-  { id: 'all', label: 'Semua Koleksi', icon: Flame },
-  { id: 'emboss', label: 'Emboss Split Toe', icon: Sparkles },
-  { id: 'black-sole', label: 'Black Sole Split Toe', icon: Layers },
-  { id: 'anti-slip', label: 'Anti Slip Split Toe', icon: ShieldCheck },
-  { id: 'classic', label: 'Classic Full Coverage', icon: Footprints },
-];
+// Icon Mapping
+const ICON_MAP: Record<string, React.ElementType> = {
+  Sparkles,
+  Layers,
+  ShieldCheck,
+  Flame,
+  Tag,
+  Folder,
+};
 
 export const ProductFilter: React.FC<ProductFilterProps> = ({
   activeFilter,
   onFilterChange,
 }) => {
+  const { categories } = useProductStore();
+
+  // Combine static 'all' category with dynamic store categories
+  const allCategories = [
+    { id: 'all' as FilterCategory, label: 'Semua Koleksi', iconName: 'Flame' },
+    ...categories,
+  ];
+
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-3">
       <div className="flex items-center justify-start md:justify-center gap-2 overflow-x-auto no-scrollbar pb-2 pt-1">
-        {CATEGORIES.map((cat) => {
-          const Icon = cat.icon;
+        {allCategories.map((cat) => {
+          const Icon = ICON_MAP[cat.iconName] || Tag; // Fallback to Tag if not found
           const isActive = activeFilter === cat.id;
 
           return (

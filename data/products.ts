@@ -107,28 +107,35 @@ export const MOCK_PRODUCTS: Product[] = [
         name: 'Nude Cream',
         hex: '#E8D5C4',
         image: generateSockImage('#E8D5C4', '#C9B39F', 'emboss'),
-        inStock: true
+        stock: 50
       },
       {
         id: 'emb-rose',
         name: 'Dusty Rose',
         hex: '#D78A7E',
         image: generateSockImage('#D78A7E', '#B56B5F', 'emboss'),
-        inStock: true
+        stock: 50
       },
       {
         id: 'emb-olive',
         name: 'Sage Olive',
         hex: '#748E44',
         image: generateSockImage('#748E44', '#556A30', 'emboss'),
-        inStock: true
+        stock: 50
       },
       {
         id: 'emb-charcoal',
         name: 'Soft Charcoal',
         hex: '#4A5568',
         image: generateSockImage('#4A5568', '#2D3748', 'emboss'),
-        inStock: true
+        stock: 50
+      },
+      {
+        id: 'emb-mocha',
+        name: 'Mocha Brown',
+        hex: '#8B6A56',
+        image: generateSockImage('#8B6A56', '#694F40', 'emboss'),
+        stock: 50
       }
     ]
   },
@@ -154,28 +161,35 @@ export const MOCK_PRODUCTS: Product[] = [
         name: 'Beige Sand',
         hex: '#E3D0B9',
         image: generateSockImage('#E3D0B9', '#C4AF98', 'black-sole'),
-        inStock: true
+        stock: 50
       },
       {
         id: 'bs-latte',
         name: 'Muted Latte',
         hex: '#C5A880',
         image: generateSockImage('#C5A880', '#9F825B', 'black-sole'),
-        inStock: true
+        stock: 50
       },
       {
         id: 'bs-white',
         name: 'Cloud White',
         hex: '#F7FAFC',
         image: generateSockImage('#F7FAFC', '#E2E8F0', 'black-sole'),
-        inStock: true
+        stock: 50
       },
       {
         id: 'bs-grey',
         name: 'Steel Grey',
         hex: '#718096',
         image: generateSockImage('#718096', '#4A5568', 'black-sole'),
-        inStock: true
+        stock: 50
+      },
+      {
+        id: 'bs-navy',
+        name: 'Navy Blue',
+        hex: '#2A4365',
+        image: generateSockImage('#2A4365', '#1E3048', 'black-sole'),
+        stock: 50
       }
     ]
   },
@@ -201,75 +215,28 @@ export const MOCK_PRODUCTS: Product[] = [
         name: 'Sage Green',
         hex: '#748E44',
         image: generateSockImage('#748E44', '#556A30', 'anti-slip'),
-        inStock: true
+        stock: 50
       },
       {
         id: 'as-pink',
         name: 'Blossom Pink',
         hex: '#E2A9A1',
         image: generateSockImage('#E2A9A1', '#C7877F', 'anti-slip'),
-        inStock: true
+        stock: 50
       },
       {
         id: 'as-cream',
         name: 'Cream Tan',
         hex: '#EBDCB9',
         image: generateSockImage('#EBDCB9', '#CFBE9B', 'anti-slip'),
-        inStock: true
+        stock: 50
       },
       {
         id: 'as-slate',
         name: 'Deep Slate',
         hex: '#1E4D48',
         image: generateSockImage('#1E4D48', '#143632', 'anti-slip'),
-        inStock: true
-      }
-    ]
-  },
-  {
-    id: 'luv-classic-socks',
-    name: 'Classic Full Coverage Socks',
-    model: 'classic',
-    price: 32000,
-    originalPrice: 42000,
-    rating: 4.85,
-    reviewsCount: 86,
-    badge: 'Everyday Basic',
-    description: 'Kaos kaki klasik polos dengan daya tutup sempurna, kenyamanan ekstra, dan jahitan seamless yang tidak sakit di telapak kaki.',
-    features: [
-      'Jahitan Flat-Toe Seamless',
-      'Panjang Ideal Betis Nyaman',
-      'Elastisitas Pas & Tidak Berbekas',
-      'Katun Premium Halus'
-    ],
-    variants: [
-      {
-        id: 'cls-pearl',
-        name: 'Ivory Pearl',
-        hex: '#FFFDF9',
-        image: generateSockImage('#FFFDF9', '#EAE6DD', 'classic'),
-        inStock: true
-      },
-      {
-        id: 'cls-taupe',
-        name: 'Muted Taupe',
-        hex: '#B8A390',
-        image: generateSockImage('#B8A390', '#95806F', 'classic'),
-        inStock: true
-      },
-      {
-        id: 'cls-black',
-        name: 'Midnight Black',
-        hex: '#1A202C',
-        image: generateSockImage('#1A202C', '#000000', 'classic'),
-        inStock: true
-      },
-      {
-        id: 'cls-rosewood',
-        name: 'Rosewood',
-        hex: '#B57267',
-        image: generateSockImage('#B57267', '#8E5046', 'classic'),
-        inStock: true
+        stock: 50
       }
     ]
   }

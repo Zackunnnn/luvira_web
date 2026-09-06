@@ -4,7 +4,14 @@
 
 // ModelType — Defines the 4 available sock model categories.
 // Used as the value for product filter tabs and product categorization.
-export type ModelType = 'emboss' | 'black-sole' | 'anti-slip' | 'classic';
+export type ModelType = string;
+
+// Category — Represents a product model category in the catalog.
+export interface Category {
+  id: string; // Unique identifier (used as ModelType, e.g., 'emboss')
+  label: string; // Display name for the filter tabs (e.g., 'Emboss Split Toe')
+  iconName: string; // Name of the Lucide React icon to use (e.g., 'Sparkles')
+}
 
 // FilterCategory — Extends ModelType with 'all' option for the filter tabs.
 // 'all' shows every product regardless of model type.
@@ -17,7 +24,7 @@ export interface ColorVariant {
   name: string; // Display name for the color (e.g., "Nude Cream", "Sage Green")
   hex: string; // Hex color code for the swatch circle (e.g., "#E8D5C4")
   image: string; // Image URL (data URI or remote URL) for this variant's product photo
-  inStock: boolean; // Whether this specific variant is currently in stock
+  stock: number; // The exact number of stock available for this variant. 0 means out of stock.
 }
 
 // Product — Represents a single product in the Luvira catalog.

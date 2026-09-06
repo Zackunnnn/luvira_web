@@ -5,6 +5,67 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v1.8.0 - Midtrans Snap Payment Integration & Admin Fixes] - 2026-08-27
+
+### Added
+- **Midtrans Snap Payment Gateway Integration**:
+  - Installed official `midtrans-client` Node.js SDK for server-side Snap API calls with automatic auth/signature handling.
+  - Environment variable configuration via `.env.local`: `MIDTRANS_SERVER_KEY` (server-only) and `NEXT_PUBLIC_MIDTRANS_CLIENT_KEY` (public), with validation that throws clear errors if not set during development.
+  - Created `.env.local.example` template documenting all required environment variables.
+- **API Route: `/api/midtrans/create-transaction` (`app/api/midtrans/create-transaction/route.ts`)**:
+  - POST endpoint accepting `orderId`, `grossAmount`, `itemDetails`, and `customerDetails`.
+  - Calls Midtrans Snap API to generate transaction token, returns `{ token, redirect_url }` to client.
+  - Input validation and comprehensive error handling with informative messages.
+- **API Route: `/api/midtrans/notification` (`app/api/midtrans/notification/route.ts`)**:
+  - Webhook endpoint for Midtrans server-to-server payment status notifications.
+  - **SHA512 signature verification** (`order_id + status_code + gross_amount + ServerKey`) — critical security measure to ensure notifications are authentic, not spoofed by external parties.
+  - Maps `transaction_status` to Luvira order statuses: `settlement`/`capture` → Lunas, `pending` → Menunggu Pembayaran, `deny`/`cancel`/`expire` → Gagal.
+  - Stores notifications to `data/midtrans-notifications.json` (simplest server-side storage without database).
+- **API Route: `/api/midtrans/order-status/[orderId]` (`app/api/midtrans/order-status/[orderId]/route.ts`)**:
+  - GET endpoint for frontend polling — reads confirmed status from webhook notification JSON file.
+  - Returns mapped Luvira order status based on Midtrans transaction status.
+- **Midtrans SDK Singleton (`lib/midtrans.ts`)**:
+  - Server-only Snap and CoreApi instances with environment validation.
+  - Detailed comments explaining why the official SDK is used over manual HTTP calls.
+- **Type Definitions (`types/midtrans.ts`)**:
+  - TypeScript interfaces for `CreateTransactionRequest`, `CreateTransactionResponse`, `MidtransNotificationPayload`, `MidtransTransactionStatus`, and `StoredNotification`.
+  - Documentation for each field including security-critical `signature_key`.
+- **Payment Mode Toggle (`NEXT_PUBLIC_PAYMENT_MODE`)**:
+  - `'midtrans'` (default): Checkout uses real Midtrans Snap popup (currently Sandbox environment).
+  - `'sandbox'`: Checkout uses existing SandboxPaymentModal for local UI testing without API calls.
+  - Mode indicator badge displayed on checkout page for clarity.
+- **Snap.js Frontend Integration (`app/checkout/page.tsx`)**:
+  - Loads `snap.js` via Next.js `<Script>` component with `data-client-key` from environment variable.
+  - `window.snap.pay(token)` triggers Midtrans payment popup with `onSuccess`, `onPending`, `onError`, `onClose` callbacks.
+  - Successful payments create Order records in `useOrderStore` and show `DigitalReceiptModal`.
+  - Pending payments are saved with "Menunggu Pembayaran" status.
+  - Helper function `mapPaymentType()` converts Midtrans `payment_type` codes to user-friendly labels.
+- **Admin Dashboard — Delete Order Confirmation Modal (`app/admin/page.tsx`)**:
+  - Order deletion now requires explicit confirmation via modal dialog (previously deleted immediately on click).
+
+### Changed
+- **Stock Management Upgrade (`types/product.ts`, `data/products.ts`, `store/useProductStore.ts`)**:
+  - Upgraded variant stock tracking from simple boolean (`inStock: boolean`) to exact numeric count (`stock: number`).
+  - Added low stock indicators (<= 5) in `ProductCard` and `ProductDetailModal` for buyer urgency.
+  - Updated admin dashboard to allow direct numeric stock input per variant.
+- **Extended `OrderStatus` Type (`types/order.ts`)**:
+  - Added Midtrans-specific statuses: `'Lunas'`, `'Menunggu Pembayaran'`, `'Gagal'` alongside existing `'Sandbox Verified'`, `'Diproses'`, `'Selesai'`.
+  - Added optional `midtransOrderId` field to `Order` interface for Midtrans transaction tracking.
+- **Admin Order Status Dropdown (`app/admin/page.tsx`)**:
+  - Extended with new status options (✅ Lunas, ⏳ Menunggu Pembayaran, ❌ Gagal/Expired).
+  - Color-coded dropdown styling for each status: emerald for Lunas, amber for Pending/Diproses, rose for Gagal.
+- **Admin Product Card — Inline Price Edit Icon Fix (`app/admin/page.tsx`)**:
+  - Added `group` class to product card container so `Edit3` pencil icon properly shows on hover via `group-hover:opacity-100`.
+- **Admin Variant Image Manager — Clear Button (`app/admin/page.tsx`)**:
+  - Added clear/remove button (✕) for variant images, allowing admin to switch from Base64 uploaded image back to external URL input mode.
+- **Checkout Page Dynamic Rendering (`app/checkout/page.tsx`)**:
+  - CTA button text, info notes, and footer text dynamically adjust based on active payment mode.
+  - Loading state with spinner during Midtrans transaction creation.
+  - Error banner for Midtrans-specific errors (connection, validation, payment failures).
+
+### Technical Debt / Known Limitations
+- **Webhook Storage**: Currently using `data/midtrans-notifications.json` for storing Midtrans server notifications to avoid database dependencies during MVP phase. This is prone to race conditions under high concurrent load. **Recommendation**: Migrate to a proper database (SQLite/PostgreSQL) when daily order volume increases significantly.
+
 ## [v1.7.0 - Native Vector Typography BrandLogo & Clean Layout] - 2026-08-23
 
 ### Added

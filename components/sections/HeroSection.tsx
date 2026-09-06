@@ -37,7 +37,8 @@ export const HeroSection: React.FC = () => {
   // Select the first product as the hero spotlight feature product (if catalog is not empty)
   const spotlightProduct = mounted && products.length > 0 ? products[0] : null;
   // Track which color variant is currently displayed in the spotlight card
-  const [activeVariant, setActiveVariant] = useState(products[0]?.variants[0] ?? null);
+  const [activeVariantId, setActiveVariantId] = useState<string | null>(null);
+  const activeVariant = spotlightProduct?.variants.find(v => v.id === activeVariantId) || spotlightProduct?.variants[0] || null;
 
   // Smooth scroll handler for "Pilih Koleksi Sekarang" CTA button
   const scrollToCatalog = () => {
@@ -90,7 +91,7 @@ export const HeroSection: React.FC = () => {
             {/* Label text only shown on sm+ screens */}
             <span className="hidden sm:inline text-xs font-bold">Keranjang</span>
             {/* Cart item count badge — conditionally rendered when items > 0 */}
-            {totalItems > 0 && (
+            {mounted && totalItems > 0 && (
               <span className="bg-dusty-rose text-white text-[11px] font-bold px-2 py-0.5 rounded-full border border-warm-cream">
                 {totalItems}
               </span>
@@ -188,7 +189,7 @@ export const HeroSection: React.FC = () => {
                       {spotlightProduct.variants.map((v) => (
                         <button
                           key={v.id}
-                          onClick={() => setActiveVariant(v)} // Switch displayed variant
+                          onClick={() => setActiveVariantId(v.id)} // Switch displayed variant
                           className={`w-6 h-6 rounded-full border-2 transition-all cursor-pointer ${
                             v.id === activeVariant.id ? 'border-deep-forest scale-110 shadow-sm' : 'border-white'
                           }`}
