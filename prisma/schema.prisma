@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Product {
+  id            String   @id
+  name          String
+  model         String
+  price         Int
+  originalPrice Int?
+  rating        Float
+  reviewsCount  Int
+  badge         String?
+  description   String   @db.Text
+  features      String[] // Array of strings, supported natively by PostgreSQL
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  variants      ColorVariant[]
+}
+
+model ColorVariant {
+  id        String   @id
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name      String
+  hex       String
+  imageUrl  String   @db.Text
+  stock     Int
+
+  @@index([productId])
+}
+
+model SiteContent {
+  id        String   @id @default("singleton")
+  hero      Json
+  about     Json
+  features  Json
+  microcopy Json
+  updatedAt DateTime @updatedAt
+}
+
+model ChangeLog {
+  id          String   @id @default(cuid())
+  entityType  String
+  entityId    String?
+  fieldName   String
+  oldValue    String?  @db.Text
+  newValue    String?  @db.Text
+  changedBy   String   @default("Admin")
+  createdAt   DateTime @default(now())
+}

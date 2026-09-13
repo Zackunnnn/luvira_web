@@ -74,6 +74,16 @@ export async function POST(request: NextRequest) {
     // - token: Digunakan oleh snap.js popup di frontend (window.snap.pay(token))
     // - redirect_url: URL alternatif jika popup tidak bisa ditampilkan
     // ========================================================================
+    if (!snap) {
+      return Response.json(
+        {
+          error: 'payment_unavailable',
+          details: 'Sistem pembayaran Midtrans belum dikonfigurasi (API Keys belum diset). Silakan hubungi admin.',
+        },
+        { status: 503 }
+      );
+    }
+
     const transaction = await snap.createTransaction(parameter);
 
     return Response.json({

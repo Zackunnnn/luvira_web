@@ -32,6 +32,8 @@ import { createHash } from 'crypto';
 import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { MidtransNotificationPayload, StoredNotification } from '@/types/midtrans';
+import { readOrders, writeOrders } from '@/app/api/orders/route';
+import { OrderStatus } from '@/types/order';
 
 // Path ke file penyimpanan notifikasi
 const NOTIFICATIONS_DIR = join(process.cwd(), 'data');
@@ -175,6 +177,33 @@ export async function POST(request: NextRequest) {
     }
 
     console.log(`[Midtrans Webhook] Order ${payload.order_id}: ${transaction_status} → ${mappedStatus}`);
+
+    // ========================================================================
+    // STEP 3B: UPDATE ORDER STATUS IN orders.json
+    // Sync the central order store with the new status from Midtrans
+    // ========================================================================
+    if (mappedStatus !== 'unknown') {
+      try {
+        const orders = await readOrders();
+        let orderUpdated = false;
+        const updatedOrders = orders.map(order => {
+          if (order.midtransOrderId === payload.order_id) {
+            orderUpdated = true;
+            return { ...order, status: mappedStatus as OrderStatus };
+          }
+          return order;
+        });
+
+        if (orderUpdated) {
+          await writeOrders(updatedOrders);
+          console.log(`[Midtrans Webhook] Successfully updated order status in orders.json`);
+        } else {
+          console.log(`[Midtrans Webhook] Order ${payload.order_id} not found in orders.json`);
+        }
+      } catch (err) {
+        console.error('[Midtrans Webhook] Failed to sync order status to orders.json:', err);
+      }
+    }
 
     // ========================================================================
     // STEP 4: RETURN 200 OK

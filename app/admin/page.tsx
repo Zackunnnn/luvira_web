@@ -129,6 +129,7 @@ export default function AdminPage() {
     deleteCategory,
     resetToDefaultProducts,
     getTotalVariants,
+    fetchProducts,
   } = useProductStore();
 
   // ========== CONTENT STORE ==========
@@ -139,11 +140,13 @@ export default function AdminPage() {
     updateFeaturesContent,
     updateMicrocopy,
     resetToDefaultContent,
+    fetchContent,
   } = useContentStore();
 
   // ========== ORDER STORE ==========
   const {
     orders,
+    fetchOrders,
     updateOrderStatus,
     deleteOrder,
     clearOrders,
@@ -154,7 +157,17 @@ export default function AdminPage() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true);
-  }, []);
+    fetchProducts();
+    fetchContent();
+    fetchOrders();
+    
+    // Auto-refresh orders every 10 seconds to catch Midtrans Webhook updates
+    const interval = setInterval(() => {
+      fetchOrders();
+    }, 10000);
+    
+    return () => clearInterval(interval);
+  }, [fetchOrders]);
 
   // ========== PRODUCT FORM STATE ==========
   const [formData, setFormData] = useState<ProductFormData>(createEmptyForm());
@@ -224,8 +237,8 @@ export default function AdminPage() {
     return Object.keys(errors).length === 0;
   };
 
-  // ========== FILE READER BASE64 IMAGE HANDLER ==========
-  const handleImageUpload = (variantIndex: number, file: File) => {
+  // ========== API IMAGE UPLOAD HANDLER ==========
+  const handleImageUpload = async (variantIndex: number, file: File) => {
     if (!file.type.startsWith('image/')) {
       setFormErrors((prev) => ({
         ...prev,
@@ -234,61 +247,40 @@ export default function AdminPage() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const base64DataUrl = e.target?.result as string;
+    try {
+      // Show loading state by setting the image to a placeholder or keeping it empty
+      const formDataUpload = new FormData();
+      formDataUpload.append('file', file);
 
-      // Compress image using Canvas to avoid LocalStorage QuotaExceededError (5MB limit)
-      const img = new window.Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 800;
-        const MAX_HEIGHT = 800;
-        let width = img.width;
-        let height = img.height;
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        body: formDataUpload,
+      });
 
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
-          }
-        }
+      if (!res.ok) {
+        throw new Error('Gagal mengunggah gambar ke server');
+      }
 
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          // Compress to webp at 70% quality (usually < 100kb)
-          const compressedDataUrl = canvas.toDataURL('image/webp', 0.7);
-
-          const updatedVariants = [...formData.variants];
-          updatedVariants[variantIndex] = {
-            ...updatedVariants[variantIndex],
-            image: compressedDataUrl,
-          };
-          setFormData((prev) => ({ ...prev, variants: updatedVariants }));
-          setFormErrors((prev) => {
-            const next = { ...prev };
-            delete next[`variant-image-${variantIndex}`];
-            return next;
-          });
-        }
+      const data = await res.json();
+      
+      const updatedVariants = [...formData.variants];
+      updatedVariants[variantIndex] = {
+        ...updatedVariants[variantIndex],
+        image: data.url,
       };
-      img.src = base64DataUrl;
-    };
-    reader.onerror = () => {
+      setFormData((prev) => ({ ...prev, variants: updatedVariants }));
+      setFormErrors((prev) => {
+        const next = { ...prev };
+        delete next[`variant-image-${variantIndex}`];
+        return next;
+      });
+      showSuccess('Gambar berhasil diunggah!');
+    } catch (error) {
       setFormErrors((prev) => ({
         ...prev,
-        [`variant-image-${variantIndex}`]: 'Gagal membaca file gambar. Silakan coba lagi.',
+        [`variant-image-${variantIndex}`]: 'Error saat mengunggah gambar. Pastikan Storage R2 sudah dikonfigurasi.',
       }));
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   // ========== PRODUCT SUBMISSION ==========
@@ -574,14 +566,23 @@ export default function AdminPage() {
             </div>
           </div>
 
-          <Link
-            href="/"
-            className="px-4 py-2 text-xs font-bold text-deep-forest bg-warm-cream hover:bg-white rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
-          >
-            <Eye className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Lihat Storefront</span>
-            <ExternalLink className="w-3 h-3" />
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link
+              href="/admin/changelog"
+              className="px-4 py-2 text-xs font-bold text-warm-cream border border-warm-cream/20 hover:bg-white/10 rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <Clock className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Audit Trail</span>
+            </Link>
+            <Link
+              href="/"
+              className="px-4 py-2 text-xs font-bold text-deep-forest bg-warm-cream hover:bg-white rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Lihat Storefront</span>
+              <ExternalLink className="w-3 h-3" />
+            </Link>
+          </div>
         </div>
       </div>
 

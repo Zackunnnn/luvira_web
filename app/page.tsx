@@ -27,9 +27,9 @@ export default function Home() {
   // Access cart state for the floating checkout bar
   const { openCart, getTotalItems, getTotalPrice } = useCartStore();
   // Access dynamic product catalog from the Zustand product store
-  const { products } = useProductStore();
+  const { products, fetchProducts } = useProductStore();
   // Access dynamic site content from the Zustand content store
-  const { content } = useContentStore();
+  const { content, fetchContent } = useContentStore();
 
   // FIX Issue #3: Prevent Zustand hydration mismatch by deferring client-only values
   // During SSR, cart is empty. On client mount, localStorage may have saved items,
@@ -37,19 +37,12 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
     setMounted(true); // Signal that client-side hydration is complete
+    fetchProducts();
+    fetchContent();
     
-    // Cross-tab synchronization: Automatically update the storefront when admin saves changes in another tab
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'luvira-product-storage') {
-        useProductStore.persist.rehydrate();
-      }
-      if (e.key === 'luvira-content-storage') {
-        useContentStore.persist.rehydrate();
-      }
-    };
+    // Persist rehydration removed because we migrated to DB!
     
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
+    // ...
   }, []);
 
   // Read products only after mount to avoid hydration mismatch with localStorage data

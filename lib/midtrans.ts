@@ -18,25 +18,19 @@ const midtransClient = require('midtrans-client');
 // agar developer langsung tahu kalau setup belum benar.
 // ============================================================================
 
-const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY;
-const MIDTRANS_CLIENT_KEY = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY;
+const MIDTRANS_SERVER_KEY = process.env.MIDTRANS_SERVER_KEY || '';
+const MIDTRANS_CLIENT_KEY = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || '';
 const MIDTRANS_ENV = process.env.NEXT_PUBLIC_MIDTRANS_ENV || 'sandbox';
 const isProduction = MIDTRANS_ENV === 'production';
 
-if (!MIDTRANS_SERVER_KEY) {
-  throw new Error(
-    '[Midtrans] MIDTRANS_SERVER_KEY tidak ditemukan di environment variables.\n' +
-    'Pastikan file .env.local sudah dibuat dengan key dari https://dashboard.sandbox.midtrans.com\n' +
-    'Lihat .env.local.example untuk template.'
-  );
-}
+let isMidtransConfigured = true;
 
-if (!MIDTRANS_CLIENT_KEY) {
-  throw new Error(
-    '[Midtrans] NEXT_PUBLIC_MIDTRANS_CLIENT_KEY tidak ditemukan di environment variables.\n' +
-    'Pastikan file .env.local sudah dibuat dengan key dari https://dashboard.sandbox.midtrans.com\n' +
-    'Lihat .env.local.example untuk template.'
+if (!MIDTRANS_SERVER_KEY || !MIDTRANS_CLIENT_KEY) {
+  console.warn(
+    '[Midtrans] Peringatan: MIDTRANS_SERVER_KEY atau NEXT_PUBLIC_MIDTRANS_CLIENT_KEY tidak ditemukan.\n' +
+    'Fitur pembayaran Midtrans dinonaktifkan sementara. Aplikasi tetap dapat berjalan (Graceful Fallback).'
   );
+  isMidtransConfigured = false;
 }
 
 // ============================================================================
@@ -45,11 +39,11 @@ if (!MIDTRANS_CLIENT_KEY) {
 // Snap.js popup di frontend. isProduction: false = Sandbox environment.
 // ============================================================================
 
-export const snap = new midtransClient.Snap({
+export const snap = isMidtransConfigured ? new midtransClient.Snap({
   isProduction: isProduction,    // determined by NEXT_PUBLIC_MIDTRANS_ENV
   serverKey: MIDTRANS_SERVER_KEY,
   clientKey: MIDTRANS_CLIENT_KEY,
-});
+}) : null;
 
 // ============================================================================
 // CORE API INSTANCE (Singleton)
@@ -59,8 +53,8 @@ export const snap = new midtransClient.Snap({
 // Tidak digunakan untuk create transaction (itu via Snap).
 // ============================================================================
 
-export const coreApi = new midtransClient.CoreApi({
+export const coreApi = isMidtransConfigured ? new midtransClient.CoreApi({
   isProduction: isProduction,
   serverKey: MIDTRANS_SERVER_KEY,
   clientKey: MIDTRANS_CLIENT_KEY,
-});
+}) : null;

@@ -1,102 +1,93 @@
 // useContentStore.ts — Zustand state management store for dynamic website content & copywriting.
-// Enables admin to customize all marketing copy (Hero, About, Tech Features, Microcopy) with 100% Zero-Cost localStorage persistence.
-// Changes are instantly reflected across public storefront components.
+// Now acts as a client-side cache, syncing with Postgres via API routes.
 
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import {
-  SiteContent,
-  HeroContent,
-  AboutContent,
-  FeaturesContent,
-  MicrocopyContent,
-} from '@/types/content';
+import { SiteContent, HeroContent, AboutContent, FeaturesContent, MicrocopyContent } from '@/types/content';
 import { DEFAULT_SITE_CONTENT } from '@/data/defaultContent';
 
 interface ContentState {
   content: SiteContent;
+  isLoading: boolean;
 
-  // Granular update action methods
-  updateHeroContent: (payload: Partial<HeroContent>) => void;
-  updateAboutContent: (payload: Partial<AboutContent>) => void;
-  updateFeaturesContent: (payload: Partial<FeaturesContent>) => void;
-  updateMicrocopy: (payload: Partial<MicrocopyContent>) => void;
+  fetchContent: () => Promise<void>;
 
-  // Emergency reset action to restore original copywriting
+  updateHeroContent: (payload: Partial<HeroContent>) => Promise<void>;
+  updateAboutContent: (payload: Partial<AboutContent>) => Promise<void>;
+  updateFeaturesContent: (payload: Partial<FeaturesContent>) => Promise<void>;
+  updateMicrocopy: (payload: Partial<MicrocopyContent>) => Promise<void>;
+
   resetToDefaultContent: () => void;
 }
 
-export const useContentStore = create<ContentState>()(
-  persist(
-    (set) => ({
-      content: DEFAULT_SITE_CONTENT,
+export const useContentStore = create<ContentState>()((set, get) => ({
+  content: DEFAULT_SITE_CONTENT,
+  isLoading: false,
 
-      // updateHeroContent — Deep merges partial hero updates into existing hero state
-      updateHeroContent: (payload) => {
-        set((state) => ({
-          content: {
-            ...state.content,
-            hero: {
-              ...state.content.hero,
-              ...payload,
-            },
-          },
-        }));
-      },
-
-      // updateAboutContent — Merges partial about updates (including pillars)
-      updateAboutContent: (payload) => {
-        set((state) => ({
-          content: {
-            ...state.content,
-            about: {
-              ...state.content.about,
-              ...payload,
-              pillars: {
-                ...state.content.about.pillars,
-                ...(payload.pillars || {}),
-              },
-            },
-          },
-        }));
-      },
-
-      // updateFeaturesContent — Merges partial tech feature updates (including dynamic items array)
-      updateFeaturesContent: (payload) => {
-        set((state) => ({
-          content: {
-            ...state.content,
-            features: {
-              ...state.content.features,
-              ...payload,
-              items: payload.items ? [...payload.items] : state.content.features.items,
-            },
-          },
-        }));
-      },
-
-      // updateMicrocopy — Merges partial microcopy updates
-      updateMicrocopy: (payload) => {
-        set((state) => ({
-          content: {
-            ...state.content,
-            microcopy: {
-              ...state.content.microcopy,
-              ...payload,
-            },
-          },
-        }));
-      },
-
-      // resetToDefaultContent — Resets all copywriting back to factory default
-      resetToDefaultContent: () => {
-        set({ content: JSON.parse(JSON.stringify(DEFAULT_SITE_CONTENT)) });
-      },
-    }),
-    {
-      name: 'luvira-site-content', // localStorage persistence key
-      storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({ content: state.content }),
+  fetchContent: async () => {
+    set({ isLoading: true });
+    try {
+      const res = await fetch('/api/content');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.data) {
+          set({ content: json.data });
+        }
+      }
+    } catch (e) {
+      console.error('Failed to fetch content', e);
+    } finally {
+      set({ isLoading: false });
     }
-  )
-);
+  },
+
+  updateHeroContent: async (payload) => {
+    const newContent = {
+      ...get().content,
+      hero: { ...get().content.hero, ...payload },
+    };
+    set({ content: newContent });
+    await fetch('/api/content', { method: 'PUT', body: JSON.stringify(newContent) });
+  },
+
+  updateAboutContent: async (payload) => {
+    const newContent = {
+      ...get().content,
+      about: { 
+        ...get().content.about, 
+        ...payload,
+        pillars: {
+          ...get().content.about.pillars,
+          ...(payload.pillars || {}),
+        }
+      },
+    };
+    set({ content: newContent });
+    await fetch('/api/content', { method: 'PUT', body: JSON.stringify(newContent) });
+  },
+
+  updateFeaturesContent: async (payload) => {
+    const newContent = {
+      ...get().content,
+      features: { 
+        ...get().content.features, 
+        ...payload,
+        items: payload.items ? [...payload.items] : get().content.features.items,
+      },
+    };
+    set({ content: newContent });
+    await fetch('/api/content', { method: 'PUT', body: JSON.stringify(newContent) });
+  },
+
+  updateMicrocopy: async (payload) => {
+    const newContent = {
+      ...get().content,
+      microcopy: { ...get().content.microcopy, ...payload },
+    };
+    set({ content: newContent });
+    await fetch('/api/content', { method: 'PUT', body: JSON.stringify(newContent) });
+  },
+
+  resetToDefaultContent: () => {
+    set({ content: JSON.parse(JSON.stringify(DEFAULT_SITE_CONTENT)) });
+  },
+}));

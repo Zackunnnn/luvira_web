@@ -595,7 +595,11 @@ export default function CheckoutPage() {
                       variant="primary"
                       fullWidth
                       size="lg"
-                      disabled={isProcessingMidtrans || (PAYMENT_MODE === 'midtrans' && !isSnapReady && !!MIDTRANS_CLIENT_KEY)}
+                      disabled={
+                        isProcessingMidtrans || 
+                        (PAYMENT_MODE === 'midtrans' && !isSnapReady && !!MIDTRANS_CLIENT_KEY) ||
+                        (PAYMENT_MODE === 'midtrans' && !MIDTRANS_CLIENT_KEY)
+                      }
                       className="bg-deep-forest hover:bg-deep-forest/90 text-warm-cream shadow-xl py-4 text-sm font-extrabold flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                     >
                       {isProcessingMidtrans ? (
@@ -620,7 +624,9 @@ export default function CheckoutPage() {
 
                     <p className="text-[11px] text-center text-muted-charcoal/60">
                       {PAYMENT_MODE === 'midtrans'
-                        ? '🔒 Pembayaran diproses aman oleh Midtrans (Sandbox Mode)'
+                        ? MIDTRANS_CLIENT_KEY 
+                          ? '🔒 Pembayaran diproses aman oleh Midtrans (Sandbox Mode)'
+                          : '⚠️ Sistem Midtrans belum dikonfigurasi. Hubungi Admin.'
                         : '✨ Uji coba transaksi langsung dengan QRIS & Virtual Account simulasi.'}
                     </p>
 
