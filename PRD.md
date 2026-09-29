@@ -239,6 +239,92 @@ Terima kasih!
 
 ---
 
+## 11. Planned Feature Expansion (v2.0) — Corrected per Codebase Audit (2026-09-16)
+
+> **Architecture note (audited via Antigravity, read-only, 2026-09-16):** contrary to the earlier draft of this section, the backend is **already partially migrated**. `Product`, `ColorVariant`, and `SiteContent` are live tables on **Neon Postgres via Prisma**, called from `/api/products` and `/api/content`. A **`ChangeLog` table already exists in `prisma/schema.prisma`** (`entityType`, `entityId`, `fieldName`, `oldValue`, `newValue`, `changedBy`, `createdAt`) — this is effectively the audit-log feature planned in Phase 18 below, just not wired up yet. `useCartStore` remains `localStorage`-only by design (expected for a cart). The real gaps are: (1) `/api/orders` and `/api/midtrans/notification` still read/write local JSON files (`data/orders.json`, `data/midtrans-notifications.json`) instead of the database, and (2) **`/admin` has no authentication at all** — anyone with the URL can view all orders and edit the live catalog/content on production. Gap (2) is a live security issue, not a "planned feature," and should be fixed immediately regardless of anything else in this roadmap.
+
+**v2.0 also drops Midtrans** in favor of manual bank transfer only (buyer copies account number; no payment gateway). This makes `/api/midtrans/notification` obsolete rather than something to migrate.
+
+### Roadmap (continues from Section 10) — revised
+- **Phase 0a (URGENT — do first, independent of everything else)**: Add authentication to `/admin` (simplest viable: a single shared password gate via middleware + session cookie; upgrade to per-user accounts in Phase 12).
+- **Phase 0b**: Add `User` table (id, email/username, passwordHash, `role` — `admin`/`owner`) via Prisma migration. Move `/api/orders` off `data/orders.json` onto a new `Order`/`OrderItem` Prisma model. Remove `/api/midtrans/*` routes entirely (superseded by manual transfer flow in Phase 13).
+- **Phase 12**: Role-based auth gating `/dashboard/owner/*` using the `User.role` field from Phase 0b (upgrades the single shared password from 0a to real per-user login).
+- **Phase 13**: Checkout — ongkir aggregator (Biteship/RajaOngkir Pro/Komerce), PPN line, promo code, manual-transfer + WA redirect, dual confirmation (buyer upload bukti → admin verify) — all against the new `Order` table.
+- **Phase 14**: Auto-cancel unpaid orders + stock release (cron), using `Order.paymentDeadline`.
+- **Phase 15**: Dashboard Owner — sales/tax/cost/profit/packing reports, stock control.
+- **Phase 16**: Auto shipping label print (via ongkir aggregator).
+- **Phase 17**: Reseller spreadsheet sync (Google Sheets API) + auto WA notification (Fonnte/Wablas).
+- **Phase 18**: Wire up the existing `ChangeLog` table to record admin/Pak Dimas edits on `Product`/`SiteContent`/`Order`, plus a revert-to-value UI. (No new table needed — this table already exists and is unused.)
+- **Phase 19**: Brosur & training resource page.
+
+Full build prompts per phase are maintained separately in `luvira-feature-plan.md` (needs updating to match this corrected phase list — Phase 0 there currently assumes a full localStorage migration that isn't needed anymore).
+
+### Schema additions (Neon Postgres via Prisma) — only what's actually missing
+```prisma
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  role         String   @default("admin") // "admin" | "owner"
+  createdAt    DateTime @default(now())
+}
+
+model Order {
+  id                String      @id @default(cuid())
+  customerName      String
+  customerPhone     String
+  customerAddress   String
+  status            String      @default("menunggu_transfer")
+  // menunggu_transfer -> menunggu_verifikasi -> dikonfirmasi -> diproses -> dikirim -> selesai -> dibatalkan
+  promoCodeId       String?
+  shippingCourier   String?
+  shippingCost      Int?
+  ppnAmount         Int?
+  paymentProofUrl   String?
+  paymentDeadline   DateTime?
+  verifiedBy        String?
+  verifiedAt        DateTime?
+  createdAt         DateTime    @default(now())
+  items             OrderItem[]
+}
+
+model OrderItem {
+  id         String @id @default(cuid())
+  orderId    String
+  order      Order  @relation(fields: [orderId], references: [id])
+  productId  String
+  variantId  String
+  quantity   Int
+  priceEach  Int
+}
+
+model PromoCode {
+  id                String    @id @default(cuid())
+  code              String    @unique
+  discountType      String    // "percent" | "flat"
+  discountValue     Int
+  resellerName      String?
+  resellerWaNumber  String?
+  commissionType    String?
+  commissionValue   Int?
+  quota             Int?
+  usedCount         Int       @default(0)
+  expiresAt         DateTime?
+  isActive          Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+}
+```
+`Product.costPrice` and `Product.packingCost` (Int, nullable) can be added as plain fields on the existing `Product` model — no new table needed, just two columns; enforce owner-only visibility in the `/api/products` handler, not just in the UI.
+
+### Risks / open questions
+- Fix `/admin` auth before anything else — this is a live exposure on production data, independent of the feature roadmap.
+- Confirm Hostinger Node.js app doesn't sleep on idle — cron for auto-cancel depends on this; if it sleeps, use an external cron trigger (cron-job.org) hitting an API route instead.
+- `costPrice`/`packingCost` must be excluded from `/api/products` responses to non-owner roles at the API layer, not just hidden in UI.
+- `PromoCode.usedCount` increment must run inside a Prisma transaction to avoid race conditions on shared codes.
+- Decide the `Order`/`OrderItem` migration path for whatever's currently sitting in `data/orders.json` — likely a one-off script to backfill existing orders into the new tables before cutting over.
+
+---
+
 ## 16. Changelog
 
 ### [v1.7.0 - Official Transparent Floral Logo Integration] - 2026-08-23

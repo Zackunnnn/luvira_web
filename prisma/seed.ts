@@ -1,11 +1,37 @@
 import { PrismaClient } from '@prisma/client';
 import { MOCK_PRODUCTS } from '../data/products';
 import { DEFAULT_SITE_CONTENT } from '../data/defaultContent';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
 async function main() {
   console.log('Start seeding...');
+
+  // 0. Seed Admin User
+  console.log('Seeding User...');
+  const adminPasswordHash = await bcrypt.hash('admin123', 10);
+  await prisma.user.upsert({
+    where: { username: 'admin' },
+    update: {},
+    create: {
+      username: 'admin',
+      passwordHash: adminPasswordHash,
+      role: 'admin',
+    },
+  });
+
+  console.log('Seeding Owner User...');
+  const ownerPasswordHash = await bcrypt.hash('owner123', 10);
+  await prisma.user.upsert({
+    where: { username: 'owner' },
+    update: {},
+    create: {
+      username: 'owner',
+      passwordHash: ownerPasswordHash,
+      role: 'owner',
+    },
+  });
 
   // 1. Seed SiteContent
   console.log('Seeding SiteContent...');

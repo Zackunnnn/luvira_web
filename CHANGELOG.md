@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased - Planned v2.0] Backend Migration & Feature Expansion
+
+### ⚠️ Urgent (found via codebase audit, 2026-09-16)
+- **`/admin` has no authentication** — anyone with the URL can view all orders and edit the live product catalog/site content on production Neon DB. Fix independently of the roadmap below, before anything else.
+
+### Corrected Architecture Baseline (audit, 2026-09-16)
+- `Product`, `ColorVariant`, `SiteContent` are already live on Neon Postgres via Prisma (`/api/products`, `/api/content`) — earlier changelog entries below did not reflect that this had happened.
+- A `ChangeLog` table already exists in `prisma/schema.prisma` (unused) — matches the planned audit-log feature; just needs to be called from API routes instead of building a new table.
+- `/api/orders` and `/api/midtrans/notification` still use local JSON files (`data/orders.json`, `data/midtrans-notifications.json`) — these are the real remaining migration targets, not the whole app.
+- `useCartStore` remains `localStorage`-only — intentional, not a gap.
+
+### Planned
+- Add a `User` table (username, passwordHash, role) and gate `/admin` with real per-user login (role: `admin`/`owner`).
+- Migrate `Order`/`OrderItem` from `data/orders.json` onto Prisma models; backfill existing orders.
+- Remove `/api/midtrans/*` routes; replace with manual bank transfer + buyer-uploaded proof + admin verification (dual confirmation).
+- Checkout: shipping cost via ongkir aggregator (Biteship/RajaOngkir Pro/Komerce), PPN line item, buyer-facing promo codes (`PromoCode` model), WA redirect with structured order text.
+- Auto-cancel unpaid orders past deadline with stock release (cron).
+- Owner dashboard: sales/tax/cost/profit/packing-cost reports, stock control, gated to `owner` role. `Product.costPrice`/`packingCost` excluded from API responses to non-owner roles.
+- Automatic shipping label printing via ongkir aggregator.
+- Reseller ops: Google Sheets sync of promo-code usage/commissions, automatic WA notification to resellers on confirmed order.
+- Wire up existing `ChangeLog` table for admin edit history (Pak Dimas access) with per-field revert.
+- Brosur & training resource page.
+
 ## [v1.8.0 - Midtrans Snap Payment Integration & Admin Fixes] - 2026-08-27
 
 ### Added

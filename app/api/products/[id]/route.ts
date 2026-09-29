@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
+import { isOwner } from '@/lib/auth';
 import { Product } from '@/types/product';
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -23,6 +24,13 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     if (body.description !== undefined) dataToUpdate.description = body.description;
     if (body.features !== undefined) dataToUpdate.features = body.features;
 
+    const ownerStatus = await isOwner();
+    
+    if (ownerStatus) {
+      if ((body as any).costPrice !== undefined) dataToUpdate.costPrice = (body as any).costPrice;
+      if ((body as any).packingCost !== undefined) dataToUpdate.packingCost = (body as any).packingCost;
+    }
+
     // Handle variants: since this is a simple CMS, we can delete old variants and create new ones
     // Or we can just update them if we have an array of variants
     if (body.variants) {
@@ -44,9 +52,15 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       include: { variants: true },
     });
 
+    let productData: any = { ...updatedProduct };
+    if (!ownerStatus) {
+      delete productData.costPrice;
+      delete productData.packingCost;
+    }
+
     const mappedProduct = {
-      ...updatedProduct,
-      variants: updatedProduct.variants.map(v => ({
+      ...productData,
+      variants: updatedProduct.variants.map((v: any) => ({
         id: v.id,
         name: v.name,
         hex: v.hex,

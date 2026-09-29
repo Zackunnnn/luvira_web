@@ -9,6 +9,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useProductStore } from '@/store/useProductStore';
 import { useContentStore } from '@/store/useContentStore';
 import { useOrderStore } from '@/store/useOrderStore';
@@ -53,7 +54,10 @@ import {
   Clock,
   Printer,
   Tag,
+  Loader2,
+  AlertCircle,
   Folder,
+  CheckCircle2
 } from 'lucide-react';
 
 
@@ -201,6 +205,19 @@ export default function AdminPage() {
   // ========== INLINE PRICE EDIT STATE ==========
   const [inlineEditId, setInlineEditId] = useState<string | null>(null);
   const [inlinePrice, setInlinePrice] = useState('');
+
+  // ========== ROUTER & AUTH ==========
+  const router = useRouter();
+
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/auth/logout', { method: 'POST' });
+      router.push('/dashboard/login');
+      router.refresh();
+    } catch (e) {
+      console.error('Logout failed:', e);
+    }
+  };
 
   // ========== TOAST MESSAGE STATE ==========
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -568,7 +585,7 @@ export default function AdminPage() {
 
           <div className="flex items-center gap-2">
             <Link
-              href="/admin/changelog"
+              href="/dashboard/admin/changelog"
               className="px-4 py-2 text-xs font-bold text-warm-cream border border-warm-cream/20 hover:bg-white/10 rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
             >
               <Clock className="w-3.5 h-3.5" />
@@ -582,6 +599,12 @@ export default function AdminPage() {
               <span className="hidden sm:inline">Lihat Storefront</span>
               <ExternalLink className="w-3 h-3" />
             </Link>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 text-xs font-bold text-white bg-dusty-rose hover:bg-dusty-rose/90 rounded-xl shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+            >
+              <span>Logout</span>
+            </button>
           </div>
         </div>
       </div>
@@ -1944,6 +1967,9 @@ export default function AdminPage() {
                               <span className="text-[10px] text-muted-charcoal/60 block mt-0.5">
                                 {order.createdAt}
                               </span>
+                              <span className={`inline-block mt-1 px-1.5 py-0.5 text-[9px] font-bold rounded-md uppercase ${order.paymentMethod === 'midtrans' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
+                                {order.paymentMethod === 'midtrans' ? 'Midtrans' : 'Manual'}
+                              </span>
                             </td>
 
                             {/* Customer */}
@@ -1994,36 +2020,38 @@ export default function AdminPage() {
                                   showSuccess(`Status pesanan ${order.invoiceNumber} diubah ke "${e.target.value}"`);
                                 }}
                                 className={`px-2.5 py-1 rounded-xl text-[11px] font-bold border transition-all cursor-pointer focus:outline-none ${
-                                  order.status === 'Selesai'
+                                  order.status === 'selesai'
                                     ? 'bg-deep-forest text-white border-deep-forest'
-                                    : order.status === 'Lunas'
+                                    : order.status === 'dikonfirmasi'
                                     ? 'bg-emerald-600 text-white border-emerald-600'
-                                    : order.status === 'Diproses'
+                                    : order.status === 'diproses'
                                     ? 'bg-amber-600 text-white border-amber-600'
-                                    : order.status === 'Menunggu Pembayaran'
+                                    : order.status === 'menunggu_verifikasi'
+                                    ? 'bg-blue-500/15 text-blue-700 border-blue-500/30'
+                                    : order.status === 'menunggu_transfer'
                                     ? 'bg-amber-500/15 text-amber-700 border-amber-500/30'
-                                    : order.status === 'Gagal'
+                                    : order.status === 'dibatalkan'
                                     ? 'bg-dusty-rose/15 text-dusty-rose border-dusty-rose/30'
                                     : 'bg-leaf-olive/15 text-leaf-olive border-leaf-olive/30'
                                 }`}
                               >
-                                <option value="Sandbox Verified" className="bg-white text-muted-charcoal">
-                                  Sandbox Verified
+                                <option value="menunggu_transfer" className="bg-white text-muted-charcoal">
+                                  ⏳ Menunggu Transfer
                                 </option>
-                                <option value="Lunas" className="bg-white text-muted-charcoal">
-                                  ✅ Lunas (Midtrans)
+                                <option value="menunggu_verifikasi" className="bg-white text-muted-charcoal">
+                                  👀 Menunggu Verifikasi
                                 </option>
-                                <option value="Menunggu Pembayaran" className="bg-white text-muted-charcoal">
-                                  ⏳ Menunggu Pembayaran
+                                <option value="dikonfirmasi" className="bg-white text-muted-charcoal">
+                                  ✅ Dikonfirmasi
                                 </option>
-                                <option value="Gagal" className="bg-white text-muted-charcoal">
-                                  ❌ Gagal / Expired
+                                <option value="diproses" className="bg-white text-muted-charcoal">
+                                  📦 Diproses
                                 </option>
-                                <option value="Diproses" className="bg-white text-muted-charcoal">
-                                  Diproses
+                                <option value="selesai" className="bg-white text-muted-charcoal">
+                                  🎉 Selesai
                                 </option>
-                                <option value="Selesai" className="bg-white text-muted-charcoal">
-                                  Selesai
+                                <option value="dibatalkan" className="bg-white text-muted-charcoal">
+                                  ❌ Dibatalkan
                                 </option>
                               </select>
                             </td>
@@ -2040,6 +2068,36 @@ export default function AdminPage() {
                                 >
                                   <FileText className="w-4 h-4" />
                                 </button>
+
+                                {/* Phase 13: View Payment Proof */}
+                                {order.paymentProofUrl && (
+                                  <a
+                                    href={order.paymentProofUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="p-1.5 text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-lg transition-all cursor-pointer"
+                                    title="Lihat Bukti Transfer"
+                                  >
+                                    <ImageIcon className="w-4 h-4" />
+                                  </a>
+                                )}
+
+                                {/* Phase 13: Verifikasi Pembayaran */}
+                                {order.status === 'menunggu_verifikasi' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      if (confirm(`Verifikasi pembayaran untuk pesanan ${order.invoiceNumber}?`)) {
+                                        updateOrderStatus(order.id, 'dikonfirmasi');
+                                        showSuccess(`Pembayaran ${order.invoiceNumber} diverifikasi!`);
+                                      }
+                                    }}
+                                    className="p-1.5 text-leaf-olive bg-leaf-olive/10 hover:bg-leaf-olive/20 rounded-lg transition-all cursor-pointer"
+                                    title="Verifikasi Pembayaran"
+                                  >
+                                    <CheckCircle2 className="w-4 h-4" />
+                                  </button>
+                                )}
 
                                 {/* Direct WhatsApp Chat */}
                                 <a

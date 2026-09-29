@@ -20,6 +20,8 @@ model Product {
   features      String[] // Array of strings, supported natively by PostgreSQL
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  costPrice     Int      @default(0) // Harga Pokok Penjualan (HPP) / Modal
+  packingCost   Int      @default(0) // Biaya kardus, lakban, dll
 
   variants      ColorVariant[]
 }
@@ -55,3 +57,75 @@ model ChangeLog {
   changedBy   String   @default("Admin")
   createdAt   DateTime @default(now())
 }
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  role         String   @default("admin") // "admin" | "owner"
+  createdAt    DateTime @default(now())
+}
+
+model Order {
+  id                String      @id @default(cuid())
+  customerName      String
+  customerPhone     String
+  customerAddress   String
+  status            String      @default("menunggu_transfer")
+  promoCodeId       String?
+  shippingCourier   String?
+  shippingCost      Int?
+  ppnAmount         Int?
+  paymentProofUrl   String?
+  paymentDeadline   DateTime?
+  verifiedBy        String?
+  verifiedAt        DateTime?
+  createdAt         DateTime    @default(now())
+  paymentMethod     String      @default("manual") // "manual" | "midtrans"
+  midtransToken     String?     @db.Text
+  
+  items             OrderItem[]
+}
+
+model OrderItem {
+  id         String @id @default(cuid())
+  orderId    String
+  order      Order  @relation(fields: [orderId], references: [id])
+  productId  String
+  variantId  String
+  quantity    Int
+  priceEach   Int
+  costEach    Int    @default(0) // Historikal HPP saat order terjadi
+  packingEach Int    @default(0) // Historikal packing cost saat order terjadi
+}
+
+model PromoCode {
+  id               String    @id @default(cuid())
+  code             String    @unique
+  discountType     String    // "percentage" | "fixed"
+  discountValue    Int
+  resellerName     String?
+  resellerWaNumber String?
+  commissionType   String?   // "percentage" | "fixed"
+  commissionValue  Int?
+  quota            Int       @default(0)
+  usedCount        Int       @default(0)
+  expiresAt        DateTime?
+  isActive         Boolean   @default(true)
+  isFreeShipping   Boolean   @default(false)
+}
+
+model Media {
+  id           String   @id @default(cuid())
+  originalName String
+  fileName     String   @unique
+  mimeType     String
+  size         Int
+  width        Int?
+  height       Int?
+  originalPath String
+  optimizedPath String
+  thumbnailPath String?
+  createdAt    DateTime @default(now())
+}
+

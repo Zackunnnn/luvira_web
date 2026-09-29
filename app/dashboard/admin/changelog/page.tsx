@@ -66,7 +66,7 @@ export default function ChangelogPage() {
       <div className="bg-deep-forest text-warm-cream p-4 sticky top-0 z-30 shadow-md">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           <Link
-            href="/admin"
+            href="/dashboard/admin"
             className="p-2 rounded-full hover:bg-white/10 text-warm-cream transition-all flex items-center gap-2 text-sm font-semibold"
           >
             <ArrowLeft className="w-5 h-5" />

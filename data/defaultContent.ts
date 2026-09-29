@@ -6,11 +6,11 @@ import { SiteContent } from '@/types/content';
 export const DEFAULT_SITE_CONTENT: SiteContent = {
   hero: {
     announcement: '✨ Spesial Promo: Nikmati Subsidi Ongkir Otomatis & Garansi Kualitas Anti-Meral',
-    tagline: 'Modest • Comfortable • Chic',
-    badge: '✦ 100% Ultra-Soft Material • Wudhu & Activity Friendly',
-    headline: 'Kemewahan Langkah dalam Balutan Kaus Kaki Syar’i & Ergonomis.',
+    tagline: 'Lux • Lovable • Innovative • Radiant',
+    badge: '✦ 100% Premium Muslimah Activewear',
+    headline: 'LUVIRA: Lux, Lovable, Innovative dan Radiant.',
     subheadline:
-      'Harmoni sempurna inovasi Split-Toe & Anti-Slip dengan serat katun ultra-lembut grade A. Dirancang khusus untuk kenyamanan melangkah sepanjang hari, menutup aurat secara anggun, dan tetap chic di segala suasana.',
+      'Melangkah produktif, menjaga kesantunan dengan elegan. Dirancang khusus untuk muslimah aktif yang dinamis, kaos kaki premium kami menghadirkan sentuhan Lux yang berkelas, kenyamanan Lovable sepanjang hari, inovasi wudu yang Innovative, untuk mendukung auramu tetap Radiant di setiap aktivitas.',
     ctaText: 'Pilih Koleksi Eksklusif',
     trustBadge1: 'Garansi Anti-Meral & Adem',
     trustBadge2: '10.000+ Pilihan Muslimah Indonesia',
@@ -21,23 +21,29 @@ export const DEFAULT_SITE_CONTENT: SiteContent = {
     description:
       'Luvira lahir dari dedikasi untuk muslimah dan wanita modern yang mengutamakan kesantunan berpakaian tanpa mengorbankan kenyamanan fisik maupun estetika gaya personal.',
     pillars: {
-      modest: {
-        title: 'Modest',
-        subtitle: 'Daya Tutup Rapat & Sempurna',
+      lux: {
+        title: 'LUX',
+        subtitle: 'Kemewahan & Kesantunan yang Elegan',
         description:
-          'Konstruksi rajutan padat yang tidak menerawang, menjaga aurat kaki tetap tertutup sempurna saat bergerak aktif, beribadah, maupun beraktivitas di ruang publik.',
+          'Menggunakan bahan premium yang memberikan tekstur super halus, adem, dan kokoh (tidak menerawang). Hadir dengan jahitan seamless dan warna sophisticated yang mudah dipadukan dengan gamis atau tunik kerja.',
       },
-      comfortable: {
-        title: 'Comfortable',
-        subtitle: '100% Premium Grade A Material',
+      lovable: {
+        title: 'LOVABLE',
+        subtitle: 'Kenyamanan yang Memeluk Kaki Sepanjang Hari',
         description:
-          'Dipintal dari serat pilihan yang sejuk di kulit, berdaya serap keringat tinggi, bebas gatal, dan menjaga kaki tetap segar tanpa bau apek sepanjang hari.',
+          'Elastisitas pas pada betis, anti-plorot namun tidak meninggalkan bekas atau gatal di kulit meski dipakai dari duha hingga magrib. Memberikan peace of mind karena aurat tertutup sempurna tanpa rasa gerah.',
       },
-      chic: {
-        title: 'Chic',
-        subtitle: 'Earth-Tone Aesthetic Palette',
+      innovative: {
+        title: 'INNOVATIVE',
+        subtitle: 'Teknologi untuk Mobilitas & Kemudahan Wudu',
         description:
-          'Kurasi warna bumi yang elegan dan bernuansa pastel modern, menciptakan perpaduan visual yang serasi dengan gamis, abaya, kulot, maupun outfit kasual favorit.',
+          'Desain inovatif yang wudhu-friendly, material cepat kering (quick-dry), anti-bau (silver ion), serta tambahan grip silikon tipis anti-slip yang aman digunakan di area wudu maupun masjid.',
+      },
+      radiant: {
+        title: 'RADIANT',
+        subtitle: 'Pancaran Percaya Diri & Aura Positif',
+        description:
+          'Membuat pemakainya bangga dengan identitas muslimahnya. Desain elegan yang memancarkan kesan cerdas dan rapi, menambah karisma saat memimpin rapat maupun aktif di luar ruangan.',
       },
     },
   },

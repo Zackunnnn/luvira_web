@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
+import { isOwner } from '@/lib/auth';
 import { Product } from '@/types/product';
 
 export async function GET() {
@@ -13,16 +14,27 @@ export async function GET() {
       include: { variants: true },
     });
     
-    const mappedProducts = products.map(p => ({
-      ...p,
-      variants: p.variants.map(v => ({
-        id: v.id,
-        name: v.name,
-        hex: v.hex,
-        image: v.imageUrl,
-        stock: v.stock,
-      }))
-    }));
+    const ownerStatus = await isOwner();
+
+    const mappedProducts = products.map(p => {
+      // Strip cost fields if not owner
+      let productData: any = { ...p };
+      if (!ownerStatus) {
+        delete productData.costPrice;
+        delete productData.packingCost;
+      }
+
+      return {
+        ...productData,
+        variants: p.variants.map((v: any) => ({
+          id: v.id,
+          name: v.name,
+          hex: v.hex,
+          image: v.imageUrl,
+          stock: v.stock,
+        }))
+      };
+    });
     
     return Response.json({ data: mappedProducts });
   } catch (error) {
@@ -40,34 +52,49 @@ export async function POST(request: NextRequest) {
     const body: Product = await request.json();
     const { id, name, model, price, originalPrice, rating, reviewsCount, badge, description, features, variants } = body;
 
+    const ownerStatus = await isOwner();
+
+    const dataToCreate: any = {
+      id: id || `prod-${Date.now()}`,
+      name,
+      model,
+      price,
+      originalPrice,
+      rating,
+      reviewsCount,
+      badge,
+      description,
+      features,
+      variants: {
+        create: variants.map((v: any) => ({
+          id: v.id,
+          name: v.name,
+          hex: v.hex,
+          imageUrl: v.image,
+          stock: v.stock,
+        }))
+      }
+    };
+
+    if (ownerStatus) {
+      if ((body as any).costPrice !== undefined) dataToCreate.costPrice = (body as any).costPrice;
+      if ((body as any).packingCost !== undefined) dataToCreate.packingCost = (body as any).packingCost;
+    }
+
     const newProduct = await prisma.product.create({
-      data: {
-        id: id || `prod-${Date.now()}`,
-        name,
-        model,
-        price,
-        originalPrice,
-        rating,
-        reviewsCount,
-        badge,
-        description,
-        features,
-        variants: {
-          create: variants.map(v => ({
-            id: v.id,
-            name: v.name,
-            hex: v.hex,
-            imageUrl: v.image,
-            stock: v.stock,
-          }))
-        }
-      },
+      data: dataToCreate,
       include: { variants: true },
     });
 
+    let productData: any = { ...newProduct };
+    if (!ownerStatus) {
+      delete productData.costPrice;
+      delete productData.packingCost;
+    }
+
     const mappedProduct = {
-      ...newProduct,
-      variants: newProduct.variants.map(v => ({
+      ...productData,
+      variants: newProduct.variants.map((v: any) => ({
         id: v.id,
         name: v.name,
         hex: v.hex,
