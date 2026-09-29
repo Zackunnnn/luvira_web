@@ -23,9 +23,10 @@ export interface AboutContent {
   title: string; // Main section heading
   description: string; // Section introductory description
   pillars: {
-    modest: BrandPillar;
-    comfortable: BrandPillar;
-    chic: BrandPillar;
+    lux: BrandPillar;
+    lovable: BrandPillar;
+    innovative: BrandPillar;
+    radiant: BrandPillar;
   };
 }
 

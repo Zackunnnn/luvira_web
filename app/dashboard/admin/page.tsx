@@ -1459,16 +1459,16 @@ export default function AdminPage() {
                 }
               />
 
-              {/* 3 Pillars Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+              {/* 4 Pillars Grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
                 {/* Pillar 1: Modest */}
                 <div className="p-4 bg-warm-cream rounded-2xl border border-deep-forest/10 space-y-2.5">
                   <span className="text-xs font-black text-deep-forest uppercase">
-                    Pilar 1 — Modest
+                    Pilar 1 — Lux
                   </span>
                   <Input
                     label="Judul Pilar"
-                    value={copyForm.about.pillars.modest.title}
+                    value={copyForm.about.pillars.lux.title}
                     onChange={(e) =>
                       setCopyForm({
                         ...copyForm,
@@ -1476,8 +1476,8 @@ export default function AdminPage() {
                           ...copyForm.about,
                           pillars: {
                             ...copyForm.about.pillars,
-                            modest: {
-                              ...copyForm.about.pillars.modest,
+                            lux: {
+                              ...copyForm.about.pillars.lux,
                               title: e.target.value,
                             },
                           },
@@ -1487,7 +1487,7 @@ export default function AdminPage() {
                   />
                   <Input
                     label="Sub-judul Catchphrase"
-                    value={copyForm.about.pillars.modest.subtitle}
+                    value={copyForm.about.pillars.lux.subtitle}
                     onChange={(e) =>
                       setCopyForm({
                         ...copyForm,
@@ -1495,8 +1495,8 @@ export default function AdminPage() {
                           ...copyForm.about,
                           pillars: {
                             ...copyForm.about.pillars,
-                            modest: {
-                              ...copyForm.about.pillars.modest,
+                            lux: {
+                              ...copyForm.about.pillars.lux,
                               subtitle: e.target.value,
                             },
                           },
@@ -1506,7 +1506,7 @@ export default function AdminPage() {
                   />
                   <Textarea
                     label="Penjelasan Narasi"
-                    value={copyForm.about.pillars.modest.description}
+                    value={copyForm.about.pillars.lux.description}
                     onChange={(e) =>
                       setCopyForm({
                         ...copyForm,
@@ -1514,8 +1514,8 @@ export default function AdminPage() {
                           ...copyForm.about,
                           pillars: {
                             ...copyForm.about.pillars,
-                            modest: {
-                              ...copyForm.about.pillars.modest,
+                            lux: {
+                              ...copyForm.about.pillars.lux,
                               description: e.target.value,
                             },
                           },
@@ -1528,11 +1528,11 @@ export default function AdminPage() {
                 {/* Pillar 2: Comfortable */}
                 <div className="p-4 bg-warm-cream rounded-2xl border border-deep-forest/10 space-y-2.5">
                   <span className="text-xs font-black text-leaf-olive uppercase">
-                    Pilar 2 — Comfortable
+                    Pilar 2 — Lovable
                   </span>
                   <Input
                     label="Judul Pilar"
-                    value={copyForm.about.pillars.comfortable.title}
+                    value={copyForm.about.pillars.lovable.title}
                     onChange={(e) =>
                       setCopyForm({
                         ...copyForm,
@@ -1540,8 +1540,8 @@ export default function AdminPage() {
                           ...copyForm.about,
                           pillars: {
                             ...copyForm.about.pillars,
-                            comfortable: {
-                              ...copyForm.about.pillars.comfortable,
+                            lovable: {
+                              ...copyForm.about.pillars.lovable,
                               title: e.target.value,
                             },
                           },
@@ -1551,7 +1551,7 @@ export default function AdminPage() {
                   />
                   <Input
                     label="Sub-judul Catchphrase"
-                    value={copyForm.about.pillars.comfortable.subtitle}
+                    value={copyForm.about.pillars.lovable.subtitle}
                     onChange={(e) =>
                       setCopyForm({
                         ...copyForm,
@@ -1559,8 +1559,8 @@ export default function AdminPage() {
                           ...copyForm.about,
                           pillars: {
                             ...copyForm.about.pillars,
-                            comfortable: {
-                              ...copyForm.about.pillars.comfortable,
+                            lovable: {
+                              ...copyForm.about.pillars.lovable,
                               subtitle: e.target.value,
                             },
                           },
@@ -1570,7 +1570,7 @@ export default function AdminPage() {
                   />
                   <Textarea
                     label="Penjelasan Narasi"
-                    value={copyForm.about.pillars.comfortable.description}
+                    value={copyForm.about.pillars.lovable.description}
                     onChange={(e) =>
                       setCopyForm({
                         ...copyForm,
@@ -1578,8 +1578,8 @@ export default function AdminPage() {
                           ...copyForm.about,
                           pillars: {
                             ...copyForm.about.pillars,
-                            comfortable: {
-                              ...copyForm.about.pillars.comfortable,
+                            lovable: {
+                              ...copyForm.about.pillars.lovable,
                               description: e.target.value,
                             },
                           },
@@ -1592,11 +1592,11 @@ export default function AdminPage() {
                 {/* Pillar 3: Chic */}
                 <div className="p-4 bg-warm-cream rounded-2xl border border-deep-forest/10 space-y-2.5">
                   <span className="text-xs font-black text-dusty-rose uppercase">
-                    Pilar 3 — Chic
+                    Pilar 3 — Innovative
                   </span>
                   <Input
                     label="Judul Pilar"
-                    value={copyForm.about.pillars.chic.title}
+                    value={copyForm.about.pillars.innovative.title}
                     onChange={(e) =>
                       setCopyForm({
                         ...copyForm,
@@ -1604,8 +1604,8 @@ export default function AdminPage() {
                           ...copyForm.about,
                           pillars: {
                             ...copyForm.about.pillars,
-                            chic: {
-                              ...copyForm.about.pillars.chic,
+                            innovative: {
+                              ...copyForm.about.pillars.innovative,
                               title: e.target.value,
                             },
                           },
@@ -1615,7 +1615,7 @@ export default function AdminPage() {
                   />
                   <Input
                     label="Sub-judul Catchphrase"
-                    value={copyForm.about.pillars.chic.subtitle}
+                    value={copyForm.about.pillars.innovative.subtitle}
                     onChange={(e) =>
                       setCopyForm({
                         ...copyForm,
@@ -1623,8 +1623,8 @@ export default function AdminPage() {
                           ...copyForm.about,
                           pillars: {
                             ...copyForm.about.pillars,
-                            chic: {
-                              ...copyForm.about.pillars.chic,
+                            innovative: {
+                              ...copyForm.about.pillars.innovative,
                               subtitle: e.target.value,
                             },
                           },
@@ -1634,7 +1634,7 @@ export default function AdminPage() {
                   />
                   <Textarea
                     label="Penjelasan Narasi"
-                    value={copyForm.about.pillars.chic.description}
+                    value={copyForm.about.pillars.innovative.description}
                     onChange={(e) =>
                       setCopyForm({
                         ...copyForm,
@@ -1642,8 +1642,8 @@ export default function AdminPage() {
                           ...copyForm.about,
                           pillars: {
                             ...copyForm.about.pillars,
-                            chic: {
-                              ...copyForm.about.pillars.chic,
+                            innovative: {
+                              ...copyForm.about.pillars.innovative,
                               description: e.target.value,
                             },
                           },
@@ -1653,6 +1653,70 @@ export default function AdminPage() {
                   />
                 </div>
               </div>
+                {/* Pillar 4: Radiant */}
+                <div className="p-4 bg-warm-cream rounded-2xl border border-deep-forest/10 space-y-2.5">
+                  <span className="text-xs font-black text-amber-600 uppercase">
+                    Pilar 4 — Radiant
+                  </span>
+                  <Input
+                    label="Judul Pilar"
+                    value={copyForm.about.pillars.radiant.title}
+                    onChange={(e) =>
+                      setCopyForm({
+                        ...copyForm,
+                        about: {
+                          ...copyForm.about,
+                          pillars: {
+                            ...copyForm.about.pillars,
+                            radiant: {
+                              ...copyForm.about.pillars.radiant,
+                              title: e.target.value,
+                            },
+                          },
+                        },
+                      })
+                    }
+                  />
+                  <Input
+                    label="Sub-judul Catchphrase"
+                    value={copyForm.about.pillars.radiant.subtitle}
+                    onChange={(e) =>
+                      setCopyForm({
+                        ...copyForm,
+                        about: {
+                          ...copyForm.about,
+                          pillars: {
+                            ...copyForm.about.pillars,
+                            radiant: {
+                              ...copyForm.about.pillars.radiant,
+                              subtitle: e.target.value,
+                            },
+                          },
+                        },
+                      })
+                    }
+                  />
+                  <Textarea
+                    label="Penjelasan Narasi"
+                    value={copyForm.about.pillars.radiant.description}
+                    onChange={(e) =>
+                      setCopyForm({
+                        ...copyForm,
+                        about: {
+                          ...copyForm.about,
+                          pillars: {
+                            ...copyForm.about.pillars,
+                            radiant: {
+                              ...copyForm.about.pillars.radiant,
+                              description: e.target.value,
+                            },
+                          },
+                        },
+                      })
+                    }
+                  />
+                </div>
+
             </div>
 
             {/* Section 3: Feature Highlights (100% Dynamic with custom names, e.g. 100% Premium Nylon) */}
@@ -1902,7 +1966,7 @@ export default function AdminPage() {
                   <div>
                     <div className="text-sm font-bold text-muted-charcoal">Perlu Diproses</div>
                     <div className="text-xs font-black text-dusty-rose">
-                      {mounted ? orders.filter((o) => o.status !== 'Selesai').length : 0} Pesanan
+                      {mounted ? orders.filter((o) => o.status !== 'selesai').length : 0} Pesanan
                     </div>
                   </div>
                 </div>

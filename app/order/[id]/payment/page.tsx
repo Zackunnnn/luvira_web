@@ -7,20 +7,23 @@ import { ShieldCheck } from 'lucide-react';
 export default async function OrderPaymentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
-  // Retrieve the order from the database
-  const order = await prisma.order.findUnique({
-    where: { invoiceNumber: id.toUpperCase() }, // Assuming id in URL is invoiceNumber, e.g. /order/LVR-XXXX/payment
+  const finalOrder = await prisma.order.findUnique({ 
+    where: { id },
+    include: { items: true }
   });
 
-  if (!order) {
-    // If not found by invoice, try by raw ID just in case
-    const orderById = await prisma.order.findUnique({ where: { id } });
-    if (!orderById) {
-      notFound();
-    }
+  if (!finalOrder) {
+    notFound();
   }
 
-  const finalOrder = order || await prisma.order.findUnique({ where: { id } });
+  const invoiceNumber = finalOrder.id.toUpperCase().substring(0, 10);
+  
+  let itemsTotal = 0;
+  finalOrder.items.forEach(item => {
+    itemsTotal += (item.priceEach * item.quantity);
+  });
+  
+  const totalPrice = itemsTotal + (finalOrder.shippingCost || 0) + (finalOrder.ppnAmount || 0);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('id-ID', {
@@ -50,11 +53,11 @@ export default async function OrderPaymentPage({ params }: { params: Promise<{ i
           <div className="space-y-3 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-charcoal/70">No. Invoice</span>
-              <span className="font-bold text-deep-forest">{finalOrder?.invoiceNumber}</span>
+              <span className="font-bold text-deep-forest">{invoiceNumber}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-charcoal/70">Nama Pemesan</span>
-              <span className="font-semibold text-muted-charcoal">{finalOrder?.customerName}</span>
+              <span className="font-semibold text-muted-charcoal">{finalOrder.customerName}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-charcoal/70">Tujuan Bank</span>
@@ -64,13 +67,13 @@ export default async function OrderPaymentPage({ params }: { params: Promise<{ i
             <div className="pt-4 mt-4 border-t border-gray-100 flex justify-between items-center">
               <span className="font-bold text-muted-charcoal">Total Transfer</span>
               <span className="text-2xl font-black text-deep-forest">
-                {formatCurrency(finalOrder?.totalPrice || 0)}
+                {formatCurrency(totalPrice)}
               </span>
             </div>
           </div>
 
           <div className="bg-amber-50 p-4 rounded-xl text-xs text-amber-800 mt-4 border border-amber-200">
-            Pastikan Anda mentransfer tepat sejumlah <strong>{formatCurrency(finalOrder?.totalPrice || 0)}</strong> ke rekening yang tertera sebelum batas waktu habis.
+            Pastikan Anda mentransfer tepat sejumlah <strong>{formatCurrency(totalPrice)}</strong> ke rekening yang tertera sebelum batas waktu habis.
           </div>
         </div>
 

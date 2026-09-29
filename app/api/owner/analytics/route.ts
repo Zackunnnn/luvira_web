@@ -41,12 +41,7 @@ export async function GET(request: NextRequest) {
     const orders = await prisma.order.findMany({
       where: whereClause,
       include: {
-        items: {
-          include: {
-            product: true,
-            order: true // To get shippingCost if needed
-          }
-        },
+        items: true
       },
       orderBy: { createdAt: 'desc' }
     });
@@ -56,9 +51,6 @@ export async function GET(request: NextRequest) {
     let totalCost = 0;
 
     orders.forEach(order => {
-      // Omzet = total uang yang masuk dari pelanggan (termasuk produk, ppn, ongkir)
-      // Tapi untuk analitik barang, Revenue = harga barang saja.
-      // Kita asumsikan revenue = harga barang terjual * qty (tanpa ongkir)
       let orderProductRevenue = 0;
       let orderCost = 0;
 
@@ -67,28 +59,22 @@ export async function GET(request: NextRequest) {
         orderCost += ((item.costEach + item.packingEach) * item.quantity);
       });
 
-      // PPN yang dikumpulkan (dari database)
       totalPpn += (order.ppnAmount || 0);
-      
-      // Promo discount bisa didapat jika kita mau (Revenue bersih = Product Revenue - Promo)
-      // Tapi kita gunakan pendekatan sederhana: Omzet kotor = product revenue
       totalRevenue += orderProductRevenue;
       totalCost += orderCost;
     });
-
-    // Net Profit = (Revenue - Diskon promo) - Total Cost
-    // Karena kita tidak menyimpan nominal diskon promo secara gamblang di order, 
-    // cara paling aman adalah: Net Profit = (Order.totalPrice - shippingCost - ppnAmount) - Cost
     
     let netProfit = 0;
-    let actualRevenue = 0; // Total uang yang dibayar buyer untuk barang (setelah potong promo)
+    let actualRevenue = 0; 
 
     orders.forEach(order => {
-      const shipping = order.shippingCost || 0;
-      const ppn = order.ppnAmount || 0;
+      let itemsTotal = 0;
+      order.items.forEach(item => {
+        itemsTotal += (item.priceEach * item.quantity);
+      });
       
-      // Harga bersih yang dibayar untuk produk (sudah dipotong promo, tanpa ongkir & ppn)
-      const netProductPaid = order.totalPrice - shipping - ppn;
+      // Harga bersih yang dibayar untuk produk (tanpa ongkir & ppn, blm dikurangi diskon krn tdk tersimpan)
+      const netProductPaid = itemsTotal;
       
       actualRevenue += netProductPaid;
 

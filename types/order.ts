@@ -34,4 +34,5 @@ export interface Order {
   paymentDeadline?: string;
   verifiedBy?: string;
   verifiedAt?: string;
+  midtransToken?: string;
 }

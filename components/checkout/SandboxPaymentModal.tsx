@@ -191,7 +191,7 @@ export const SandboxPaymentModal: React.FC<SandboxPaymentModalProps> = ({
         items,
         totalPrice,
         paymentMethod: methodName,
-        status: 'Sandbox Verified',
+        status: 'dikonfirmasi',
         createdAt: formattedDate,
       };
 
