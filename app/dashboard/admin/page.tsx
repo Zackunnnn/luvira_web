@@ -199,7 +199,8 @@ export default function AdminPage() {
     quota: 0,
     usedCount: 0,
     isActive: true,
-    isFreeShipping: false
+    isFreeShipping: false,
+    isFreeTax: false
   };
   const [promoForm, setPromoForm] = useState<PromoCode>(emptyPromo);
   const [editingPromoId, setEditingPromoId] = useState<string | null>(null);
@@ -2505,15 +2506,28 @@ export default function AdminPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between p-4 rounded-xl border border-muted-charcoal/20">
-                  <span className="text-sm font-semibold text-muted-charcoal">Status Aktif</span>
-                  <button
-                    type="button"
-                    onClick={() => setPromoForm({ ...promoForm, isActive: !promoForm.isActive })}
-                    className={`p-1 rounded-full transition-colors cursor-pointer ${promoForm.isActive ? 'text-leaf-olive' : 'text-muted-charcoal/40'}`}
-                  >
-                    {promoForm.isActive ? <ToggleRight className="w-8 h-8" /> : <ToggleLeft className="w-8 h-8" />}
-                  </button>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="flex items-center justify-between p-4 rounded-xl border border-muted-charcoal/20">
+                    <span className="text-sm font-semibold text-muted-charcoal">Status Aktif</span>
+                    <button
+                      type="button"
+                      onClick={() => setPromoForm({ ...promoForm, isActive: !promoForm.isActive })}
+                      className={`p-1 rounded-full transition-colors cursor-pointer ${promoForm.isActive ? 'text-leaf-olive' : 'text-muted-charcoal/40'}`}
+                    >
+                      {promoForm.isActive ? <ToggleRight className="w-8 h-8" /> : <ToggleLeft className="w-8 h-8" />}
+                    </button>
+                </div>
+
+                <div className="flex items-center justify-between p-4 rounded-xl border border-muted-charcoal/20">
+                    <span className="text-sm font-semibold text-muted-charcoal">Bebas PPN? (Free Tax)</span>
+                    <button
+                      type="button"
+                      onClick={() => setPromoForm({ ...promoForm, isFreeTax: !promoForm.isFreeTax })}
+                      className={`p-1 rounded-full transition-colors cursor-pointer ${promoForm.isFreeTax ? 'text-leaf-olive' : 'text-muted-charcoal/40'}`}
+                    >
+                      {promoForm.isFreeTax ? <ToggleRight className="w-8 h-8" /> : <ToggleLeft className="w-8 h-8" />}
+                    </button>
+                </div>
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t border-deep-forest/10">
@@ -2544,6 +2558,11 @@ export default function AdminPage() {
                   {promo.isFreeShipping && (
                     <div className="text-sm text-leaf-olive font-bold mb-1 flex items-center gap-1">
                       <Check className="w-3.5 h-3.5" /> Gratis Ongkir
+                    </div>
+                  )}
+                  {promo.isFreeTax && (
+                    <div className="text-sm text-leaf-olive font-bold mb-1 flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5" /> Bebas PPN
                     </div>
                   )}
                   <div className="text-[11px] text-muted-charcoal/70">

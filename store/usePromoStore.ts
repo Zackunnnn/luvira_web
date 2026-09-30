@@ -14,6 +14,7 @@ export interface PromoCode {
   expiresAt?: Date | string | null;
   isActive: boolean;
   isFreeShipping: boolean;
+  isFreeTax: boolean;
 }
 
 interface PromoState {

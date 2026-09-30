@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db';
 
 export async function GET() {
   try {
@@ -28,6 +28,7 @@ export async function POST(req: Request) {
         quota: body.quota || 0,
         isActive: body.isActive ?? true,
         isFreeShipping: body.isFreeShipping ?? false,
+        isFreeTax: body.isFreeTax ?? false,
       }
     });
     return NextResponse.json({ success: true, data: newPromo });

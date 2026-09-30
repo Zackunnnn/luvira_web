@@ -14,28 +14,28 @@ export async function POST(request: NextRequest) {
         courier: 'JNE',
         service: 'REG',
         description: 'Layanan Reguler',
-        cost: 15000,
+        cost: 6000,
         etd: '2-3 hari',
       },
       {
         courier: 'JNE',
         service: 'YES',
         description: 'Yakin Esok Sampai',
-        cost: 25000,
+        cost: 9000,
         etd: '1 hari',
       },
       {
         courier: 'Sicepat',
         service: 'REG',
         description: 'Sicepat Reguler',
-        cost: 14000,
+        cost: 6500,
         etd: '2-3 hari',
       },
       {
         courier: 'Sicepat',
         service: 'BEST',
         description: 'Besok Sampai Tujuan',
-        cost: 22000,
+        cost: 8500,
         etd: '1 hari',
       }
     ];

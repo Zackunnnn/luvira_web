@@ -36,6 +36,8 @@ export async function POST(request: NextRequest) {
         code: promo.code,
         discountType: promo.discountType,
         discountValue: promo.discountValue,
+        isFreeShipping: promo.isFreeShipping,
+        isFreeTax: promo.isFreeTax,
       },
     }, { status: 200 });
   } catch (error) {

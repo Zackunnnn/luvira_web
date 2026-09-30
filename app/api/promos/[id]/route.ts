@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/db';
 
 export async function PUT(req: Request, context: { params: { id: string } }) {
   try {
@@ -18,6 +18,7 @@ export async function PUT(req: Request, context: { params: { id: string } }) {
         quota: body.quota,
         isActive: body.isActive,
         isFreeShipping: body.isFreeShipping,
+        isFreeTax: body.isFreeTax,
       }
     });
     return NextResponse.json({ success: true, data: updatedPromo });

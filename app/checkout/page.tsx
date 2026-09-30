@@ -151,8 +151,13 @@ export default function CheckoutPage() {
   // Calculations
   const discountAmount = promoData ? (promoData.discountType === 'fixed' ? promoData.discountValue : (basePrice * promoData.discountValue / 100)) : 0;
   const priceAfterDiscount = Math.max(0, basePrice - discountAmount);
-  const ppnAmount = priceAfterDiscount * PPN_RATE;
-  const shippingCost = selectedShipping ? selectedShipping.cost : 0;
+  
+  const isFreeTax = promoData?.isFreeTax === true;
+  const ppnAmount = isFreeTax ? 0 : (priceAfterDiscount * PPN_RATE);
+  
+  const isFreeShipping = promoData?.isFreeShipping === true;
+  const shippingCost = isFreeShipping ? 0 : (selectedShipping ? selectedShipping.cost : 0);
+  
   const finalPrice = priceAfterDiscount + ppnAmount + shippingCost;
 
   const formatCurrency = (amount: number) => {
@@ -467,11 +472,19 @@ export default function CheckoutPage() {
                     )}
                     <div className="flex justify-between text-muted-charcoal/70">
                       <span>PPN (11%)</span>
-                      <span className="font-semibold">{formatCurrency(ppnAmount)}</span>
+                      {isFreeTax ? (
+                        <span className="font-semibold text-leaf-olive">Gratis</span>
+                      ) : (
+                        <span className="font-semibold">{formatCurrency(ppnAmount)}</span>
+                      )}
                     </div>
                     <div className="flex justify-between text-muted-charcoal/70">
                       <span>Ongkos Kirim</span>
-                      <span className="font-semibold">{shippingCost > 0 ? formatCurrency(shippingCost) : '-'}</span>
+                      {isFreeShipping ? (
+                        <span className="font-semibold text-leaf-olive">Gratis</span>
+                      ) : (
+                        <span className="font-semibold">{shippingCost > 0 ? formatCurrency(shippingCost) : '-'}</span>
+                      )}
                     </div>
                     <div className="flex justify-between text-base font-extrabold text-deep-forest pt-2 border-t border-deep-forest/10">
                       <span>Total Pembayaran</span>
