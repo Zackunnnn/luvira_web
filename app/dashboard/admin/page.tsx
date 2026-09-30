@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation';
 import { useProductStore } from '@/store/useProductStore';
 import { useContentStore } from '@/store/useContentStore';
 import { useOrderStore } from '@/store/useOrderStore';
+import { usePromoStore, PromoCode } from '@/store/usePromoStore';
 import { Product, ColorVariant, ModelType } from '@/types/product';
 import { SiteContent, FeatureItem } from '@/types/content';
 import { Order, OrderStatus } from '@/types/order';
@@ -57,7 +58,8 @@ import {
   Loader2,
   AlertCircle,
   Folder,
-  CheckCircle2
+  CheckCircle2,
+  Ticket
 } from 'lucide-react';
 
 
@@ -119,7 +121,7 @@ const formatCurrency = (amount: number) => {
 
 export default function AdminPage() {
   // ========== TAB STATE ==========
-  const [activeTab, setActiveTab] = useState<'products' | 'copywriting' | 'orders'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'copywriting' | 'orders' | 'promos'>('products');
 
   // ========== PRODUCT STORE ==========
   const {
@@ -157,6 +159,15 @@ export default function AdminPage() {
     getTotalRevenue,
   } = useOrderStore();
 
+  // ========== PROMO STORE ==========
+  const {
+    promos,
+    fetchPromos,
+    addPromo,
+    updatePromo,
+    deletePromo,
+  } = usePromoStore();
+
   // ========== HYDRATION SAFEGUARD ==========
   const [mounted, setMounted] = useState(false);
   useEffect(() => {
@@ -164,6 +175,7 @@ export default function AdminPage() {
     fetchProducts();
     fetchContent();
     fetchOrders();
+    fetchPromos();
     
     // Auto-refresh orders every 10 seconds to catch Midtrans Webhook updates
     const interval = setInterval(() => {
@@ -178,6 +190,20 @@ export default function AdminPage() {
   const [editingProductId, setEditingProductId] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [showForm, setShowForm] = useState(false);
+
+  // ========== PROMO FORM STATE ==========
+  const emptyPromo: PromoCode = {
+    code: '',
+    discountType: 'percentage',
+    discountValue: 0,
+    quota: 0,
+    usedCount: 0,
+    isActive: true,
+    isFreeShipping: false
+  };
+  const [promoForm, setPromoForm] = useState<PromoCode>(emptyPromo);
+  const [editingPromoId, setEditingPromoId] = useState<string | null>(null);
+  const [showPromoForm, setShowPromoForm] = useState(false);
 
   // ========== COPYWRITING FORM STATE ==========
   const [copyForm, setCopyForm] = useState<SiteContent>(DEFAULT_SITE_CONTENT);
@@ -553,6 +579,34 @@ export default function AdminPage() {
     setShowClearOrdersConfirm(false);
   };
 
+  // ========== PROMO HELPERS ==========
+  const handlePromoSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!promoForm.code.trim()) {
+      showSuccess('Kode Promo wajib diisi!');
+      return;
+    }
+
+    if (editingPromoId) {
+      await updatePromo(editingPromoId, promoForm);
+      showSuccess(`Kode promo ${promoForm.code} berhasil diupdate!`);
+    } else {
+      await addPromo(promoForm);
+      showSuccess(`Kode promo ${promoForm.code} berhasil ditambahkan!`);
+    }
+
+    setPromoForm(emptyPromo);
+    setEditingPromoId(null);
+    setShowPromoForm(false);
+  };
+
+  const handleEditPromo = (promo: PromoCode) => {
+    setPromoForm(promo);
+    setEditingPromoId(promo.id!);
+    setShowPromoForm(true);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div className="min-h-screen bg-warm-cream text-muted-charcoal">
       {/* ========== SUCCESS TOAST NOTIFICATION ========== */}
@@ -657,6 +711,22 @@ export default function AdminPage() {
             <span>Riwayat Pesanan Masuk</span>
             <span className="text-[10px] px-2 py-0.5 rounded-full bg-deep-forest/20 text-deep-forest font-mono ml-1 font-bold">
               {mounted ? orders.length : 0}
+            </span>
+          </button>
+
+          {/* TAB 4: Promo Codes */}
+          <button
+            onClick={() => setActiveTab('promos')}
+            className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm transition-all cursor-pointer ${
+              activeTab === 'promos'
+                ? 'bg-deep-forest text-warm-cream shadow-sm'
+                : 'text-muted-charcoal/70 hover:bg-warm-cream hover:text-deep-forest'
+            }`}
+          >
+            <Ticket className="w-4 h-4 text-leaf-olive" />
+            <span>Manajemen Promo</span>
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-deep-forest/20 text-deep-forest font-mono ml-1 font-bold">
+              {mounted ? promos.length : 0}
             </span>
           </button>
         </div>
@@ -2346,6 +2416,171 @@ export default function AdminPage() {
                 Ya, Hapus
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* TAB 4: PROMO CODES                                        */}
+      {/* ========================================================= */}
+      {activeTab === 'promos' && (
+        <div className="space-y-8 animate-in fade-in duration-300">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <h2 className="text-lg font-extrabold text-deep-forest flex items-center gap-2">
+              <Ticket className="w-5 h-5 text-leaf-olive" />
+              <span>Manajemen Kode Promo</span>
+            </h2>
+            <button
+              onClick={() => {
+                if (showPromoForm && editingPromoId) {
+                  setEditingPromoId(null);
+                  setPromoForm(emptyPromo);
+                }
+                setShowPromoForm(!showPromoForm);
+              }}
+              className="px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 bg-deep-forest text-warm-cream hover:bg-deep-forest/90 shadow-xs"
+            >
+              {showPromoForm ? (
+                <>
+                  <ChevronUp className="w-3.5 h-3.5" />
+                  <span>Tutup Form</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Tambah Promo</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {showPromoForm && (
+            <form onSubmit={handlePromoSubmit} className="bg-white p-6 rounded-3xl border border-deep-forest/10 shadow-sm space-y-6 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input
+                  label="Kode Promo *"
+                  placeholder="Contoh: SUPER50"
+                  value={promoForm.code}
+                  onChange={(e) => setPromoForm({ ...promoForm, code: e.target.value.toUpperCase().replace(/\s+/g, '') })}
+                />
+                <div className="w-full space-y-1.5">
+                  <label className="block text-xs font-semibold text-muted-charcoal">
+                    Tipe Diskon *
+                  </label>
+                  <select
+                    value={promoForm.discountType}
+                    onChange={(e) => setPromoForm({ ...promoForm, discountType: e.target.value as 'percentage' | 'fixed' })}
+                    className="w-full px-4 py-3 bg-white border border-muted-charcoal/20 rounded-2xl text-sm text-muted-charcoal focus:outline-none focus:ring-2 focus:ring-deep-forest/40 focus:border-deep-forest transition-all duration-200 cursor-pointer"
+                  >
+                    <option value="percentage">Persentase (%)</option>
+                    <option value="fixed">Nominal Tetap (Rp)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <Input
+                  label="Besar Diskon *"
+                  placeholder={promoForm.discountType === 'percentage' ? "Contoh: 50" : "Contoh: 50000"}
+                  type="number"
+                  value={promoForm.discountValue.toString()}
+                  onChange={(e) => setPromoForm({ ...promoForm, discountValue: Number(e.target.value) })}
+                />
+                <Input
+                  label="Kuota Penggunaan"
+                  placeholder="Contoh: 100"
+                  type="number"
+                  value={promoForm.quota.toString()}
+                  onChange={(e) => setPromoForm({ ...promoForm, quota: Number(e.target.value) })}
+                />
+                <div className="flex items-center justify-between p-4 rounded-xl border border-muted-charcoal/20">
+                  <span className="text-sm font-semibold text-muted-charcoal">Gratis Ongkir?</span>
+                  <button
+                    type="button"
+                    onClick={() => setPromoForm({ ...promoForm, isFreeShipping: !promoForm.isFreeShipping })}
+                    className={`p-1 rounded-full transition-colors cursor-pointer ${promoForm.isFreeShipping ? 'text-leaf-olive' : 'text-muted-charcoal/40'}`}
+                  >
+                    {promoForm.isFreeShipping ? <ToggleRight className="w-8 h-8" /> : <ToggleLeft className="w-8 h-8" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between p-4 rounded-xl border border-muted-charcoal/20">
+                  <span className="text-sm font-semibold text-muted-charcoal">Status Aktif</span>
+                  <button
+                    type="button"
+                    onClick={() => setPromoForm({ ...promoForm, isActive: !promoForm.isActive })}
+                    className={`p-1 rounded-full transition-colors cursor-pointer ${promoForm.isActive ? 'text-leaf-olive' : 'text-muted-charcoal/40'}`}
+                  >
+                    {promoForm.isActive ? <ToggleRight className="w-8 h-8" /> : <ToggleLeft className="w-8 h-8" />}
+                  </button>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-deep-forest/10">
+                <Button type="submit" className="px-8">
+                  <Save className="w-4 h-4 mr-2" />
+                  {editingPromoId ? 'Simpan Perubahan' : 'Buat Promo'}
+                </Button>
+              </div>
+            </form>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {promos.map((promo) => (
+              <div key={promo.id} className="bg-white p-5 rounded-2xl border border-deep-forest/10 shadow-sm flex flex-col justify-between hover:shadow-md transition-all">
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="px-3 py-1 bg-dusty-rose/10 text-dusty-rose text-xs font-black rounded-lg uppercase tracking-wider">
+                      {promo.code}
+                    </span>
+                    <span className={`text-[10px] px-2 py-1 rounded-full font-bold uppercase ${promo.isActive ? 'bg-leaf-olive text-white' : 'bg-muted-charcoal/20 text-muted-charcoal'}`}>
+                      {promo.isActive ? 'Aktif' : 'Non-Aktif'}
+                    </span>
+                  </div>
+                  
+                  <div className="text-sm text-muted-charcoal font-medium mb-1">
+                    Diskon: <span className="font-bold text-deep-forest">{promo.discountType === 'percentage' ? `${promo.discountValue}%` : formatCurrency(promo.discountValue)}</span>
+                  </div>
+                  {promo.isFreeShipping && (
+                    <div className="text-sm text-leaf-olive font-bold mb-1 flex items-center gap-1">
+                      <Check className="w-3.5 h-3.5" /> Gratis Ongkir
+                    </div>
+                  )}
+                  <div className="text-[11px] text-muted-charcoal/70">
+                    Kuota: {promo.usedCount} / {promo.quota} terpakai
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-end gap-2 mt-4 pt-4 border-t border-deep-forest/5">
+                  <button
+                    onClick={() => handleEditPromo(promo)}
+                    className="p-2 text-deep-forest bg-warm-cream hover:bg-deep-forest hover:text-white rounded-xl transition-all cursor-pointer"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      if(window.confirm(`Yakin ingin menghapus promo ${promo.code}?`)) {
+                        deletePromo(promo.id!);
+                        showSuccess(`Promo ${promo.code} dihapus.`);
+                      }
+                    }}
+                    className="p-2 text-dusty-rose bg-warm-cream hover:bg-dusty-rose hover:text-white rounded-xl transition-all cursor-pointer"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ))}
+            {promos.length === 0 && !showPromoForm && (
+              <div className="col-span-full py-12 text-center border-2 border-dashed border-deep-forest/10 rounded-3xl">
+                <Ticket className="w-8 h-8 text-muted-charcoal/20 mx-auto mb-3" />
+                <div className="text-sm font-bold text-muted-charcoal">Belum ada kode promo</div>
+                <div className="text-[11px] text-muted-charcoal/60 mt-1">
+                  Buat promo pertama Anda untuk menarik lebih banyak pembeli.
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
