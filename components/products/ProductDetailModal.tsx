@@ -156,13 +156,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             {/* Left: Product Visual Gallery */}
             <div className="space-y-3">
               <div className="relative aspect-square w-full rounded-2xl bg-warm-cream overflow-hidden border border-deep-forest/10 shadow-xs group">
-                <Image
+                <img
                   key={selectedVariant.id}
                   src={selectedVariant.image}
                   alt={`${product.name} - ${selectedVariant.name}`}
-                  fill
-                  className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  unoptimized
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                  loading="lazy"
+                  decoding="async"
                 />
                 
                 {/* Floating Badges */}

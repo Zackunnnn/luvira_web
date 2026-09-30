@@ -60,14 +60,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             onClick={() => setShowModal(true)}
             className="relative aspect-square w-full bg-warm-cream overflow-hidden cursor-pointer"
           >
-            <Image
+            <img
               key={selectedVariant.id}
               src={selectedVariant.image}
               alt={`${product.name} - ${selectedVariant.name}`}
-              fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-              className="object-cover group-hover:scale-105 transition-transform duration-500"
-              unoptimized
+              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              loading="lazy"
+              decoding="async"
             />
 
             {/* Badges Overlay */}
