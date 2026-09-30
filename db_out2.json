@@ -1,0 +1,320 @@
+[
+  {
+    "id": "luv-admin-1789102214581",
+    "name": "Emboss Split Toe All Variant",
+    "model": "emboss-split-toe",
+    "price": 35000,
+    "originalPrice": 45000,
+    "rating": 4.9,
+    "reviewsCount": 12,
+    "badge": "Must Have",
+    "description": "Kaos kaki emboss dari Luvira, didesain untuk kamu yang mengutamakan kenyamanan tanpa mengorbankan gaya. Terbuat dari bahan nylon premium yang lembut di kulit, elastis, dan tetap nyaman dipakai seharian — cocok untuk aktivitas harian maupun tampilan syar'i yang tetap chic. Motif emboss menambah sentuhan modis yang simpel namun tetap stand out. Modest. Comfortable. Chic — itulah Luvira.",
+    "features": [
+      "Bahan Nylon Premium — lembut, elastis, dan breathable, nyaman dipakai seharian",
+      "Desain Emboss Eksklusif — motif unik yang nggak pasaran",
+      "Tahan Lama & Anti Melar — jahitan rapi, kualitas terjaga meski dicuci berulang",
+      "Desain Split-Toe Ergonomis"
+    ],
+    "createdAt": "2026-09-11T04:50:14.591Z",
+    "updatedAt": "2026-09-13T01:28:49.307Z",
+    "costPrice": 0,
+    "packingCost": 0,
+    "variants": [
+      {
+        "id": "var-1789102181091-u87dx",
+        "productId": "luv-admin-1789102214581",
+        "name": "Cudpahnut",
+        "hex": "#e2be9e",
+        "imageUrl": "https://ik.imagekit.io/awan1177/luvira/products/1789102201329-est6_ErIWNwZld.jpg",
+        "stock": 50
+      },
+      {
+        "id": "var-1789262469407-6wt4k",
+        "productId": "luv-admin-1789102214581",
+        "name": "Special Tan",
+        "hex": "#e3bea8",
+        "imageUrl": "https://ik.imagekit.io/awan1177/luvira/products/1789262488526-est5_3CnfHU270.jpg",
+        "stock": 50
+      },
+      {
+        "id": "var-1789262495519-0xqar",
+        "productId": "luv-admin-1789102214581",
+        "name": "Deep Sea",
+        "hex": "#113b4f",
+        "imageUrl": "https://ik.imagekit.io/awan1177/luvira/products/1789262509541-est1_cdqmgh9EY.jpg",
+        "stock": 0
+      },
+      {
+        "id": "var-1789262514343-bhrr2",
+        "productId": "luv-admin-1789102214581",
+        "name": "Treehouse",
+        "hex": "#392723",
+        "imageUrl": "https://ik.imagekit.io/awan1177/luvira/products/1789262525407-est3_z1SY5YNId.jpg",
+        "stock": 50
+      },
+      {
+        "id": "var-1789262514734-imp1v",
+        "productId": "luv-admin-1789102214581",
+        "name": "Boho Pink",
+        "hex": "#f0bdbe",
+        "imageUrl": "https://ik.imagekit.io/awan1177/luvira/products/1789262535952-est4_eTZfj1htO.jpg",
+        "stock": 50
+      },
+      {
+        "id": "var-1789262515127-3qlku",
+        "productId": "luv-admin-1789102214581",
+        "name": "Tin",
+        "hex": "#e3e0e6",
+        "imageUrl": "https://ik.imagekit.io/awan1177/luvira/products/1789262542939-est2_TQQtadjX-.jpg",
+        "stock": 50
+      },
+      {
+        "id": "var-1789262515511-nj631",
+        "productId": "luv-admin-1789102214581",
+        "name": "Floral Blue",
+        "hex": "#92b1d5",
+        "imageUrl": "https://ik.imagekit.io/awan1177/luvira/products/1789262547438-est7_g3vgLYHW4.jpg",
+        "stock": 50
+      }
+    ]
+  },
+  {
+    "id": "luv-admin-1789263524386",
+    "name": "Emboss All Variant",
+    "model": "emboss",
+    "price": 30000,
+    "originalPrice": 40000,
+    "rating": 4.7,
+    "reviewsCount": 13,
+    "badge": "Everyday Basic",
+    "description": "Kaos kaki emboss dari Luvira, didesain untuk kamu yang mengutamakan kenyamanan tanpa mengorbankan gaya. Terbuat dari bahan nylon premium yang lembut di kulit, elastis, dan tetap nyaman dipakai seharian — cocok untuk aktivitas harian maupun tampilan syar'i yang tetap chic. Motif emboss menambah sentuhan modis yang simpel namun tetap stand out. Modest. Comfortable. Chic — itulah Luvira.",
+    "features": [
+      "Bahan Nylon Premium — lembut, elastis, dan breathable, nyaman dipakai seharian",
+      "Tahan Lama & Anti Melar — jahitan rapi, kualitas terjaga meski dicuci berulang"
+    ],
+    "createdAt": "2026-09-13T01:38:45.322Z",
+    "updatedAt": "2026-09-13T01:38:45.322Z",
+    "costPrice": 0,
+    "packingCost": 0,
+    "variants": [
+      {
+        "id": "var-1789263230479-o0v6n",
+        "productId": "luv-admin-1789263524386",
+        "name": "Black Skin",
+        "hex": "#523226",
+        "imageUrl": "https://ik.imagekit.io/awan1177/luvira/products/1789263337738-e1_vTrQ1kpA8.jpg",
+        "stock": 50
+      },
+      {
+        "id": "var-1789263324759-b1i4n",
+        "productId": "luv-admin-1789263524386",
+        "name": "Penelope",
+        "hex": "#edc7b0",
+        "imageUrl": "https://ik.imagekit.io/awan1177/luvira/products/1789263345651-e2_IesQM8rSt.jpg",
+        "stock": 50
+      },
+      {
+        "id": "var-1789263325199-csz7a",
+        "productId": "luv-admin-1789263524386",
+        "name": "Cuddle",
+        "hex": "#ebc3ca",
+        "imageUrl": "https://ik.imagekit.io/awan1177/luvira/products/1789263353376-e4_9m0Dd5paK.jpg",
+        "stock": 50
+      },
+      {
+        "id": "var-1789263328446-std2d",
+        "productId": "luv-admin-1789263524386",
+        "name": "Paper Blue",
+        "hex": "#bfd1e1",
+        "imageUrl": "https://ik.imagekit.io/awan1177/luvira/products/1789263364551-e3_9XiD98i6A.jpg",
+        "stock": 50
+      },
+      {
+        "id": "var-1789263438784-ifq05",
+        "productId": "luv-admin-1789263524386",
+        "name": "Tin",
+        "hex": "#e6e5e9",
+        "imageUrl": "https://ik.imagekit.io/awan1177/luvira/products/1789263446996-e5_6OPHf6uvr.jpg",
+        "stock": 50
+      }
+    ]
+  },
+  {
+    "id": "luv-admin-1789264150617",
+    "name": "Black Sole All Variant",
+    "model": "black-sole",
+    "price": 35000,
+    "originalPrice": 45000,
+    "rating": 4.8,
+    "reviewsCount": 23,
+    "badge": "Everyday Basic",
+    "description": "Kaos kaki classic black sole dari Luvira, didesain untuk kamu yang mengutamakan kenyamanan tanpa mengorbankan gaya. Terbuat dari bahan nylon premium yang lembut di kulit, elastis, dan tetap nyaman dipakai seharian — cocok untuk aktivitas harian maupun tampilan syar'i yang tetap chic. Motif black sole menambah sentuhan modis yang simpel namun tetap stand out. Modest. Comfortable. Chic — itulah Luvira.",
+    "features": [
+      "Bahan Nylon Premium — lembut, elastis, dan breathable, nyaman dipakai seharian",
+      "Tahan Lama & Anti Melar — jahitan rapi, kualitas terjaga meski dicuci berulang",
+      "Telapak Hitam — membuat kaus kaki tidak mudah kotor"
+    ],
+    "createdAt": "2026-09-13T01:49:11.538Z",
+    "updatedAt": "2026-09-13T01:49:11.538Z",
+    "costPrice": 0,
+    "packingCost": 0,
+    "variants": [
+      {
+        "id": "var-1789263524387-1sap9",
+        "productId": "luv-admin-1789264150617",
+        "name": "Ivory Silk",
+        "hex": "#E8D5C4",
+        "imageUrl": "https://ik.imagekit.io/awan1177/luvira/products/1789264058144-bs1_9YXulwqza.jpg",
+        "stock": 50
+      },
+      {
+        "id": "var-1789264045760-6ba2w",
+        "productId": "luv-admin-1789264150617",
+        "name": "Ebb",
+        "hex": "#e8e1e6",
+        "imageUrl": "https://ik.imagekit.io/awan1177/luvira/products/1789264070130-bs3_rsbGmhjBEh.jpg",
+        "stock": 50
+      },
+      {
+        "id": "var-1789264048903-j1r82",
+        "productId": "luv-admin-1789264150617",
+        "name": "Raspberry Ripple",
+        "hex": "#eec1c8",
+        "imageUrl": "https://ik.imagekit.io/awan1177/luvira/products/1789264079307-bs2_ewUx5cDFf.jpg",
+        "stock": 50
+      }
+    ]
+  },
+  {
+    "id": "luv-admin-1789264533619",
+    "name": "Black Sole Split Toe All Variant",
+    "model": "black-sole-split-toe",
+    "price": 35000,
+    "originalPrice": 45000,
+    "rating": 4.9,
+    "reviewsCount": 46,
+    "badge": "Best Seller",
+    "description": "Kaos kaki black sole dari Luvira, didesain untuk kamu yang mengutamakan kenyamanan tanpa mengorbankan gaya. Terbuat dari bahan nylon premium yang lembut di kulit, elastis, dan tetap nyaman dipakai seharian — cocok untuk aktivitas harian maupun tampilan syar'i yang tetap chic. Motif black sole menambah sentuhan modis yang simpel namun tetap stand out. Modest. Comfortable. Chic — itulah Luvira.",
+    "features": [
+      "Bahan Nylon Premium — lembut, elastis, dan breathable, nyaman dipakai seharian",
+      "Tahan Lama & Anti Melar — jahitan rapi, kualitas terjaga meski dicuci berulang",
+      "Telapak Hitam — membuat kaus kaki tidak mudah terlihat kotor"
+    ],
+    "createdAt": "2026-09-13T01:55:34.545Z",
+    "updatedAt": "2026-09-13T01:55:34.545Z",
+    "costPrice": 0,
+    "packingCost": 0,
+    "variants": [
+      {
+        "id": "var-1789264186647-ooka3",
+        "productId": "luv-admin-1789264533619",
+        "name": "Penelope",
+        "hex": "#ebc9b0",
+        "imageUrl": "https://ik.imagekit.io/awan1177/luvira/products/1789264309864-bsst6_53pW__nKX6.jpg",
+        "stock": 50
+      },
+      {
+        "id": "var-1789264290167-7rggj",
+        "productId": "luv-admin-1789264533619",
+        "name": "Dark Taupe",
+        "hex": "#372a2a",
+        "imageUrl": "https://ik.imagekit.io/awan1177/luvira/products/1789264324237-bsst8_GBo8MMIL_.jpg",
+        "stock": 50
+      },
+      {
+        "id": "var-1789264290559-9vozg",
+        "productId": "luv-admin-1789264533619",
+        "name": "Manatee Gray",
+        "hex": "#949097",
+        "imageUrl": "https://ik.imagekit.io/awan1177/luvira/products/1789264337950-bsst5_WLyHOZcXG.jpg",
+        "stock": 50
+      },
+      {
+        "id": "var-1789264291616-ptqg0",
+        "productId": "luv-admin-1789264533619",
+        "name": "Brushed Black",
+        "hex": "#39363c",
+        "imageUrl": "https://ik.imagekit.io/awan1177/luvira/products/1789264349325-bsst3_i-NIxQJAD.jpg",
+        "stock": 50
+      },
+      {
+        "id": "var-1789264292095-qrh2h",
+        "productId": "luv-admin-1789264533619",
+        "name": "Pastel Blue",
+        "hex": "#c9d7e4",
+        "imageUrl": "https://ik.imagekit.io/awan1177/luvira/products/1789264365026-bsst4_S6KnOS04_.jpg",
+        "stock": 50
+      },
+      {
+        "id": "var-1789264292503-t34o5",
+        "productId": "luv-admin-1789264533619",
+        "name": "Winter Blue",
+        "hex": "#283858",
+        "imageUrl": "https://ik.imagekit.io/awan1177/luvira/products/1789264372165-bsst2_iOm3U1dCp.jpg",
+        "stock": 50
+      },
+      {
+        "id": "var-1789264293334-cpmkx",
+        "productId": "luv-admin-1789264533619",
+        "name": "Pink Blossom",
+        "hex": "#f3d1d8",
+        "imageUrl": "https://ik.imagekit.io/awan1177/luvira/products/1789264383268-bsst1_NRPRN6TRRT.jpg",
+        "stock": 50
+      },
+      {
+        "id": "var-1789264293655-uuee8",
+        "productId": "luv-admin-1789264533619",
+        "name": "Powder",
+        "hex": "#f4f3f8",
+        "imageUrl": "https://ik.imagekit.io/awan1177/luvira/products/1789264392008-bsst7_uV7y6Qq9T.jpg",
+        "stock": 50
+      }
+    ]
+  },
+  {
+    "id": "luv-admin-1789264862842",
+    "name": "Anti-Slip Split Toe All Variant",
+    "model": "anti-slip-split-toe",
+    "price": 40000,
+    "originalPrice": 45000,
+    "rating": 4.9,
+    "reviewsCount": 54,
+    "badge": "Safe Grip",
+    "description": "Kaos kaki anti-slip dari Luvira, didesain untuk kamu yang mengutamakan kenyamanan tanpa mengorbankan gaya. Terbuat dari bahan nylon premium yang lembut di kulit, elastis, dan tetap nyaman dipakai seharian — cocok untuk aktivitas harian maupun tampilan syar'i yang tetap chic. Anti-slip menambah keamanan dari resiko terpeleset. Modest. Comfortable. Chic — itulah Luvira.",
+    "features": [
+      "Bahan Nylon Premium — lembut, elastis, dan breathable, nyaman dipakai seharian",
+      "Tahan Lama & Anti Melar — jahitan rapi, kualitas terjaga meski dicuci berulang",
+      "Anti Terpeleset — dengan adanya dot/titik-titik anti-slip"
+    ],
+    "createdAt": "2026-09-13T02:01:04.223Z",
+    "updatedAt": "2026-09-13T02:01:04.223Z",
+    "costPrice": 0,
+    "packingCost": 0,
+    "variants": [
+      {
+        "id": "var-1789264622121-tb37e",
+        "productId": "luv-admin-1789264862842",
+        "name": "White Marble",
+        "hex": "#e7e7eb",
+        "imageUrl": "https://ik.imagekit.io/awan1177/luvira/products/1789264789111-as1_xuN8djiIX.jpg",
+        "stock": 50
+      },
+      {
+        "id": "var-1789264777351-24yqe",
+        "productId": "luv-admin-1789264862842",
+        "name": "Pink Aura",
+        "hex": "#edd3dd",
+        "imageUrl": "https://ik.imagekit.io/awan1177/luvira/products/1789264798448-as3_3XYQNUgKO.jpg",
+        "stock": 50
+      },
+      {
+        "id": "var-1789264777687-8qa0r",
+        "productId": "luv-admin-1789264862842",
+        "name": "Tender Light Blue",
+        "hex": "#cad6e4",
+        "imageUrl": "https://ik.imagekit.io/awan1177/luvira/products/1789264806251-as2_Jsadgm-IkJ.jpg",
+        "stock": 50
+      }
+    ]
+  }
+]

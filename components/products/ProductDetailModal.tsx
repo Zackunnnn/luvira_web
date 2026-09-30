@@ -157,6 +157,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             <div className="space-y-3">
               <div className="relative aspect-square w-full rounded-2xl bg-warm-cream overflow-hidden border border-deep-forest/10 shadow-xs group">
                 <Image
+                  key={selectedVariant.id}
                   src={selectedVariant.image}
                   alt={`${product.name} - ${selectedVariant.name}`}
                   fill

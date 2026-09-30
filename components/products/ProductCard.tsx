@@ -61,6 +61,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             className="relative aspect-square w-full bg-warm-cream overflow-hidden cursor-pointer"
           >
             <Image
+              key={selectedVariant.id}
               src={selectedVariant.image}
               alt={`${product.name} - ${selectedVariant.name}`}
               fill
