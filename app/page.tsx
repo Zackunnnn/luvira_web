@@ -9,6 +9,7 @@ import React, { useState, useEffect } from 'react'; // React core + hooks
 import { HeroSection } from '@/components/sections/HeroSection'; // Sticky nav + hero split section
 import { AboutLuvira } from '@/components/sections/AboutLuvira'; // Brand philosophy overview section
 import { FeatureHighlight } from '@/components/sections/FeatureHighlight'; // Sock tech features section
+import { Footer } from '@/components/sections/Footer'; // Global brand footer component
 import { ProductFilter } from '@/components/products/ProductFilter'; // Category tab filter component
 import { ProductCard } from '@/components/products/ProductCard'; // Individual product card component
 import { CartDrawer } from '@/components/cart/CartDrawer'; // Slide-over cart drawer panel
@@ -17,7 +18,6 @@ import { useProductStore } from '@/store/useProductStore'; // Zustand dynamic pr
 import { useCartStore } from '@/store/useCartStore'; // Zustand cart store for totals
 import { useContentStore } from '@/store/useContentStore'; // Zustand dynamic copywriting store
 import { DEFAULT_SITE_CONTENT } from '@/data/defaultContent'; // Fallback seed content
-import { BrandLogo } from '@/components/ui/BrandLogo'; // Universal official brand logo
 import { ShoppingBag, Sparkles, Heart, ArrowRight } from 'lucide-react'; // Icon imports
 import Link from 'next/link'; // Next.js client-side navigation
 
@@ -119,23 +119,8 @@ export default function Home() {
         <FeatureHighlight />
 
         {/* ========== FOOTER ========== */}
-        {/* Brand guarantee, copyright, and official floral emblem */}
-        <footer className="mt-12 bg-deep-forest text-warm-cream py-12 px-4 sm:px-6 lg:px-12 text-center space-y-4">
-          <div className="max-w-7xl mx-auto space-y-4">
-            {/* Footer official brand logo */}
-            <div className="flex justify-center items-center">
-              <BrandLogo size="lg" theme="dark" />
-            </div>
-            {/* Footer tagline */}
-            <p className="text-xs sm:text-sm text-warm-cream/80 max-w-md mx-auto leading-relaxed">
-              Solusi Kaus Kaki Modest & Ergonomis Pilihan Muslimah Indonesia. 100% Produk Original Berkualitas High-Grade.
-            </p>
-            {/* Copyright line */}
-            <div className="pt-4 border-t border-warm-cream/10 text-xs text-warm-cream/60">
-              © {new Date().getFullYear()} Luvira Official Store. All Rights Reserved.
-            </div>
-          </div>
-        </footer>
+        {/* Brand guarantee, official contact, location, and copyright */}
+        <Footer />
       </div>
 
       {/* ========== FLOATING QUICK CHECKOUT BAR ========== */}
