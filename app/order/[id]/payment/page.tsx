@@ -1,6 +1,7 @@
 import { prisma } from '@/lib/db';
 import { notFound } from 'next/navigation';
 import PaymentForm from './PaymentForm';
+import BankAccountSelector from '@/components/checkout/BankAccountSelector';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { ShieldCheck } from 'lucide-react';
 
@@ -59,10 +60,7 @@ export default async function OrderPaymentPage({ params }: { params: Promise<{ i
               <span className="text-muted-charcoal/70">Nama Pemesan</span>
               <span className="font-semibold text-muted-charcoal">{finalOrder.customerName}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-charcoal/70">Tujuan Bank</span>
-              <span className="font-bold text-leaf-olive">BCA 1234567890 (Luvira)</span>
-            </div>
+            <BankAccountSelector />
             
             <div className="pt-4 mt-4 border-t border-gray-100 flex justify-between items-center">
               <span className="font-bold text-muted-charcoal">Total Transfer</span>
