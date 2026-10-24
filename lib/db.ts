@@ -1,6 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 
+import { assertDatabaseSafety } from './db-guard';
+
 const prismaClientSingleton = () => {
+  assertDatabaseSafety();
   return new PrismaClient();
 };
 

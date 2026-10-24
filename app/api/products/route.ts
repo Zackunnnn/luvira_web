@@ -18,7 +18,7 @@ export async function GET() {
 
     const mappedProducts = products.map(p => {
       // Strip cost fields if not owner
-      let productData: any = { ...p };
+      const productData: any = { ...p };
       if (!ownerStatus) {
         delete productData.costPrice;
         delete productData.packingCost;
@@ -86,7 +86,7 @@ export async function POST(request: NextRequest) {
       include: { variants: true },
     });
 
-    let productData: any = { ...newProduct };
+    const productData: any = { ...newProduct };
     if (!ownerStatus) {
       delete productData.costPrice;
       delete productData.packingCost;

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function AdminLoginPage() {
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -19,7 +19,7 @@ export default function AdminLoginPage() {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ email, password }),
       });
 
       const data = await res.json();
@@ -30,7 +30,7 @@ export default function AdminLoginPage() {
       } else {
         setError(data.error || 'Login gagal.');
       }
-    } catch (err) {
+    } catch {
       setError('Terjadi kesalahan pada server. Silakan coba lagi.');
     } finally {
       setLoading(false);
@@ -41,8 +41,8 @@ export default function AdminLoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-warm-cream px-6">
       <div className="w-full max-w-md bg-white p-8 rounded-2xl shadow-sm border border-neutral-100">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold tracking-tight text-deep-forest mb-2">Admin Login</h1>
-          <p className="text-sm text-neutral-500">Masuk untuk mengelola Luvira Store</p>
+          <h1 className="text-3xl font-bold tracking-tight text-deep-forest mb-2">Login Dashboard</h1>
+          <p className="text-sm text-neutral-500">Masuk untuk mengelola Luvira 2.0</p>
         </div>
 
         {error && (
@@ -54,15 +54,15 @@ export default function AdminLoginPage() {
         <form onSubmit={handleLogin} className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-neutral-700 mb-1.5">
-              Username
+              Email Pengguna
             </label>
             <input
               type="text"
               required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               className="w-full px-4 py-3 bg-neutral-50 border border-neutral-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-deep-forest/20 focus:border-deep-forest transition-colors"
-              placeholder="Masukkan username"
+              placeholder="nama@luvira.id"
             />
           </div>
 

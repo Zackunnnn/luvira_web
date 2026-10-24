@@ -1,12 +1,11 @@
 // tests/pricing.test.ts
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import { test, expect } from 'vitest';
 import {
   calculatePricingPure,
   ProductDataForCalculation,
   PromoDataForCalculation,
   PricingItemInput,
-} from '../lib/pricing';
+} from '@/lib/pricing';
 
 const mockProductsMap = new Map<string, ProductDataForCalculation>([
   ['prod-1', { id: 'prod-1', price: 35000, costPrice: 15000, packingCost: 2000 }],
@@ -35,12 +34,12 @@ test('Pricing: kalkulasi subtotal resmi dari harga database (tanpa promo)', () =
     shippingCourier: 'JNE - REG', // 6.000
   });
 
-  assert.equal(result.subtotal, 120000, 'Subtotal harus 120.000');
-  assert.equal(result.discountAmount, 0, 'Diskon tanpa promo harus 0');
-  assert.equal(result.netPrice, 120000, 'Net price harus 120.000');
-  assert.equal(result.ppnAmount, Math.round(120000 * 0.11), 'PPN harus 11% dari net = 13.200');
-  assert.equal(result.shippingCost, 6000, 'Ongkir JNE REG harus 6.000');
-  assert.equal(result.totalPrice, 120000 + 13200 + 6000, 'Total harus 139.200');
+  expect(result.subtotal).toBe(120000);
+  expect(result.discountAmount).toBe(0);
+  expect(result.netPrice).toBe(120000);
+  expect(result.ppnAmount).toBe(Math.round(120000 * 0.11));
+  expect(result.shippingCost).toBe(6000);
+  expect(result.totalPrice).toBe(120000 + 13200 + 6000);
 });
 
 test('Pricing: promo diskon persentase (50%)', () => {
@@ -65,12 +64,12 @@ test('Pricing: promo diskon persentase (50%)', () => {
   });
 
   // Subtotal: 120.000, Diskon 50% = 60.000, Net = 60.000, PPN = 6.600, Ongkir = 6.000 -> Total = 72.600
-  assert.equal(result.subtotal, 120000);
-  assert.equal(result.discountAmount, 60000);
-  assert.equal(result.netPrice, 60000);
-  assert.equal(result.ppnAmount, 6600);
-  assert.equal(result.shippingCost, 6000);
-  assert.equal(result.totalPrice, 72600);
+  expect(result.subtotal).toBe(120000);
+  expect(result.discountAmount).toBe(60000);
+  expect(result.netPrice).toBe(60000);
+  expect(result.ppnAmount).toBe(6600);
+  expect(result.shippingCost).toBe(6000);
+  expect(result.totalPrice).toBe(72600);
 });
 
 test('Pricing: promo diskon nominal tetap (potongan Rp 50.000)', () => {
@@ -95,12 +94,12 @@ test('Pricing: promo diskon nominal tetap (potongan Rp 50.000)', () => {
   });
 
   // Subtotal: 120.000, Diskon: 50.000, Net: 70.000, PPN (11% of 70k): 7.700, Ongkir: 6.000 -> Total: 83.700
-  assert.equal(result.subtotal, 120000);
-  assert.equal(result.discountAmount, 50000);
-  assert.equal(result.netPrice, 70000);
-  assert.equal(result.ppnAmount, 7700);
-  assert.equal(result.shippingCost, 6000);
-  assert.equal(result.totalPrice, 83700);
+  expect(result.subtotal).toBe(120000);
+  expect(result.discountAmount).toBe(50000);
+  expect(result.netPrice).toBe(70000);
+  expect(result.ppnAmount).toBe(7700);
+  expect(result.shippingCost).toBe(6000);
+  expect(result.totalPrice).toBe(83700);
 });
 
 test('Pricing: promo kedaluwarsa harus ditolak (diskon 0)', () => {
@@ -124,9 +123,9 @@ test('Pricing: promo kedaluwarsa harus ditolak (diskon 0)', () => {
     shippingCourier: 'JNE - REG',
   });
 
-  assert.equal(result.discountAmount, 0, 'Promo kedaluwarsa tidak boleh menghasilkan diskon');
-  assert.equal(result.promoApplied, null, 'Promo applied harus null');
-  assert.equal(result.totalPrice, 139200);
+  expect(result.discountAmount).toBe(0);
+  expect(result.promoApplied).toBeNull();
+  expect(result.totalPrice).toBe(139200);
 });
 
 test('Pricing: promo kuota habis harus ditolak (diskon 0)', () => {
@@ -150,9 +149,9 @@ test('Pricing: promo kuota habis harus ditolak (diskon 0)', () => {
     shippingCourier: 'JNE - REG',
   });
 
-  assert.equal(result.discountAmount, 0, 'Promo kuota habis tidak boleh menghasilkan diskon');
-  assert.equal(result.promoApplied, null);
-  assert.equal(result.totalPrice, 139200);
+  expect(result.discountAmount).toBe(0);
+  expect(result.promoApplied).toBeNull();
+  expect(result.totalPrice).toBe(139200);
 });
 
 test('Pricing: promo gratis ongkir (isFreeShipping: true)', () => {
@@ -176,13 +175,11 @@ test('Pricing: promo gratis ongkir (isFreeShipping: true)', () => {
     shippingCourier: 'JNE - REG',
   });
 
-  assert.equal(result.shippingCost, 0, 'Ongkir harus 0 jika promo gratis ongkir');
-  assert.equal(result.totalPrice, 120000 + 13200 + 0, 'Total tanpa ongkir = 133.200');
+  expect(result.shippingCost).toBe(0);
+  expect(result.totalPrice).toBe(120000 + 13200 + 0);
 });
 
 test('Pricing: manipulasi client totalPrice dikoreksi ke angka server resmi', () => {
-  // Simulasi skenario serangan:
-  // Klien memanipulasi payload dengan totalPrice = 1.000 padahal nilai riil = 139.200
   const clientManipulatedPayload = {
     items: sampleItems,
     totalPrice: 1000, // Manipulasi harga
@@ -197,9 +194,8 @@ test('Pricing: manipulasi client totalPrice dikoreksi ke angka server resmi', ()
     shippingCourier: 'JNE - REG',
   });
 
-  // Verifikasi bahwa server mendeteksi dan menggunakan nilai kalkulasi server yang sah
-  assert.notEqual(clientManipulatedPayload.totalPrice, serverResult.totalPrice);
-  assert.equal(serverResult.totalPrice, 139200, 'Server harus mutlak menggunakan total 139.200');
-  assert.equal(serverResult.ppnAmount, 13200, 'Server harus mutlak menggunakan PPN 13.200');
-  assert.equal(serverResult.shippingCost, 6000, 'Server harus mutlak menggunakan ongkir 6.000');
+  expect(clientManipulatedPayload.totalPrice).not.toBe(serverResult.totalPrice);
+  expect(serverResult.totalPrice).toBe(139200);
+  expect(serverResult.ppnAmount).toBe(13200);
+  expect(serverResult.shippingCost).toBe(6000);
 });

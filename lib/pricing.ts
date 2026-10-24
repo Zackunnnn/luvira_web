@@ -199,8 +199,8 @@ export async function calculateOrderPricing(
     productsMap.set(p.id, {
       id: p.id,
       price: p.price,
-      costPrice: p.costPrice,
-      packingCost: p.packingCost,
+      costPrice: 0,
+      packingCost: 0,
     });
   });
 

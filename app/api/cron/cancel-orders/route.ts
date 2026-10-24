@@ -1,21 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { OrderStatus, StockMovementType } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   try {
     // Basic Security: Check Authorization Header
     const authHeader = request.headers.get('authorization');
     const expectedToken = process.env.CRON_SECRET || 'fallback_secret_for_cron';
-    
+
     if (authHeader !== `Bearer ${expectedToken}`) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Cari order yang menunggu_transfer dan sudah lewat deadline
+    // Cari order yang menunggu pembayaran dan sudah melewati expiresAt
     const expiredOrders = await prisma.order.findMany({
       where: {
-        status: 'menunggu_transfer',
-        paymentDeadline: {
+        status: OrderStatus.MENUNGGU_PEMBAYARAN,
+        expiresAt: {
           lt: new Date(),
         },
       },
@@ -28,38 +29,68 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ message: 'No expired orders to cancel.' });
     }
 
-    // Proses pembatalan menggunakan Prisma Transaction untuk integritas data
-    const canceledOrders = [];
+    const canceledOrders: string[] = [];
 
     for (const order of expiredOrders) {
       await prisma.$transaction(async (tx) => {
-        // 1. Ubah status order menjadi 'dibatalkan'
+        // 1. Ubah status order menjadi KEDALUWARSA
         await tx.order.update({
           where: { id: order.id },
-          data: { status: 'dibatalkan' },
+          data: { status: OrderStatus.KEDALUWARSA },
         });
 
-        // 2. Kembalikan stok setiap item ke ColorVariant
+        // 2. Lepas reserved stock di region terkait
         for (const item of order.items) {
-          await tx.colorVariant.update({
-            where: { id: item.variantId },
-            data: {
-              stock: { increment: item.quantity },
+          const stock = await tx.stock.findUnique({
+            where: {
+              variantId_regionId: {
+                variantId: item.variantId,
+                regionId: order.regionId,
+              },
             },
           });
+
+          if (stock) {
+            const newReserved = Math.max(0, stock.reserved - item.quantity);
+            await tx.stock.update({
+              where: { id: stock.id },
+              data: { reserved: newReserved },
+            });
+
+            await tx.stockMovement.create({
+              data: {
+                stockId: stock.id,
+                type: StockMovementType.RELEASE,
+                qtyChange: item.quantity,
+                balanceAfter: stock.qty,
+                reason: `Pelepasan stok order kedaluwarsa #${order.code}`,
+              },
+            });
+          }
         }
+
+        // 3. Catat OrderStatusLog
+        await tx.orderStatusLog.create({
+          data: {
+            orderId: order.id,
+            fromStatus: OrderStatus.MENUNGGU_PEMBAYARAN,
+            toStatus: OrderStatus.KEDALUWARSA,
+            note: 'Otomatis kedaluwarsa setelah 24 jam tidak dibayar',
+            actorRole: 'SYSTEM_CRON',
+          },
+        });
       });
-      
+
       canceledOrders.push(order.id);
     }
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       message: `Successfully canceled ${canceledOrders.length} order(s).`,
-      canceledOrders 
+      canceledOrders,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error('[Cron Cancel Orders Error]', error);
-    return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

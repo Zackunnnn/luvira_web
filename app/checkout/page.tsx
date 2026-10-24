@@ -77,7 +77,7 @@ export default function CheckoutPage() {
       : 'https://app.sandbox.midtrans.com/snap/snap.js';
     const clientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY;
     
-    let script = document.createElement('script');
+    const script = document.createElement('script');
     script.src = scriptUrl;
     script.setAttribute('data-client-key', clientKey || '');
     script.async = true;

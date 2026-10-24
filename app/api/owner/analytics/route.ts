@@ -89,14 +89,27 @@ export async function GET(request: NextRequest) {
 
     // 2. Ambil produk dengan stok menipis (threshold < 10)
     const lowStockThreshold = 10;
-    const lowStockVariants = await prisma.colorVariant.findMany({
+    const lowStocks = await prisma.stock.findMany({
       where: {
-        stock: { lt: lowStockThreshold }
+        qty: { lt: lowStockThreshold },
       },
       include: {
-        product: { select: { name: true } }
-      }
+        variant: {
+          include: {
+            product: { select: { name: true } },
+          },
+        },
+        region: { select: { name: true } },
+      },
     });
+
+    const lowStockVariants = lowStocks.map((s) => ({
+      id: s.variantId,
+      name: s.variant.name,
+      stock: s.qty,
+      product: s.variant.product,
+      regionName: s.region.name,
+    }));
 
     return NextResponse.json({
       success: true,
@@ -107,7 +120,7 @@ export async function GET(request: NextRequest) {
         netProfit,
       },
       transactions: orders, // Untuk kebutuhan tabel & export CSV
-      lowStock: lowStockVariants
+      lowStock: lowStockVariants,
     });
 
   } catch (error) {

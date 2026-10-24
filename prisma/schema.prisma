@@ -1,3 +1,9 @@
+// prisma/schema.prisma
+// ============================================================================
+// LUVIRA 2.0 - PostgreSQL Database Schema
+// Sesuai docs/LUVIRA_2_PLAN.md Bagian 7
+// ============================================================================
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -7,35 +13,498 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Product {
-  id            String   @id
-  name          String
-  model         String
-  price         Int
-  originalPrice Int?
-  rating        Float
-  reviewsCount  Int
-  badge         String?
-  description   String   @db.Text
-  features      String[] // Array of strings, supported natively by PostgreSQL
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  costPrice     Int      @default(0) // Harga Pokok Penjualan (HPP) / Modal
-  packingCost   Int      @default(0) // Biaya kardus, lakban, dll
+// ----------------------------------------------------------------------------
+// ENUMS
+// ----------------------------------------------------------------------------
 
-  variants      ColorVariant[]
+enum Role {
+  ADMIN_PUSAT
+  ADMIN_WILAYAH
+  OWNER
+  DEVELOPER
 }
 
-model ColorVariant {
-  id        String   @id
-  productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  name      String
-  hex       String
-  imageUrl  String   @db.Text
-  stock     Int
+enum RegionType {
+  PUSAT
+  WILAYAH
+}
+
+enum StockMovementType {
+  IN
+  OUT
+  RESERVE
+  RELEASE
+  ADJUSTMENT
+}
+
+enum OrderStatus {
+  MENUNGGU_PEMBAYARAN
+  MENUNGGU_VERIFIKASI
+  DIPROSES
+  DIKIRIM
+  SELESAI
+  DIBATALKAN
+  KEDALUWARSA
+}
+
+enum PaymentMethod {
+  MANUAL_TRANSFER
+  MIDTRANS_SNAP
+}
+
+enum PaymentVerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum PromoType {
+  RESELLER
+  WILAYAH
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+// ----------------------------------------------------------------------------
+// 1. WILAYAH DAN CAKUPAN
+// ----------------------------------------------------------------------------
+
+model Region {
+  id          String         @id @default(cuid())
+  name        String         // "Pusat (Kota Depok)", "Yogyakarta (DIY)"
+  code        String         @unique // "PUSAT", "YOGYAKARTA"
+  type        RegionType     @default(WILAYAH)
+  address     String         @db.Text
+  province    String
+  city        String
+  district    String?        // Kecamatan
+  subDistrict String?        // Kelurahan
+  postalCode  String?
+  originId    String         // ID RajaOngkir untuk titik asal pengiriman
+  phone       String?        // Kontak WhatsApp
+  email       String?
+  isActive    Boolean        @default(true)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  users       User[]
+  coverages   RegionCoverage[]
+  stocks      Stock[]
+  orders      Order[]
+  promos      PromoCode[]
+
+  @@index([type])
+  @@index([isActive])
+}
+
+model RegionCoverage {
+  id           String   @id @default(cuid())
+  regionId     String
+  region       Region   @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  provinceId   String?  // RajaOngkir Province ID
+  provinceName String   // "DI Yogyakarta", "Jawa Barat", dll.
+  cityId       String?  // RajaOngkir City ID jika cakupan per kota/kab
+  cityName     String?  // "Kota Yogyakarta", "Kabupaten Sleman"
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([regionId])
+  @@index([provinceName, cityName])
+  @@index([isDefault])
+}
+
+// ----------------------------------------------------------------------------
+// 2. PENGGUNA DAN AKSES
+// ----------------------------------------------------------------------------
+
+model User {
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  name                String
+  passwordHash        String
+  role                Role
+  regionId            String?
+  region              Region?   @relation(fields: [regionId], references: [id], onDelete: SetNull)
+  phone               String?
+  isActive            Boolean   @default(true)
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  lastLoginAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  advices             Advice[]
+
+  @@index([role])
+  @@index([regionId])
+  @@index([isActive])
+}
+
+// ----------------------------------------------------------------------------
+// 3. PRODUK, VARIAN, BIAYA MODAL (TERPISAH), DAN STOK
+// ----------------------------------------------------------------------------
+
+model Product {
+  id            String           @id @default(cuid())
+  name          String
+  slug          String           @unique
+  model         String           // "emboss-split-toe", "emboss", "black-sole", dll.
+  description   String           @db.Text
+  price         Int              // Harga jual seragam di semua wilayah
+  originalPrice Int?
+  rating        Float            @default(5.0)
+  reviewsCount  Int              @default(0)
+  badge         String?
+  features      String[]         // Native array PostgreSQL
+  isActive      Boolean          @default(true)
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  variants      ProductVariant[]
+
+  @@index([slug])
+  @@index([isActive])
+}
+
+model ProductVariant {
+  id             String        @id @default(cuid())
+  productId      String
+  product        Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  name           String        // "Cudpahnut", "Special Tan", dll.
+  hex            String        // "#e2be9e"
+  sku            String        @unique
+  weightGram     Int           @default(35) // Default 35 gram
+  imageUrl       String        @db.Text // URL ImageKit atau jalur /socks/
+  legacyImageUrl String?       @db.Text // Cadangan URL lama dari Neon
+  isActive       Boolean       @default(true)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  cost           ProductCost?  // Relasi terpisah untuk proteksi HPP
+  stocks         Stock[]
+  orderItems     OrderItem[]
 
   @@index([productId])
+  @@index([isActive])
+}
+
+model ProductCost {
+  id          String         @id @default(cuid())
+  variantId   String         @unique
+  variant     ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  costPrice   Int            @default(0) // Harga Pokok Penjualan (HPP) / Modal
+  packingCost Int            @default(0) // Biaya kemasan, kardus, lakban
+  updatedAt   DateTime       @updatedAt
+
+  @@index([variantId])
+}
+
+model Stock {
+  id        String          @id @default(cuid())
+  variantId String
+  variant   ProductVariant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  regionId  String
+  region    Region          @relation(fields: [regionId], references: [id], onDelete: Cascade)
+  qty       Int             @default(0) // Stok fisik riil di gudang
+  reserved  Int             @default(0) // Stok yang ter-reserve pesanan aktif
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+
+  movements StockMovement[]
+
+  @@unique([variantId, regionId])
+  @@index([regionId])
+  @@index([variantId])
+}
+
+model StockMovement {
+  id           String            @id @default(cuid())
+  stockId      String
+  stock        Stock             @relation(fields: [stockId], references: [id], onDelete: Cascade)
+  type         StockMovementType
+  qtyChange    Int
+  balanceAfter Int
+  reason       String
+  actorId      String?
+  createdAt    DateTime          @default(now())
+
+  @@index([stockId])
+  @@index([createdAt])
+}
+
+// ----------------------------------------------------------------------------
+// 4. PESANAN, ITEM, STATUS LOG, DAN PEMBAYARAN
+// ----------------------------------------------------------------------------
+
+model Order {
+  id                 String           @id @default(cuid())
+  code               String           @unique // "LVR-YYYYMMDD-XXXX"
+  regionId           String
+  region             Region           @relation(fields: [regionId], references: [id])
+  status             OrderStatus      @default(MENUNGGU_PEMBAYARAN)
+  paymentMethod      PaymentMethod    @default(MANUAL_TRANSFER)
+  customerName       String
+  customerPhone      String           // WhatsApp format normalisasi 62...
+  customerEmail      String?
+  shippingAddress    Json             // Snapshot alamat lengkap pembeli
+  subtotal           Int
+  discountAmount     Int              @default(0)
+  netPrice           Int
+  ppnAmount          Int              @default(0)
+  shippingCost       Int              @default(0)
+  totalPrice         Int
+  courierCode        String?          // "jne", "pos", "tiki", "sicepat", "jnt"
+  courierService     String?          // "REG", "OKE", "YES"
+  trackingNumber     String?          // Nomor resi pengiriman
+  promoCodeId        String?
+  promoCode          PromoCode?       @relation(fields: [promoCodeId], references: [id])
+  midtransOrderId    String?
+  midtransToken      String?          @db.Text
+  expiresAt          DateTime
+  paidAt             DateTime?
+  cancelledAt        DateTime?
+  cancellationReason String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+
+  items              OrderItem[]
+  payments           Payment[]
+  statusLogs         OrderStatusLog[]
+
+  @@index([regionId])
+  @@index([status])
+  @@index([customerPhone])
+  @@index([code])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id          String         @id @default(cuid())
+  orderId     String
+  order       Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variantId   String
+  variant     ProductVariant @relation(fields: [variantId], references: [id])
+  productName String         // Snapshot nama produk saat transaksi
+  variantName String         // Snapshot nama varian saat transaksi
+  quantity    Int
+  priceEach   Int            // Snapshot harga jual
+  costEach    Int            @default(0) // Snapshot HPP saat transaksi (hanya untuk Owner)
+  packingEach Int            @default(0) // Snapshot biaya packing
+  subtotal    Int
+  createdAt   DateTime       @default(now())
+
+  @@index([orderId])
+  @@index([variantId])
+}
+
+model OrderStatusLog {
+  id         String       @id @default(cuid())
+  orderId    String
+  order      Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  note       String?
+  actorId    String?
+  actorRole  String?
+  createdAt  DateTime     @default(now())
+
+  @@index([orderId])
+}
+
+model Payment {
+  id                    String                    @id @default(cuid())
+  orderId               String
+  order                 Order                     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  method                PaymentMethod
+  accountId             String?
+  account               PaymentAccount?           @relation(fields: [accountId], references: [id])
+  amount                Int
+  proofUrl              String?                   @db.Text // URL ImageKit
+  status                PaymentVerificationStatus @default(PENDING)
+  rejectionReason       String?
+  verifiedBy            String?
+  verifiedAt            DateTime?
+  midtransTransactionId String?
+  midtransStatus        String?
+  rawNotification       Json?
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+
+  @@index([orderId])
+  @@index([status])
+}
+
+model PaymentAccount {
+  id            String    @id @default(cuid())
+  bankName      String    // "Jago Syariah", "BSI"
+  accountNumber String    // "509366156008", "7239477938"
+  accountHolder String    // "Muhammad Naufal Ammr Dzakwan"
+  qrCodeUrl     String?   @db.Text
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  payments      Payment[]
+
+  @@index([isActive])
+}
+
+// ----------------------------------------------------------------------------
+// 5. PROMO CODE (RESELLER & WILAYAH)
+// ----------------------------------------------------------------------------
+
+model PromoCode {
+  id                String       @id @default(cuid())
+  code              String       @unique
+  type              PromoType    @default(RESELLER)
+  regionId          String?
+  region            Region?      @relation(fields: [regionId], references: [id])
+  discountType      DiscountType
+  discountValue     Int
+  maxDiscountAmount Int?
+  minOrderAmount    Int          @default(0)
+  quota             Int          @default(0)
+  usedCount         Int          @default(0)
+  startDate         DateTime?
+  endDate           DateTime?
+  expiresAt         DateTime?
+  isActive          Boolean      @default(true)
+  isFreeShipping    Boolean      @default(false)
+  isFreeTax         Boolean      @default(false)
+  resellerName      String?
+  resellerWaNumber  String?
+  commissionType    DiscountType?
+  commissionValue   Int?
+  createdById       String?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  orders            Order[]
+
+  @@index([code])
+  @@index([regionId])
+  @@index([isActive])
+}
+
+// ----------------------------------------------------------------------------
+// 6. NASIHAT / ARTIKEL
+// ----------------------------------------------------------------------------
+
+model Advice {
+  id          String    @id @default(cuid())
+  title       String
+  slug        String    @unique
+  content     String    @db.Text
+  authorId    String
+  author      User      @relation(fields: [authorId], references: [id])
+  isPublished Boolean   @default(false)
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([slug])
+  @@index([isPublished])
+  @@index([authorId])
+}
+
+// ----------------------------------------------------------------------------
+// 7. PENGATURAN, NOTIFIKASI, AUDIT, ERROR, TRAFFIC, DAN CACHE
+// ----------------------------------------------------------------------------
+
+model Setting {
+  key         String   @id
+  value       Json
+  description String?
+  updatedAt   DateTime @updatedAt
+}
+
+model Notification {
+  id             String    @id @default(cuid())
+  userId         String?
+  targetRole     Role?
+  targetRegionId String?
+  title          String
+  message        String    @db.Text
+  linkUrl        String?
+  isRead         Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+
+  @@index([targetRole, targetRegionId])
+  @@index([userId, isRead])
+  @@index([createdAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actorName String?
+  actorRole String?
+  action    String
+  entity    String
+  entityId  String?
+  before    Json?
+  after     Json?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([entity, entityId])
+  @@index([actorId])
+  @@index([createdAt])
+}
+
+model ErrorLog {
+  id         String   @id @default(cuid())
+  message    String   @db.Text
+  stackTrace String?  @db.Text
+  route      String?
+  method     String?
+  statusCode Int?
+  payload    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([route])
+  @@index([createdAt])
+}
+
+model DailyTraffic {
+  id             String   @id @default(cuid())
+  date           String   // "YYYY-MM-DD"
+  path           String
+  views          Int      @default(1)
+  uniqueVisitors Int      @default(1)
+  updatedAt      DateTime @updatedAt
+
+  @@unique([date, path])
+  @@index([date])
+}
+
+model ShippingCache {
+  id        String   @id @default(cuid())
+  cacheKey  String   @unique
+  data      Json
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([expiresAt])
+}
+
+model Media {
+  id            String   @id @default(cuid())
+  originalName  String
+  fileName      String   @unique
+  mimeType      String
+  size          Int
+  width         Int?
+  height        Int?
+  originalPath  String
+  optimizedPath String
+  thumbnailPath String?
+  createdAt     DateTime @default(now())
 }
 
 model SiteContent {
@@ -48,85 +517,13 @@ model SiteContent {
 }
 
 model ChangeLog {
-  id          String   @id @default(cuid())
-  entityType  String
-  entityId    String?
-  fieldName   String
-  oldValue    String?  @db.Text
-  newValue    String?  @db.Text
-  changedBy   String   @default("Admin")
-  createdAt   DateTime @default(now())
-}
-
-model User {
-  id           String   @id @default(cuid())
-  username     String   @unique
-  passwordHash String
-  role         String   @default("admin") // "admin" | "owner"
-  createdAt    DateTime @default(now())
-}
-
-model Order {
-  id                String      @id @default(cuid())
-  customerName      String
-  customerPhone     String
-  customerAddress   String
-  status            String      @default("menunggu_transfer")
-  promoCodeId       String?
-  shippingCourier   String?
-  shippingCost      Int?
-  ppnAmount         Int?
-  paymentProofUrl   String?
-  paymentDeadline   DateTime?
-  verifiedBy        String?
-  verifiedAt        DateTime?
-  createdAt         DateTime    @default(now())
-  paymentMethod     String      @default("manual") // "manual" | "midtrans"
-  midtransToken     String?     @db.Text
-  
-  items             OrderItem[]
-}
-
-model OrderItem {
-  id         String @id @default(cuid())
-  orderId    String
-  order      Order  @relation(fields: [orderId], references: [id])
-  productId  String
-  variantId  String
-  quantity    Int
-  priceEach   Int
-  costEach    Int    @default(0) // Historikal HPP saat order terjadi
-  packingEach Int    @default(0) // Historikal packing cost saat order terjadi
-}
-
-model PromoCode {
-  id               String    @id @default(cuid())
-  code             String    @unique
-  discountType     String    // "percentage" | "fixed"
-  discountValue    Int
-  resellerName     String?
-  resellerWaNumber String?
-  commissionType   String?   // "percentage" | "fixed"
-  commissionValue  Int?
-  quota            Int       @default(0)
-  usedCount        Int       @default(0)
-  expiresAt        DateTime?
-  isActive         Boolean   @default(true)
-  isFreeShipping   Boolean   @default(false)
-  isFreeTax        Boolean   @default(false)
-}
-
-model Media {
-  id           String   @id @default(cuid())
-  originalName String
-  fileName     String   @unique
-  mimeType     String
-  size         Int
-  width        Int?
-  height       Int?
-  originalPath String
-  optimizedPath String
-  thumbnailPath String?
-  createdAt    DateTime @default(now())
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String?
+  fieldName  String
+  oldValue   String?  @db.Text
+  newValue   String?  @db.Text
+  changedBy  String   @default("Admin")
+  createdAt  DateTime @default(now())
 }
 

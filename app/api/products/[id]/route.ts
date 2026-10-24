@@ -52,7 +52,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       include: { variants: true },
     });
 
-    let productData: any = { ...updatedProduct };
+    const productData: any = { ...updatedProduct };
     if (!ownerStatus) {
       delete productData.costPrice;
       delete productData.packingCost;

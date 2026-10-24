@@ -1,50 +1,80 @@
+// proxy.ts
+// ============================================================================
+// Next.js 16 Middleware (Proxy) - Pelindung Rute & RBAC
+// Sesuai docs/LUVIRA_2_PLAN.md Bagian 4 & 6
+// ============================================================================
+
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { verifySession, SESSION_COOKIE_NAME } from '@/lib/auth';
+import { Role } from '@prisma/client';
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Halaman utama /dashboard dan /dashboard/login bisa diakses tanpa session, namun kita ingin auto-redirect jika sudah login
-  if (pathname === '/dashboard' || pathname.startsWith('/dashboard/login')) {
+  // 1. Rute Login & Root Dashboard
+  if (pathname === '/dashboard' || pathname === '/login' || pathname.startsWith('/dashboard/login')) {
     const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
     const session = await verifySession(sessionCookie);
-    
+
     if (session) {
-      // Jika sudah login dan mencoba akses login/landing page, arahkan ke dashboard masing-masing
-      if (session.role === 'owner') {
+      if (session.role === Role.OWNER) {
         return NextResponse.redirect(new URL('/dashboard/owner', request.url));
-      } else {
-        return NextResponse.redirect(new URL('/dashboard/admin', request.url));
       }
+      if (session.role === Role.DEVELOPER) {
+        return NextResponse.redirect(new URL('/dashboard/developer', request.url));
+      }
+      return NextResponse.redirect(new URL('/dashboard/admin', request.url));
     }
-    
-    // Jika belum login, biarkan akses halaman tersebut
+
     return NextResponse.next();
   }
 
-  // Cek akses ke route di dalam dashboard (kecuali root dan login yang sudah di-handle di atas)
+  // 2. Proteksi Rute Dashboard Berdasarkan Peran
   if (pathname.startsWith('/dashboard/')) {
     const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
     const session = await verifySession(sessionCookie);
 
+    // Belum login -> redirect ke halaman login
     if (!session) {
-      // Jika tidak ada session, redirect ke login
       const loginUrl = new URL('/dashboard/login', request.url);
+      loginUrl.searchParams.set('redirect', pathname);
       return NextResponse.redirect(loginUrl);
     }
 
     // Role-based Access Control
-    if (pathname.startsWith('/dashboard/owner') && session.role !== 'owner') {
-      return NextResponse.redirect(new URL('/dashboard/admin', request.url));
+
+    // A. Dashboard Owner: Hanya peran OWNER
+    if (pathname.startsWith('/dashboard/owner')) {
+      if (session.role !== Role.OWNER) {
+        return NextResponse.redirect(new URL('/forbidden', request.url));
+      }
     }
-    
-    // Admin tidak dilarang ke /dashboard/admin (dan owner juga boleh akses jika diperlukan)
+
+    // B. Dashboard Developer: Hanya peran DEVELOPER
+    if (pathname.startsWith('/dashboard/developer')) {
+      if (session.role !== Role.DEVELOPER) {
+        return NextResponse.redirect(new URL('/forbidden', request.url));
+      }
+    }
+
+    // C. Dashboard Admin: Hanya ADMIN_PUSAT, ADMIN_WILAYAH, OWNER, DEVELOPER
+    if (pathname.startsWith('/dashboard/admin')) {
+      const allowedAdminRoles = [
+        Role.ADMIN_PUSAT,
+        Role.ADMIN_WILAYAH,
+        Role.OWNER,
+        Role.DEVELOPER,
+      ];
+      if (!allowedAdminRoles.includes(session.role)) {
+        return NextResponse.redirect(new URL('/forbidden', request.url));
+      }
+    }
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/dashboard'],
+  matcher: ['/dashboard/:path*', '/dashboard', '/login'],
 };

@@ -41,7 +41,7 @@ export async function GET() {
     });
 
     // Map to the old KV UI structure
-    const mappedLogs = logs.map(log => ({
+    const mappedLogs = logs.map((log: any) => ({
       id: log.id,
       timestamp: log.createdAt.toISOString(),
       adminName: log.changedBy,

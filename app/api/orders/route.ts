@@ -3,11 +3,12 @@ import { prisma } from '@/lib/db';
 import { calculateOrderPricing } from '@/lib/pricing';
 import { Order as ClientOrder, OrderStatus } from '@/types/order';
 import { CartItem } from '@/types/product';
+import { OrderStatus as DbOrderStatus, PaymentMethod as DbPaymentMethod } from '@prisma/client';
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const midtransClient = require('midtrans-client');
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+ 
 // Helper to map DB Order to Client Order format to maintain backward compatibility with UI
 async function mapDbOrderToClientOrder(dbOrder: any, allProducts: any[]): Promise<ClientOrder> {
   const items: CartItem[] = dbOrder.items.map((item: any) => {
@@ -117,36 +118,53 @@ export async function POST(request: NextRequest) {
     }
 
     const allProducts = await prisma.product.findMany({ include: { variants: true } });
+    const defaultRegion = (await prisma.region.findFirst({ where: { code: 'PUSAT' } })) || (await prisma.region.findFirst());
 
     const createdOrder = await prisma.order.create({
       data: {
         id: newOrder.id,
+        code: newOrder.id,
+        regionId: defaultRegion?.id || 'region-pusat',
         customerName: newOrder.customerInfo.name,
         customerPhone: newOrder.customerInfo.phone,
-        customerAddress: newOrder.customerInfo.address,
-        status: newOrder.status,
-        paymentMethod: newOrder.paymentMethod === 'midtrans' ? 'midtrans' : 'manual',
-        createdAt: new Date(),
-        
-        // Menggunakan nilai kalkulasi server yang terverifikasi
-        promoCodeId: pricing.promoApplied?.id || null,
-        shippingCourier: newOrder.shippingCourier || null,
-        shippingCost: pricing.shippingCost,
+        shippingAddress:
+          typeof newOrder.customerInfo.address === 'string'
+            ? { street: newOrder.customerInfo.address }
+            : newOrder.customerInfo.address,
+        status: DbOrderStatus.MENUNGGU_PEMBAYARAN,
+        paymentMethod:
+          newOrder.paymentMethod === 'midtrans'
+            ? DbPaymentMethod.MIDTRANS_SNAP
+            : DbPaymentMethod.MANUAL_TRANSFER,
+        subtotal: pricing.subtotal,
+        discountAmount: pricing.discountAmount,
+        netPrice: pricing.netPrice,
         ppnAmount: pricing.ppnAmount,
-        paymentDeadline: newOrder.paymentDeadline ? new Date(newOrder.paymentDeadline) : undefined,
+        shippingCost: pricing.shippingCost,
+        totalPrice: pricing.totalPrice,
+        courierCode: newOrder.shippingCourier || null,
+        promoCodeId: pricing.promoApplied?.id || null,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        createdAt: new Date(),
 
         items: {
-          create: pricing.itemsBreakdown.map(item => ({
-            productId: item.productId,
-            variantId: item.variantId,
-            quantity: item.quantity,
-            priceEach: item.priceEach, // Harga resmi DB
-            costEach: item.costEach,   // HPP resmi DB
-            packingEach: item.packingEach, // Biaya packing resmi DB
-          }))
-        }
+          create: pricing.itemsBreakdown.map((item) => {
+            const prod = allProducts.find((p) => p.id === item.productId);
+            const variant = prod?.variants.find((v) => v.id === item.variantId);
+            return {
+              variantId: item.variantId,
+              productName: prod?.name || 'Kaus Kaki Luvira',
+              variantName: variant?.name || 'Varian',
+              quantity: item.quantity,
+              priceEach: item.priceEach,
+              costEach: item.costEach || 0,
+              packingEach: item.packingEach || 0,
+              subtotal: item.priceEach * item.quantity,
+            };
+          }),
+        },
       },
-      include: { items: true }
+      include: { items: true },
     });
 
     // Update kuota promo jika promo berhasil digunakan

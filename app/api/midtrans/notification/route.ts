@@ -15,6 +15,7 @@ import { readFile, writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { MidtransNotificationPayload, StoredNotification } from '@/types/midtrans';
 import { prisma } from '@/lib/db';
+import { OrderStatus } from '@prisma/client';
 import {
   verifyMidtransSignature,
   mapMidtransStatus,
@@ -108,10 +109,16 @@ export async function POST(request: NextRequest) {
 
           if (!transition.shouldUpdate) {
             console.log(`[Midtrans Webhook Idempotency] ${transition.reason || 'Update diabaikan'}`);
-          } else {
+            const dbStatus =
+              transition.newStatus === 'Lunas'
+                ? OrderStatus.DIPROSES
+                : transition.newStatus === 'Gagal'
+                ? OrderStatus.DIBATALKAN
+                : OrderStatus.MENUNGGU_PEMBAYARAN;
+
             const updated = await prisma.order.update({
               where: { id: payload.order_id },
-              data: { status: transition.newStatus },
+              data: { status: dbStatus },
             });
             console.log(`[Midtrans Webhook] Status order ${updated.id} diupdate: '${currentOrder.status}' -> '${updated.status}'`);
           }

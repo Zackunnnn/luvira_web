@@ -7,7 +7,21 @@
     "dev": "next dev",
     "build": "next build --webpack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:unit": "vitest run tests/unit",
+    "test:integration": "vitest run tests/integration",
+    "test:rbac": "vitest run tests/rbac",
+    "test:e2e:buyer": "playwright test tests/e2e/buyer",
+    "test:e2e:admin": "playwright test tests/e2e/admin",
+    "test:e2e:owner": "playwright test tests/e2e/owner",
+    "test:e2e:developer": "playwright test tests/e2e/developer",
+    "test:phase1": "npm run test:unit && npm run test:rbac && npm run test:integration",
+    "test:phase2": "npm run test:phase1 && npm run test:e2e:buyer",
+    "test:phase3": "npm run test:phase2 && npm run test:e2e:admin",
+    "test:phase4": "npm run test:phase3 && npm run test:e2e:owner",
+    "test:phase5": "npm run test:phase4 && npm run test:e2e:developer",
+    "test:all": "npm run test:phase5",
+    "verify": "npm run lint && tsc --noEmit && npm run build && npm run test:all"
   },
   "dependencies": {
     "@prisma/client": "^5.22.0",
@@ -21,9 +35,11 @@
     "react-dom": "19.2.8",
     "sharp": "^0.35.5",
     "tailwind-merge": "^3.6.0",
+    "zod": "^4.6.7",
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
@@ -35,7 +51,8 @@
     "prisma": "^5.22.0",
     "tailwindcss": "^4",
     "tsx": "^4.23.13",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^2.1.9"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

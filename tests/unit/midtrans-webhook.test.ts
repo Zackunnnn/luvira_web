@@ -1,13 +1,12 @@
 // tests/midtrans-webhook.test.ts
-import test from 'node:test';
-import assert from 'node:assert/strict';
+import { test, expect } from 'vitest';
 import { createHash } from 'crypto';
 import {
   verifyMidtransSignature,
   mapMidtransStatus,
   evaluateStatusTransition,
   FINAL_PAID_STATUS,
-} from '../lib/midtrans-webhook';
+} from '@/lib/midtrans-webhook';
 
 test('Midtrans Webhook: verifikasi signature valid dan tolak signature palsu', () => {
   const serverKey = 'SB-Mid-server-TESTKEY123';
@@ -26,44 +25,44 @@ test('Midtrans Webhook: verifikasi signature valid dan tolak signature palsu', (
     signature_key: validSignature,
   };
 
-  assert.equal(verifyMidtransSignature(validPayload, serverKey), true, 'Signature sah harus lolos verifikasi');
+  expect(verifyMidtransSignature(validPayload, serverKey)).toBe(true);
 
   const fakePayload = {
     ...validPayload,
     signature_key: 'invalid_signature_hash_xyz',
   };
-  assert.equal(verifyMidtransSignature(fakePayload, serverKey), false, 'Signature palsu harus ditolak');
+  expect(verifyMidtransSignature(fakePayload, serverKey)).toBe(false);
 });
 
 test('Midtrans Webhook: status mapping yang benar', () => {
-  assert.equal(mapMidtransStatus('settlement'), 'Lunas');
-  assert.equal(mapMidtransStatus('capture', 'accept'), 'Lunas');
-  assert.equal(mapMidtransStatus('capture', 'challenge'), 'Gagal');
-  assert.equal(mapMidtransStatus('pending'), 'Menunggu Pembayaran');
-  assert.equal(mapMidtransStatus('expire'), 'Gagal');
-  assert.equal(mapMidtransStatus('deny'), 'Gagal');
-  assert.equal(mapMidtransStatus('cancel'), 'Gagal');
-  assert.equal(mapMidtransStatus('something_else'), 'unknown');
+  expect(mapMidtransStatus('settlement')).toBe('Lunas');
+  expect(mapMidtransStatus('capture', 'accept')).toBe('Lunas');
+  expect(mapMidtransStatus('capture', 'challenge')).toBe('Gagal');
+  expect(mapMidtransStatus('pending')).toBe('Menunggu Pembayaran');
+  expect(mapMidtransStatus('expire')).toBe('Gagal');
+  expect(mapMidtransStatus('deny')).toBe('Gagal');
+  expect(mapMidtransStatus('cancel')).toBe('Gagal');
+  expect(mapMidtransStatus('something_else')).toBe('unknown');
 });
 
 test('Midtrans Idempotency: status Lunas tidak boleh turun oleh notifikasi telat atau ganda', () => {
   // 1. Order pending berubah jadi Lunas -> Harus update
   const res1 = evaluateStatusTransition('menunggu_transfer', FINAL_PAID_STATUS);
-  assert.equal(res1.shouldUpdate, true);
-  assert.equal(res1.newStatus, FINAL_PAID_STATUS);
+  expect(res1.shouldUpdate).toBe(true);
+  expect(res1.newStatus).toBe(FINAL_PAID_STATUS);
 
   // 2. Order sudah Lunas, tiba notifikasi pending yang telat -> DITOLAK (tidak boleh turun)
   const res2 = evaluateStatusTransition(FINAL_PAID_STATUS, 'Menunggu Pembayaran');
-  assert.equal(res2.shouldUpdate, false);
-  assert.equal(res2.newStatus, FINAL_PAID_STATUS);
+  expect(res2.shouldUpdate).toBe(false);
+  expect(res2.newStatus).toBe(FINAL_PAID_STATUS);
 
   // 3. Order sudah Lunas, tiba notifikasi expire/cancel/deny yang telat -> DITOLAK
   const res3 = evaluateStatusTransition(FINAL_PAID_STATUS, 'Gagal');
-  assert.equal(res3.shouldUpdate, false);
-  assert.equal(res3.newStatus, FINAL_PAID_STATUS);
+  expect(res3.shouldUpdate).toBe(false);
+  expect(res3.newStatus).toBe(FINAL_PAID_STATUS);
 
   // 4. Order sudah Lunas, tiba notifikasi settlement ganda -> Idempoten (tidak update DB lagi)
   const res4 = evaluateStatusTransition(FINAL_PAID_STATUS, FINAL_PAID_STATUS);
-  assert.equal(res4.shouldUpdate, false);
-  assert.equal(res4.newStatus, FINAL_PAID_STATUS);
+  expect(res4.shouldUpdate).toBe(false);
+  expect(res4.newStatus).toBe(FINAL_PAID_STATUS);
 });
