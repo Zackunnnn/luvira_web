@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
+import { calculateOrderPricing } from '@/lib/pricing';
 import { Order as ClientOrder, OrderStatus } from '@/types/order';
 import { CartItem } from '@/types/product';
+
+// eslint-disable-next-line @typescript-eslint/no-require-imports
 const midtransClient = require('midtrans-client');
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // Helper to map DB Order to Client Order format to maintain backward compatibility with UI
 async function mapDbOrderToClientOrder(dbOrder: any, allProducts: any[]): Promise<ClientOrder> {
   const items: CartItem[] = dbOrder.items.map((item: any) => {
@@ -93,6 +98,24 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid order data' }, { status: 400 });
     }
 
+    // ========================================================================
+    // SERVER-SIDE PRICING VALIDATION (HOTFIX KEAMANAN)
+    // Server menghitung ulang harga dari DB resmi dan mengabaikan manipulasi klien
+    // ========================================================================
+    const pricing = await calculateOrderPricing(
+      prisma,
+      newOrder.items,
+      newOrder.promoCodeId,
+      newOrder.shippingCourier
+    );
+
+    // Deteksi jika klien mengirimkan angka yang berbeda dari kalkulasi server
+    if (newOrder.totalPrice && newOrder.totalPrice !== pricing.totalPrice) {
+      console.warn(
+        `[Pricing Security Warning] Client totalPrice (${newOrder.totalPrice}) mismatch with server totalPrice (${pricing.totalPrice}). Overriding with server price.`
+      );
+    }
+
     const allProducts = await prisma.product.findMany({ include: { variants: true } });
 
     const createdOrder = await prisma.order.create({
@@ -105,43 +128,53 @@ export async function POST(request: NextRequest) {
         paymentMethod: newOrder.paymentMethod === 'midtrans' ? 'midtrans' : 'manual',
         createdAt: new Date(),
         
-        // Phase 13 fields
-        promoCodeId: newOrder.promoCodeId,
-        shippingCourier: newOrder.shippingCourier,
-        shippingCost: newOrder.shippingCost,
-        ppnAmount: newOrder.ppnAmount,
+        // Menggunakan nilai kalkulasi server yang terverifikasi
+        promoCodeId: pricing.promoApplied?.id || null,
+        shippingCourier: newOrder.shippingCourier || null,
+        shippingCost: pricing.shippingCost,
+        ppnAmount: pricing.ppnAmount,
         paymentDeadline: newOrder.paymentDeadline ? new Date(newOrder.paymentDeadline) : undefined,
 
         items: {
-          create: newOrder.items.map(item => {
-            const dbProduct = allProducts.find(p => p.id === item.product.id);
-            return {
-              productId: item.product.id,
-              variantId: item.selectedVariant.id,
-              quantity: item.quantity,
-              priceEach: item.product.price,
-              costEach: dbProduct?.costPrice || 0,
-              packingEach: dbProduct?.packingCost || 0,
-            };
-          })
+          create: pricing.itemsBreakdown.map(item => ({
+            productId: item.productId,
+            variantId: item.variantId,
+            quantity: item.quantity,
+            priceEach: item.priceEach, // Harga resmi DB
+            costEach: item.costEach,   // HPP resmi DB
+            packingEach: item.packingEach, // Biaya packing resmi DB
+          }))
         }
       },
       include: { items: true }
     });
 
+    // Update kuota promo jika promo berhasil digunakan
+    if (pricing.promoApplied) {
+      try {
+        await prisma.promoCode.update({
+          where: { id: pricing.promoApplied.id },
+          data: { usedCount: { increment: 1 } }
+        });
+      } catch (err) {
+        console.error('[Promo Usage Increment Error]', err);
+      }
+    }
+
     let snapToken = undefined;
     if (newOrder.paymentMethod === 'midtrans') {
       try {
-        let snap = new midtransClient.Snap({
+        const snap = new midtransClient.Snap({
           isProduction: process.env.NEXT_PUBLIC_MIDTRANS_ENV === 'production',
           serverKey: process.env.MIDTRANS_SERVER_KEY,
           clientKey: process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY
         });
 
-        let parameter = {
+        // gross_amount MUTLAK menggunakan kalkulasi server
+        const parameter = {
           transaction_details: {
             order_id: createdOrder.id,
-            gross_amount: newOrder.totalPrice
+            gross_amount: pricing.totalPrice
           },
           customer_details: {
             first_name: newOrder.customerInfo.name,
@@ -167,6 +200,7 @@ export async function POST(request: NextRequest) {
     }
 
     const mapped = await mapDbOrderToClientOrder(createdOrder, allProducts);
+    mapped.totalPrice = pricing.totalPrice; // Kembalikan harga resmi server
     
     return NextResponse.json({ success: true, order: mapped, token: snapToken }, { status: 201 });
   } catch (error) {
