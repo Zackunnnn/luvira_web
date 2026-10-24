@@ -7,10 +7,24 @@
 | **2. Sisi Pembeli** | Katalog, Alamat Bertingkat, Ongkir RajaOngkir (Adapter), Checkout, Midtrans & Manual, Tracking | **GREEN** | `phase-2-green` | `test:phase2` (194/194 PASS), tsc, lint, build (36/36) | Alamat cascading, anti-oversell 30 request, Midtrans mock & 2 rekening asli |
 | **3. Sisi Admin** | Dashboard Admin Pusat & Wilayah, Pesanan, Resi, Stok, Promo, Isolasi Wilayah, Demo Seed & Guide | **GREEN** | `phase-3-green` | `test:phase3` (211/211 PASS), tsc, lint, build (50/50) | Demo seed & Panduan Demo bisnis siap |
 | **4. Dashboard Owner** | KPI, Laba Kotor, HPP historis OrderItem, Rekap, Cetak/Export CSV/Excel, Pengaturan, Manajemen Admin | **GREEN** | `phase-4-green`, `6c3315c` | `test:phase4` (227/227 PASS), tsc, lint, build (57/57) | HPP historis snapshot, isolasi wewenang owner |
-| **5. Observabilitas** | Dashboard Developer, Health ping, Antrean macet, ErrorLog, Audit Log, RBAC Developer Guard | **GREEN** | `phase-5-green` | `test:phase5` (237/237 PASS), tsc, lint, build (56/56) | Developer read-only observabilitas, penolakan mutasi bisnis 403 |
-| **Testing Menyeluruh** | QA skeptis, uji keamanan, uji konkurensi, batas laju, laporan akhir | **IN PROGRESS** | - | `test:all` & `verify` | Menghasilkan `docs/TEST_REPORT.md` |
+| **5. Observabilitas** | Dashboard Developer, Health ping, Antrean macet, ErrorLog, Audit Log, RBAC Developer Guard | **GREEN** | `phase-5-green`, `be0333e` | `test:phase5` (237/237 PASS), tsc, lint, build (56/56) | Developer read-only observabilitas, penolakan mutasi bisnis 403 |
+| **Testing Menyeluruh** | QA skeptis, uji keamanan, uji konkurensi, batas laju, laporan akhir | **DONE** | - | `verify` & `comprehensive-qa` (244/244 PASS) | `docs/TEST_REPORT.md` terbit, rekomendasi GO |
 
 ---
+
+## Ringkasan Hasil Testing Menyeluruh (244 PASS / 0 FAIL)
+- **Status Akhir**: Semua gerbang Fase 1 sampai 5 lolos verifikasi kumulatif dan pengujian skeptis tanpa satu pun kegagalan.
+- **Rincian Eksekusi Test**:
+  - `test:unit`: 11 berkas (61/61 PASS)
+  - `test:rbac`: 1 berkas, 24 endpoint x 5 peran + unauthenticated (120/120 PASS)
+  - `test:integration`: 10 berkas (37/37 PASS), termasuk `tests/integration/comprehensive-qa.test.ts` (7/7 PASS)
+  - `test:e2e:buyer`: 10 berkas (11/11 PASS)
+  - `test:e2e:admin`: 2 berkas (5/5 PASS)
+  - `test:e2e:owner`: 2 berkas (5/5 PASS)
+  - `test:e2e:developer`: 1 berkas (5/5 PASS)
+  - **TOTAL: 244 PASS / 0 FAIL**
+- **Dokumentasi Hasil**: Lengkap di `docs/TEST_REPORT.md`.
+- **Rekomendasi Go/No-Go**: **GO** (Siap demo dan masuk ke tahap pengerasan Fase 6).
 
 ## Ringkasan Hasil Uji Fase 5: Observabilitas Developer (237 PASS / 0 FAIL)
 - **Gerbang `test:phase5` (Kumulatif)**:

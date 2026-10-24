@@ -50,3 +50,18 @@ Dokumen ini mencatat keputusan-keputusan teknis, penyelarasan antar dokumen, ser
   - `lib/permissions.ts` adalah single source of truth untuk `can(user, permission, resource)`.
   - Data harga modal (`ProductCost`) dipisahkan ke model tersendiri di Prisma sehingga query Admin secara eksplisit tidak pernah men-select tabel ini.
   - Query pesanan dan stok untuk Admin Wilayah secara ketat diberi filter `where: { regionId: user.regionId }`.
+
+---
+
+## D-06: Anti-Collision Kode Pesanan (Order Code Generator)
+- **Konteks**: Format kode pesanan `LVR-YYYYMMDD-XXXX` (di mana XXXX adalah 4 karakter acak alfabet/angka) berpotensi menghasilkan tabrakan unik jika transaksi dibuat dalam volume tinggi di detik yang sama.
+- **Keputusan**: Generator `generateOrderCode()` dilengkapi dengan loop pengecekan keunikan database (hingga 20x percobaan retry otomatis) sebelum commit transaksi.
+- **Alasan**: Mencegah kegagalan checkout akibat constraint keunikan database (`unique constraint violation`).
+
+---
+
+## D-07: Isolasi Wewenang Developer (Observabilitas Murni)
+- **Konteks**: Peran Developer bertanggung jawab atas pemantauan infrastruktur, latensi database, error log, dan antrean transaksi yang macet.
+- **Keputusan**: Developer hanya diberikan wewenang `system:health_manage`, `system:error_view`, `audit:view`, dan `settings:view`. Developer dilarang keras mengubah status pesanan (`order:manage`), mengubah stok (`stock:manage`), atau mengubah harga modal/jual (`cost_price:manage`, `price:manage`). Setiap percobaan mutasi bisnis oleh Developer ditolak HTTP 403 Forbidden.
+- **Alasan**: Menjaga integritas data bisnis dan pemisahan tugas (*Separation of Concerns*) sesuai Bagian 4 dan 11 Plan.
+

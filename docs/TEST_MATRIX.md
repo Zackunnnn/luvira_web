@@ -40,6 +40,7 @@ Matriks ini memetakan setiap tes ke fase pengembangan, sisi pengguna (Pembeli, A
 | **E2E-11** | Fase 4 | Owner | E2E | `tests/e2e/owner/e2e-11-report-export.spec.ts` | Owner cetak/unduh laporan PDF dan Excel (.xlsx) |
 | **INT-DEV** | Fase 5 | Developer | Integrasi | `tests/integration/developer-health.test.ts` | Bagian 11 & 13: Indikator bereaksi terhadap simulasi kerusakan sistem |
 | **E2E-12** | Fase 5 | Developer | E2E | `tests/e2e/developer/e2e-12-observability.spec.ts` | Developer buka dashboard kesehatan; ditolak mengubah data bisnis |
+| **INT-QA** | QA | Sistem | Integrasi | `tests/integration/comprehensive-qa.test.ts` | Anti-tampering, konsistensi matematis, upload security, webhook signature |
 
 ---
 
