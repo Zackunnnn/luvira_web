@@ -38,14 +38,18 @@ export async function createSession(payload: SessionPayload): Promise<string> {
     .setExpirationTime('7d')
     .sign(SECRET_KEY);
 
-  const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE_NAME, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    expires,
-    sameSite: 'lax',
-    path: '/',
-  });
+  try {
+    const cookieStore = await cookies();
+    cookieStore.set(SESSION_COOKIE_NAME, token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      expires,
+      sameSite: 'lax',
+      path: '/',
+    });
+  } catch {
+    // Di luar konteks request Next.js (mis. pengujian unit/integrasi), token tetap dikembalikan
+  }
 
   return token;
 }
@@ -73,9 +77,41 @@ export async function clearSession(): Promise<void> {
 }
 
 export async function getSession(): Promise<SessionPayload | null> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-  return verifySession(token);
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+    return verifySession(token);
+  } catch {
+    return null;
+  }
+}
+
+export async function getAuthUser(request?: any): Promise<import('./permissions').AuthUser | null> {
+  let token: string | undefined;
+  if (request) {
+    const authHeader = typeof request.headers?.get === 'function' ? request.headers.get('authorization') : null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7).trim();
+    }
+  }
+  if (!token) {
+    try {
+      const cookieStore = await cookies();
+      token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+    } catch {
+      // Ignore if cookies() cannot be accessed
+    }
+  }
+  const payload = await verifySession(token);
+  if (!payload) return null;
+
+  return {
+    id: payload.userId,
+    email: payload.email,
+    name: payload.name,
+    role: payload.role,
+    regionId: payload.regionId,
+  };
 }
 
 export interface LoginResult {

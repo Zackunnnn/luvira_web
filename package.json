@@ -21,6 +21,7 @@
     "test:phase4": "npm run test:phase3 && npm run test:e2e:owner",
     "test:phase5": "npm run test:phase4 && npm run test:e2e:developer",
     "test:all": "npm run test:phase5",
+    "demo:seed": "tsx prisma/demo-seed.ts",
     "verify": "npm run lint && tsc --noEmit && npm run build && npm run test:all"
   },
   "dependencies": {

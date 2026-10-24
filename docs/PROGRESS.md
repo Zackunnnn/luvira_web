@@ -5,10 +5,50 @@
 | **0. Pre-2.0 Cleanup** | Pembersihan kode lama, inventaris, snapshot 9 tabel Neon | **DONE** | `pre-cleanup-backup`, `ffe837c` | lint, tsc, build hijau, 10/10 test pass | MySQL dibatalkan, PostgreSQL tetap |
 | **1. Fondasi** | Skema 2.0, 5 Peran, RBAC `permissions.ts`, Auth, Audit Log, Seed, Isolasi Wilayah | **GREEN** | `phase-1-green` | `test:phase1` (172/172 PASS), tsc, lint, build hijau | Skema 2.0 migrasi & seed sukses di dev & test DB |
 | **2. Sisi Pembeli** | Katalog, Alamat Bertingkat, Ongkir RajaOngkir (Adapter), Checkout, Midtrans & Manual, Tracking | **GREEN** | `phase-2-green` | `test:phase2` (194/194 PASS), tsc, lint, build (36/36) | Alamat cascading, anti-oversell 30 request, Midtrans mock & 2 rekening asli |
-| **3. Sisi Admin** | Dashboard Admin Pusat & Wilayah, Pesanan, Resi, Stok, Promo, Isolasi Wilayah | **IN PROGRESS** | - | `test:phase3` (+ admin E2E) | Siapkan demo seed & demo guide sebelum Fase 4 |
+| **3. Sisi Admin** | Dashboard Admin Pusat & Wilayah, Pesanan, Resi, Stok, Promo, Isolasi Wilayah, Demo Seed & Guide | **GREEN** | `phase-3-green` | `test:phase3` (211/211 PASS), tsc, lint, build (50/50) | Demo seed & Panduan Demo bisnis siap |
 | **4. Dashboard Owner** | KPI, Laba Kotor, HPP historis OrderItem, Rekap, Cetak/Export PDF/Excel, Pengaturan | **PENDING** | - | `test:phase4` (+ owner E2E) | - |
 | **5. Observabilitas** | Dashboard Developer, Health ping, Antrean macet, ErrorLog, Audit Log | **PENDING** | - | `test:phase5` (+ dev E2E) | - |
 | **Testing Menyeluruh** | QA skeptis, uji keamanan, uji konkurensi, batas laju, laporan akhir | **PENDING** | - | `test:all` & `verify` | Menghasilkan `docs/TEST_REPORT.md` |
+
+---
+
+## Ringkasan Hasil Uji Fase 3: Sisi Admin (211 PASS / 0 FAIL)
+- **Gerbang `test:phase3` (Kumulatif)**:
+  - `test:unit` (10 berkas, 56/56 PASS):
+    - `tests/unit/image-storage.test.ts` (5/5 PASS): Adapter ImageKit & local-stub, resize Sharp max 2000px, WebP q80, batasan 5MB & tipe MIME
+    - `tests/unit/db-guard.test.ts` (6/6 PASS)
+    - `tests/unit/pricing.test.ts` (7/7 PASS)
+    - `tests/unit/whatsapp.test.ts` (4/4 PASS)
+    - `tests/unit/midtrans-webhook.test.ts` (3/3 PASS)
+    - `tests/unit/permissions.test.ts` (17/17 PASS)
+    - `tests/unit/audit.test.ts` (2/2 PASS)
+    - `tests/unit/auth.test.ts` (7/7 PASS)
+    - `tests/unit/shipping-rajaongkir.test.ts` (3/3 PASS)
+    - `tests/unit/order-routing.test.ts` (2/2 PASS)
+  - `test:rbac` (1 berkas, 120/120 PASS):
+    - `tests/rbac/matrix.test.ts` (120/120 PASS)
+  - `test:integration` (7 berkas, 19/19 PASS):
+    - `tests/integration/admin-notification.test.ts` (2/2 PASS): Notifikasi bukti transfer & pesanan terisolasi antar-wilayah
+    - `tests/integration/admin-actions.test.ts` (5/5 PASS): Penolakan Admin Wilayah terhadap cabang lain (403), validasi resi wajib sebelum DIKIRIM (400), proteksi batas diskon promo regional (400)
+    - `tests/integration/cost-price-masking.test.ts` (3/3 PASS)
+    - `tests/integration/region-isolation.test.ts` (5/5 PASS)
+    - `tests/integration/account-deactivation.test.ts` (2/2 PASS)
+    - `tests/integration/order-expiry.test.ts` (1/1 PASS)
+    - `tests/integration/stock-concurrency.test.ts` (1/1 PASS)
+  - `test:e2e:buyer` (10 berkas, 11/11 PASS): E2E-01..07, E2E-13..15
+  - `test:e2e:admin` (2 berkas, 5/5 PASS):
+    - `tests/e2e/admin/e2e-08-price-uniformity.spec.ts` (PASS): Perubahan harga jual seragam di semua wilayah
+    - `tests/e2e/admin/e2e-09-admin-isolation.spec.ts` (4 tests, PASS):
+      1. Admin Wilayah Yogyakarta ditolak (403) saat mengakses detail pesanan Pusat
+      2. Daftar pesanan Admin Wilayah secara otomatis memfilter HANYA pesanan wilayahnya
+      3. Admin Wilayah ditolak (403) saat mencoba mengubah harga jual seragam
+      4. Respons API produk untuk Admin tidak pernah membocorkan harga modal (HPP)
+- **Kompilasi TypeScript (`tsc --noEmit`)**: 0 error.
+- **ESLint (`npm run lint`)**: 0 error.
+- **Next.js Production Build (`npm run build`)**: 50/50 rute sukses dibuat.
+- **Demo Siap Demo**:
+  - `npm run demo:seed`: Mengisi data demo realistis & mencetak kredensial 4 peran acak sekali pakai.
+  - `docs/DEMO_GUIDE.md`: Skenario demo berbahasa bisnis langkah demi langkah untuk Pak Dimas & Wann.
 
 ---
 

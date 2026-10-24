@@ -11,3 +11,5 @@ backups/
 scratch/
 test-results/
 playwright-report/
+public/uploads/
+tsconfig.tsbuildinfo
