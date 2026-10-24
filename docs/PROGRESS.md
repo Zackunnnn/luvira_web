@@ -6,9 +6,38 @@
 | **1. Fondasi** | Skema 2.0, 5 Peran, RBAC `permissions.ts`, Auth, Audit Log, Seed, Isolasi Wilayah | **GREEN** | `phase-1-green` | `test:phase1` (172/172 PASS), tsc, lint, build hijau | Skema 2.0 migrasi & seed sukses di dev & test DB |
 | **2. Sisi Pembeli** | Katalog, Alamat Bertingkat, Ongkir RajaOngkir (Adapter), Checkout, Midtrans & Manual, Tracking | **GREEN** | `phase-2-green` | `test:phase2` (194/194 PASS), tsc, lint, build (36/36) | Alamat cascading, anti-oversell 30 request, Midtrans mock & 2 rekening asli |
 | **3. Sisi Admin** | Dashboard Admin Pusat & Wilayah, Pesanan, Resi, Stok, Promo, Isolasi Wilayah, Demo Seed & Guide | **GREEN** | `phase-3-green` | `test:phase3` (211/211 PASS), tsc, lint, build (50/50) | Demo seed & Panduan Demo bisnis siap |
-| **4. Dashboard Owner** | KPI, Laba Kotor, HPP historis OrderItem, Rekap, Cetak/Export CSV/Excel, Pengaturan, Manajemen Admin | **GREEN** | `phase-4-green` | `test:phase4` (227/227 PASS), tsc, lint, build (57/57) | HPP historis snapshot, isolasi wewenang owner |
-| **5. Observabilitas** | Dashboard Developer, Health ping, Antrean macet, ErrorLog, Audit Log | **IN PROGRESS** | - | `test:phase5` (+ dev E2E) | - |
-| **Testing Menyeluruh** | QA skeptis, uji keamanan, uji konkurensi, batas laju, laporan akhir | **PENDING** | - | `test:all` & `verify` | Menghasilkan `docs/TEST_REPORT.md` |
+| **4. Dashboard Owner** | KPI, Laba Kotor, HPP historis OrderItem, Rekap, Cetak/Export CSV/Excel, Pengaturan, Manajemen Admin | **GREEN** | `phase-4-green`, `6c3315c` | `test:phase4` (227/227 PASS), tsc, lint, build (57/57) | HPP historis snapshot, isolasi wewenang owner |
+| **5. Observabilitas** | Dashboard Developer, Health ping, Antrean macet, ErrorLog, Audit Log, RBAC Developer Guard | **GREEN** | `phase-5-green` | `test:phase5` (237/237 PASS), tsc, lint, build (56/56) | Developer read-only observabilitas, penolakan mutasi bisnis 403 |
+| **Testing Menyeluruh** | QA skeptis, uji keamanan, uji konkurensi, batas laju, laporan akhir | **IN PROGRESS** | - | `test:all` & `verify` | Menghasilkan `docs/TEST_REPORT.md` |
+
+---
+
+## Ringkasan Hasil Uji Fase 5: Observabilitas Developer (237 PASS / 0 FAIL)
+- **Gerbang `test:phase5` (Kumulatif)**:
+  - `test:unit` (11 berkas, 61/61 PASS)
+  - `test:rbac` (1 berkas, 120/120 PASS)
+  - `test:integration` (9 berkas, 30/30 PASS):
+    - `tests/integration/developer-health.test.ts` (5/5 PASS):
+      1. Health check endpoint merespons status database, storage, dan integrasi eksternal
+      2. Problem queues mendeteksi pesanan macet (status MENUNGGU_VERIFIKASI > 24 jam)
+      3. Problem queues mendeteksi selisih stok reserved terhadap pesanan aktif (stockMismatches)
+      4. Pencatatan log error server berfungsi dengan rate limiting in-memory (max 30 error / 60 detik)
+      5. Developer ditolak (403 Forbidden) saat mencoba memutasi status pesanan bisnis
+    - 8 integration test lainnya tetap 100% PASS (25/25 PASS).
+  - `test:e2e:buyer` (10 berkas, 11/11 PASS): E2E-01..07, E2E-13..15
+  - `test:e2e:admin` (2 berkas, 5/5 PASS): E2E-08, E2E-09
+  - `test:e2e:owner` (2 berkas, 5/5 PASS): E2E-10, E2E-11
+  - `test:e2e:developer` (1 berkas, 5/5 PASS):
+    - `tests/e2e/developer/e2e-12-observability.spec.ts` (5/5 PASS):
+      1. Developer berhasil mengakses health check, latensi DB, status storage, dan webhook
+      2. Developer berhasil melihat daftar antrean bermasalah dan error log server
+      3. Developer ditolak (403 Forbidden) saat mencoba mengubah status pesanan bisnis (order:manage)
+      4. Developer ditolak (403 Forbidden) saat mencoba mengubah HPP / cost prices (cost_price:manage)
+      5. Pengguna publik / tanpa token ditolak (401 Unauthorized) saat mengakses endpoint developer
+- **Kompilasi TypeScript (`tsc --noEmit`)**: 0 error.
+- **ESLint (`npm run lint`)**: 0 error (62 warnings terisolasi).
+- **Next.js Production Build (`npm run build`)**: 56/56 rute sukses dikompilasi (termasuk 4 rute `/api/developer/*` dan `/dashboard/developer`).
+- **Isolasi Mutlak Hak Akses**: Developer terbukti secara otomatis ditolak ketika mencoba melakukan mutasi data bisnis (stok, pesanan, HPP, harga jual seragam).
 
 ---
 

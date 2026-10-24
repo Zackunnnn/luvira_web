@@ -55,3 +55,36 @@ export async function audit(
     console.error('[AuditLog Error] Gagal mencatat audit log:', error);
   }
 }
+
+export interface RecordAuditParams {
+  actorId?: string | null;
+  actorName?: string | null;
+  actorRole?: string | null;
+  action: string;
+  entity: string;
+  entityId?: string | null;
+  before?: any;
+  after?: any;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+}
+
+export async function recordAuditLog(params: RecordAuditParams, tx?: Prisma.TransactionClient): Promise<void> {
+  return audit(
+    {
+      actor: {
+        id: params.actorId,
+        name: params.actorName,
+        role: params.actorRole,
+        ipAddress: params.ipAddress,
+        userAgent: params.userAgent,
+      },
+      action: params.action,
+      entity: params.entity,
+      entityId: params.entityId,
+      before: params.before,
+      after: params.after,
+    },
+    tx
+  );
+}

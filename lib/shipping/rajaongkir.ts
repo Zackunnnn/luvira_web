@@ -455,3 +455,7 @@ export class RajaOngkirService {
 }
 
 export const rajaOngkirService = new RajaOngkirService();
+
+export async function calculateShippingRates(input: CalculateShippingInput): Promise<ShippingCostOption[]> {
+  return rajaOngkirService.calculateCost(input);
+}
