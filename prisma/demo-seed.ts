@@ -124,8 +124,8 @@ async function main() {
       create: { variantId: v.id, regionId: pusat.id, qty: 50, reserved: 0 },
     });
 
-    // Yogyakarta: sebagian varian ada stok 25 pasang, varian pertama sengaja dibuat 0 untuk demo fallback stok ke Pusat
-    const jogjaQty = i === 0 ? 0 : 25;
+    // Yogyakarta: stok aman 25 pasang per varian
+    const jogjaQty = 25;
     await prisma.stock.upsert({
       where: { variantId_regionId: { variantId: v.id, regionId: jogja.id } },
       update: { qty: jogjaQty, reserved: 0 },

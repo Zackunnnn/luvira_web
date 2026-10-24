@@ -247,10 +247,24 @@ export async function createOrderWithAtomicReservation(params: CreateOrderParams
     shippingCourier: params.shippingCourier,
   });
 
-  // E. Bangkitkan Order Code unik: LVR-YYYYMMDD-XXXX
+  // E. Bangkitkan Order Code unik: LVR-YYYYMMDD-XXXX (dengan pengecekan unik agar anti-tabrakan)
   const todayStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-  const orderCode = `LVR-${todayStr}-${randomSuffix}`;
+  let orderCode = '';
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const randomSuffix = Math.floor(1000 + Math.random() * 9000);
+    const candidate = `LVR-${todayStr}-${randomSuffix}`;
+    const existing = await prisma.order.findUnique({
+      where: { code: candidate },
+      select: { id: true },
+    });
+    if (!existing) {
+      orderCode = candidate;
+      break;
+    }
+  }
+  if (!orderCode) {
+    orderCode = `LVR-${todayStr}-${Math.floor(1000 + Math.random() * 9000)}`;
+  }
   const normalizedPhone = normalizeWhatsAppNumber(params.customerPhone);
   const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 jam batas bayar (A5)
 

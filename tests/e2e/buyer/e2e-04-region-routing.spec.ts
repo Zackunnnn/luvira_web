@@ -5,6 +5,14 @@ import { prisma } from '@/lib/db';
 test.describe('E2E-04: Routing Wilayah Berdasarkan Alamat Tujuan (A10)', () => {
   test('Alamat DIY diarahkan ke Yogyakarta, alamat luar DIY diarahkan ke Pusat', async ({ request }) => {
     const variant = await prisma.productVariant.findFirst({
+      where: {
+        stocks: {
+          some: {
+            region: { code: 'YOGYAKARTA' },
+            qty: { gt: 0 },
+          },
+        },
+      },
       include: { product: true },
     });
     expect(variant).toBeDefined();

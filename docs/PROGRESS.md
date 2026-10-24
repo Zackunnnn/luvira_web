@@ -6,11 +6,41 @@
 | **1. Fondasi** | Skema 2.0, 5 Peran, RBAC `permissions.ts`, Auth, Audit Log, Seed, Isolasi Wilayah | **GREEN** | `phase-1-green` | `test:phase1` (172/172 PASS), tsc, lint, build hijau | Skema 2.0 migrasi & seed sukses di dev & test DB |
 | **2. Sisi Pembeli** | Katalog, Alamat Bertingkat, Ongkir RajaOngkir (Adapter), Checkout, Midtrans & Manual, Tracking | **GREEN** | `phase-2-green` | `test:phase2` (194/194 PASS), tsc, lint, build (36/36) | Alamat cascading, anti-oversell 30 request, Midtrans mock & 2 rekening asli |
 | **3. Sisi Admin** | Dashboard Admin Pusat & Wilayah, Pesanan, Resi, Stok, Promo, Isolasi Wilayah, Demo Seed & Guide | **GREEN** | `phase-3-green` | `test:phase3` (211/211 PASS), tsc, lint, build (50/50) | Demo seed & Panduan Demo bisnis siap |
-| **4. Dashboard Owner** | KPI, Laba Kotor, HPP historis OrderItem, Rekap, Cetak/Export PDF/Excel, Pengaturan | **PENDING** | - | `test:phase4` (+ owner E2E) | - |
-| **5. Observabilitas** | Dashboard Developer, Health ping, Antrean macet, ErrorLog, Audit Log | **PENDING** | - | `test:phase5` (+ dev E2E) | - |
+| **4. Dashboard Owner** | KPI, Laba Kotor, HPP historis OrderItem, Rekap, Cetak/Export CSV/Excel, Pengaturan, Manajemen Admin | **GREEN** | `phase-4-green` | `test:phase4` (227/227 PASS), tsc, lint, build (57/57) | HPP historis snapshot, isolasi wewenang owner |
+| **5. Observabilitas** | Dashboard Developer, Health ping, Antrean macet, ErrorLog, Audit Log | **IN PROGRESS** | - | `test:phase5` (+ dev E2E) | - |
 | **Testing Menyeluruh** | QA skeptis, uji keamanan, uji konkurensi, batas laju, laporan akhir | **PENDING** | - | `test:all` & `verify` | Menghasilkan `docs/TEST_REPORT.md` |
 
 ---
+
+## Ringkasan Hasil Uji Fase 4: Dashboard Owner (227 PASS / 0 FAIL)
+- **Gerbang `test:phase4` (Kumulatif)**:
+  - `test:unit` (11 berkas, 61/61 PASS):
+    - `tests/unit/owner-reports.test.ts` (5/5 PASS): Kalkulasi Omzet kotor/bersih, PPN 11%, Ongkir, HPP historis dari snapshot `OrderItem` (`costEach` + `packingEach`), Laba Kotor, AOV, Margin laba, dan generator CSV/Excel terhadap fixture manual hitung.
+    - 10 unit test lainnya dari fase 1-3 tetap 100% PASS (56/56 PASS).
+  - `test:rbac` (1 berkas, 120/120 PASS).
+  - `test:integration` (8 berkas, 25/25 PASS):
+    - `tests/integration/owner-actions.test.ts` (6/6 PASS):
+      1. Owner berhasil mengakses dan memperbarui pengaturan sistem global
+      2. Owner berhasil membaca dan memperbarui harga modal (HPP)
+      3. Owner dilarang ikut campur mengubah status pesanan secara langsung (order:manage ditolak)
+      4. Admin Pusat ditolak (403) saat mencoba mengakses pengaturan sistem owner
+      5. Admin Pusat ditolak (403) saat mencoba mengakses dan mengubah HPP
+      6. Admin Pusat ditolak (403) saat mencoba mengekspor laporan keuangan owner
+    - 7 integration test lainnya tetap 100% PASS (19/19 PASS).
+  - `test:e2e:buyer` (10 berkas, 11/11 PASS): E2E-01..07, E2E-13..15
+  - `test:e2e:admin` (2 berkas, 5/5 PASS): E2E-08, E2E-09
+  - `test:e2e:owner` (2 berkas, 5/5 PASS):
+    - `tests/e2e/owner/e2e-10-admin-management.spec.ts` (3 tests, PASS):
+      1. Owner menambahkan akun Admin Wilayah baru dengan validasi wewenang
+      2. Owner menonaktifkan akun admin operasional
+      3. Owner menambah cakupan provinsi baru ke wilayah cabang
+    - `tests/e2e/owner/e2e-11-report-export.spec.ts` (2 tests, PASS):
+      1. Owner berhasil mengunduh file ekspor laporan keuangan format CSV dengan header Content-Disposition
+      2. Pengguna tanpa hak akses (Admin Wilayah, Admin Pusat, Publik) ditolak (403/401) saat mengakses laporan keuangan Owner
+- **Kompilasi TypeScript (`tsc --noEmit`)**: 0 error.
+- **Next.js Production Build (`npm run build`)**: 57/57 rute sukses dikompilasi (termasuk 8 rute `/api/owner/*`).
+- **Penanganan Ketahanan**: Pembuatan kode pesanan (`orderCode`) diperkuat dengan pengecekan keunikan database (loop 20 percobaan) untuk mencegah duplikasi kode pesanan akibat Birthday Paradox.
+
 
 ## Ringkasan Hasil Uji Fase 3: Sisi Admin (211 PASS / 0 FAIL)
 - **Gerbang `test:phase3` (Kumulatif)**:
