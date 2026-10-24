@@ -6,3 +6,8 @@ data/midtrans-notifications.json
 
 .vercel
 .env*
+!.env.example
+backups/
+scratch/
+
+
