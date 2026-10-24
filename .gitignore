@@ -9,5 +9,5 @@ data/midtrans-notifications.json
 !.env.example
 backups/
 scratch/
-
-
+test-results/
+playwright-report/

@@ -1,20 +1,31 @@
 // lib/midtrans-webhook.ts
 // ============================================================================
-// Midtrans Webhook Helper & Idempotency Engine
+// Midtrans Webhook Helper & Idempotency Rules Luvira 2.0
+// Sesuai docs/LUVIRA_2_PLAN.md Bagian 5.3 & 8.2
 // ============================================================================
 
 import { createHash } from 'crypto';
-import { MidtransNotificationPayload } from '@/types/midtrans';
-import { coreApi } from '@/lib/midtrans';
+import { OrderStatus } from '@prisma/client';
 
-export const FINAL_PAID_STATUS = 'Lunas';
+export const FINAL_PAID_STATUS = OrderStatus.DIPROSES;
+
+export interface WebhookPayloadLike {
+  order_id: string;
+  status_code: string;
+  gross_amount: string;
+  signature_key?: string;
+  transaction_status: string;
+  fraud_status?: string;
+  payment_type?: string;
+  transaction_id?: string;
+}
 
 /**
  * Memverifikasi signature_key yang dikirim Midtrans webhook.
  * Signature = SHA512(order_id + status_code + gross_amount + ServerKey)
  */
 export function verifyMidtransSignature(
-  payload: Pick<MidtransNotificationPayload, 'order_id' | 'status_code' | 'gross_amount' | 'signature_key'>,
+  payload: Pick<WebhookPayloadLike, 'order_id' | 'status_code' | 'gross_amount' | 'signature_key'>,
   serverKey: string
 ): boolean {
   if (!serverKey) return false;
@@ -24,80 +35,85 @@ export function verifyMidtransSignature(
 }
 
 /**
- * Mengonversi status transaksi Midtrans ke status pesanan sistem Luvira.
+ * Mengonversi status transaksi Midtrans ke status OrderStatus Prisma Luvira.
  */
-export function mapMidtransStatus(transactionStatus: string, fraudStatus?: string): string {
-  if (transactionStatus === 'settlement') {
-    return FINAL_PAID_STATUS;
+export function mapMidtransStatusToOrderStatus(
+  transactionStatus: string,
+  fraudStatus?: string
+): OrderStatus | 'UNKNOWN' {
+  const ts = transactionStatus.toLowerCase();
+  const fs = fraudStatus ? fraudStatus.toLowerCase() : 'accept';
+
+  if (ts === 'settlement') {
+    return OrderStatus.DIPROSES; // Lunas & masuk antrean proses
   }
-  if (transactionStatus === 'capture') {
-    return fraudStatus === 'accept' ? FINAL_PAID_STATUS : 'Gagal';
+
+  if (ts === 'capture') {
+    return fs === 'accept' ? OrderStatus.DIPROSES : OrderStatus.DIBATALKAN;
   }
-  if (transactionStatus === 'pending') {
-    return 'Menunggu Pembayaran';
+
+  if (ts === 'pending') {
+    return OrderStatus.MENUNGGU_PEMBAYARAN;
   }
-  if (['deny', 'cancel', 'expire'].includes(transactionStatus)) {
-    return 'Gagal';
+
+  if (['deny', 'cancel', 'expire'].includes(ts)) {
+    return OrderStatus.DIBATALKAN;
   }
-  return 'unknown';
+
+  return 'UNKNOWN';
 }
 
+// Alias untuk backward compatibility
+export const mapMidtransStatus = (transactionStatus: string, fraudStatus?: string) => {
+  const res = mapMidtransStatusToOrderStatus(transactionStatus, fraudStatus);
+  if (res === OrderStatus.DIPROSES) return 'Lunas';
+  if (res === OrderStatus.MENUNGGU_PEMBAYARAN) return 'Menunggu Pembayaran';
+  if (res === OrderStatus.DIBATALKAN) return 'Gagal';
+  return 'unknown';
+};
+
 /**
- * Mengevaluasi apakah status pesanan boleh diperbarui (Guard Idempotency).
- * Menjamin status 'Lunas' TIDAK BOLEH turun/tertimpa oleh notifikasi kadaluwarsa/ganda.
+ * Mengevaluasi apakah status pesanan boleh diperbarui (Guard Idempotency & Anti-Downgrade).
+ * Menjamin status yang sudah lunas (DIPROSES, DIKIRIM, SELESAI) TIDAK BOLEH diturunkan.
  */
 export function evaluateStatusTransition(
-  currentStatus: string | null | undefined,
-  incomingStatus: string
-): { shouldUpdate: boolean; newStatus: string; reason?: string } {
-  if (!incomingStatus || incomingStatus === 'unknown') {
-    return { shouldUpdate: false, newStatus: currentStatus || 'unknown', reason: 'Unknown incoming status' };
+  currentStatus: OrderStatus,
+  targetStatus: OrderStatus
+): { shouldUpdate: boolean; newStatus: OrderStatus; reason?: string } {
+  // Jika status sama persis -> idempoten, abaikan tanpa error
+  if (currentStatus === targetStatus) {
+    return {
+      shouldUpdate: false,
+      newStatus: currentStatus,
+      reason: `Pesanan sudah berada pada status ${currentStatus} (idempoten).`,
+    };
   }
 
-  // Jika order sudah Lunas, status tidak boleh turun (misal notifikasi pending/expire terlambat)
-  if (currentStatus === FINAL_PAID_STATUS) {
-    if (incomingStatus !== FINAL_PAID_STATUS) {
+  // Jika pesanan sudah lunas / diproses / dikirim / selesai
+  const terminalOrPaidStatuses: OrderStatus[] = [
+    OrderStatus.DIPROSES,
+    OrderStatus.DIKIRIM,
+    OrderStatus.SELESAI,
+  ];
+
+  if (terminalOrPaidStatuses.includes(currentStatus)) {
+    if (targetStatus === OrderStatus.MENUNGGU_PEMBAYARAN || targetStatus === OrderStatus.DIBATALKAN) {
       return {
         shouldUpdate: false,
         newStatus: currentStatus,
-        reason: `Pesanan sudah berstatus '${FINAL_PAID_STATUS}'. Notifikasi '${incomingStatus}' diabaikan untuk mencegah penurunan status.`,
+        reason: `Pesanan sudah berstatus '${currentStatus}'. Notifikasi '${targetStatus}' diabaikan untuk mencegah penurunan status lunas.`,
       };
     }
+  }
+
+  // Jika pesanan sudah DIBATALKAN, tidak boleh berubah ke status lain kecuali ada verifikasi khusus
+  if (currentStatus === OrderStatus.DIBATALKAN && targetStatus !== OrderStatus.DIPROSES) {
     return {
       shouldUpdate: false,
       newStatus: currentStatus,
-      reason: 'Pesanan sudah berstatus lunas (notifikasi ganda/idempoten).',
+      reason: 'Pesanan sudah dibatalkan.',
     };
   }
 
-  // Jika status sama persis, tidak perlu update DB ulang
-  if (currentStatus === incomingStatus) {
-    return {
-      shouldUpdate: false,
-      newStatus: currentStatus,
-      reason: 'Status pesanan sudah sesuai (idempoten).',
-    };
-  }
-
-  return {
-    shouldUpdate: true,
-    newStatus: incomingStatus,
-  };
-}
-
-/**
- * Opsional: Mengonfirmasi status transaksi langsung ke server Midtrans via API
- * untuk memvalidasi payload webhook.
- */
-export async function confirmWithMidtransApi(orderId: string): Promise<string | null> {
-  if (!coreApi) return null;
-  try {
-    const statusResponse = await coreApi.transaction.status(orderId);
-    if (statusResponse && statusResponse.transaction_status) {
-      return mapMidtransStatus(statusResponse.transaction_status, statusResponse.fraud_status);
-    }
-  } catch (err) {
-    console.warn(`[Midtrans API Confirm] Gagal mengecek status langsung untuk order ${orderId}:`, err);
-  }
-  return null;
+  return { shouldUpdate: true, newStatus: targetStatus };
 }

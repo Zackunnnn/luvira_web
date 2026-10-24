@@ -11,8 +11,10 @@ import { useCartStore } from '@/store/useCartStore'; // Zustand cart store for c
 import { useProductStore } from '@/store/useProductStore'; // Zustand product catalog store
 import { useContentStore } from '@/store/useContentStore'; // Zustand dynamic copywriting store
 import { DEFAULT_SITE_CONTENT } from '@/data/defaultContent'; // Fallback seed content
+import Link from 'next/link';
 import { Button } from '@/components/ui/Button'; // Reusable Button component
 import { BrandLogo } from '@/components/ui/BrandLogo'; // Universal official brand logo
+import { LocationSelectorBar } from '@/components/store/LocationSelectorModal';
 
 export const HeroSection: React.FC = () => {
   // Access cart state for header cart button badge count
@@ -59,6 +61,9 @@ export const HeroSection: React.FC = () => {
           <Sparkles className="w-3.5 h-3.5 text-dusty-rose animate-pulse" />
         </div>
 
+        {/* Location Selector Strip (Luvira 2.0 Regional Stock Awareness) */}
+        <LocationSelectorBar />
+
         {/* Main Navigation Bar — Logo, desktop links, and cart button */}
         <nav className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-12 py-3 flex items-center justify-between">
           {/* Brand Logo */}
@@ -79,24 +84,35 @@ export const HeroSection: React.FC = () => {
             <a href="#features" className="hover:text-deep-forest transition-colors">
               Keunggulan Fitur
             </a>
+            <Link href="/track" className="text-leaf-olive hover:text-deep-forest transition-colors flex items-center gap-1 font-extrabold">
+              Lacak Pesanan
+            </Link>
           </div>
 
-          {/* Cart Trigger Button — opens the CartDrawer slide-over */}
-          <button
-            onClick={openCart}
-            className="relative px-4 py-2 bg-white border border-deep-forest/15 rounded-2xl shadow-sm text-deep-forest hover:bg-deep-forest hover:text-warm-cream transition-all duration-200 cursor-pointer active:scale-95 flex items-center gap-2"
-            aria-label="Keranjang Belanja"
-          >
-            <ShoppingBag className="w-5 h-5" /> {/* Cart icon */}
-            {/* Label text only shown on sm+ screens */}
-            <span className="hidden sm:inline text-xs font-bold">Keranjang</span>
-            {/* Cart item count badge — conditionally rendered when items > 0 */}
-            {mounted && totalItems > 0 && (
-              <span className="bg-dusty-rose text-white text-[11px] font-bold px-2 py-0.5 rounded-full border border-warm-cream">
-                {totalItems}
-              </span>
-            )}
-          </button>
+          {/* Cart Trigger Button & Mobile Track Link */}
+          <div className="flex items-center gap-2">
+            <Link
+              href="/track"
+              className="md:hidden text-xs font-bold text-deep-forest px-2.5 py-1.5 rounded-xl border border-deep-forest/15 hover:bg-deep-forest/5"
+            >
+              Lacak
+            </Link>
+            <button
+              onClick={openCart}
+              className="relative px-4 py-2 bg-white border border-deep-forest/15 rounded-2xl shadow-sm text-deep-forest hover:bg-deep-forest hover:text-warm-cream transition-all duration-200 cursor-pointer active:scale-95 flex items-center gap-2"
+              aria-label="Keranjang Belanja"
+            >
+              <ShoppingBag className="w-5 h-5" /> {/* Cart icon */}
+              {/* Label text only shown on sm+ screens */}
+              <span className="hidden sm:inline text-xs font-bold">Keranjang</span>
+              {/* Cart item count badge — conditionally rendered when items > 0 */}
+              {mounted && totalItems > 0 && (
+                <span className="bg-dusty-rose text-white text-[11px] font-bold px-2 py-0.5 rounded-full border border-warm-cream">
+                  {totalItems}
+                </span>
+              )}
+            </button>
+          </div>
         </nav>
       </div>
 

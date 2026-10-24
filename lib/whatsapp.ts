@@ -1,86 +1,69 @@
-// whatsapp.ts — Helper utility for generating WhatsApp checkout deep links.
-// Constructs a structured order message from cart items, customer info, and sandbox verification,
-// then returns a wa.me URL that opens WhatsApp with the pre-filled message.
+// lib/whatsapp.ts
+// ============================================================================
+// WhatsApp Normalization & Message Link Helper
+// Sesuai docs/LUVIRA_2_PLAN.md Bagian 9 & 13
+// ============================================================================
 
-import { CartItem, CustomerInfo } from '@/types/product'; // TypeScript type imports
+export const DEFAULT_STORE_WA = '6281234567890';
 
-// Luvira official store WhatsApp number (Indonesian country code: 62)
-const STORE_WHATSAPP_NUMBER = '6281234567890';
+/**
+ * Menormalkan nomor telepon/WhatsApp ke format standar internasional Indonesia (62...)
+ * Contoh:
+ *   "0812-3456-7890"  -> "6281234567890"
+ *   "+62 812 3456 7890" -> "6281234567890"
+ *   "6281234567890"   -> "6281234567890"
+ */
+export function normalizeWhatsAppNumber(rawPhone: string): string {
+  if (!rawPhone) return '';
 
-// SandboxPaymentDetails — Structure for verified sandbox transaction metadata
-export interface SandboxPaymentDetails {
-  invoiceNumber: string; // e.g. "LVR-SBX-8921"
-  method: string; // e.g. "QRIS Luvira Instant" or "BCA Virtual Account"
-  paidAt: string; // Formatted timestamp, e.g. "23 Aug 2026, 08:45 WIB"
+  // 1. Hapus semua karakter non-digit kecuali tanda plus
+  let cleaned = rawPhone.replace(/[^\d+]/g, '');
+
+  // 2. Tangani prefix '+'
+  if (cleaned.startsWith('+')) {
+    cleaned = cleaned.slice(1);
+  }
+
+  // 3. Tangani prefix '0' (lokal Indonesia) -> ubah ke '62'
+  if (cleaned.startsWith('0')) {
+    cleaned = '62' + cleaned.slice(1);
+  }
+
+  // 4. Jika pengguna hanya mengetik '812...', tambahkan '62'
+  if (cleaned.startsWith('8')) {
+    cleaned = '62' + cleaned;
+  }
+
+  return cleaned;
 }
 
-// generateWhatsAppUrl — Creates a complete wa.me deep link with a structured order text.
-// The message format supports standard checkout and Sandbox Verified payments.
-//
-// Parameters:
-// - items: Array of CartItem objects (product + variant + quantity)
-// - customerInfo: Customer delivery details (name, phone, address, notes)
-// - storeNumber: Optional override for the store's WhatsApp number
-// - paymentDetails: Optional sandbox payment verification details
-//
-// Returns: A full https://wa.me/... URL string ready to be opened in a browser
-export const generateWhatsAppUrl = (
-  items: CartItem[],
-  customerInfo: CustomerInfo,
-  storeNumber: string = STORE_WHATSAPP_NUMBER,
-  paymentDetails?: SandboxPaymentDetails
-): string => {
-  // Currency formatter for Indonesian Rupiah (IDR) — no decimal places
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      maximumFractionDigits: 0,
-    }).format(amount);
-  };
+/**
+ * Validasi apakah nomor WhatsApp valid (minimal 10 digit, diawali 62)
+ */
+export function isValidWhatsAppNumber(phone: string): boolean {
+  const normalized = normalizeWhatsAppNumber(phone);
+  return /^62\d{8,13}$/.test(normalized);
+}
 
-  // Calculate aggregate totals for the summary section
-  const totalItemsCount = items.reduce((sum, item) => sum + item.quantity, 0); // Total items count
-  const totalPrice = items.reduce(
-    (sum, item) => sum + item.product.price * item.quantity, // Sum of all line totals
-    0
+/**
+ * Mengambil 4 digit terakhir nomor WhatsApp untuk otentikasi pelacakan pesanan (A7)
+ */
+export function getLast4Digits(phone: string): string {
+  const normalized = normalizeWhatsAppNumber(phone);
+  if (normalized.length < 4) return '';
+  return normalized.slice(-4);
+}
+
+/**
+ * Membangun URL tautan WhatsApp untuk bantuan pesanan atau konfirmasi
+ */
+export function generateOrderHelpWhatsAppUrl(
+  orderCode: string,
+  storeNumber: string = DEFAULT_STORE_WA
+): string {
+  const normalizedStore = normalizeWhatsAppNumber(storeNumber);
+  const text = encodeURIComponent(
+    `Halo Admin Luvira, saya ingin menanyakan status pesanan saya dengan kode: *${orderCode}*. Terima kasih.`
   );
-
-  // Build the numbered items list text (1. Product - Color (Qty) - Price)
-  const itemsListText = items
-    .map(
-      (item, index) =>
-        `${index + 1}. ${item.product.name} - ${item.selectedVariant.name} (${item.quantity}x) - ${formatCurrency(item.product.price * item.quantity)}`
-    )
-    .join('\n'); // Join with newlines
-
-  // Construct optional payment status section if verified via sandbox
-  const paymentSection = paymentDetails
-    ? `⚡ *STATUS PEMBAYARAN: [SANDBOX VERIFIED - ${paymentDetails.invoiceNumber}]*\n` +
-      `Metode: ${paymentDetails.method} (Lunas Simulasi)\n` +
-      `Waktu: ${paymentDetails.paidAt}\n\n`
-    : '';
-
-  const priceSuffix = paymentDetails ? '(Lunas via Sandbox)' : '(Belum termasuk ongkir)';
-
-  // Construct the full structured message text per PRD Section 8 format
-  const messageText = `Halo Admin Luvira, saya ingin memesan:
-
-${paymentSection}📦 *DETAIL PESANAN:*
-${itemsListText}
-
-💰 *TOTAL SPESIFIKASI:*
-Total Items: ${totalItemsCount} pasang
-Total Harga: ${formatCurrency(totalPrice)} ${priceSuffix}
-
-👤 *DATA PEMESAN:*
-Nama: ${customerInfo.name}
-No. HP/WA: ${customerInfo.phone}
-Alamat: ${customerInfo.address}${customerInfo.notes ? `\nCatatan: ${customerInfo.notes}` : ''}
-
-Terima kasih!`;
-
-  // URL-encode the message and build the final wa.me deep link
-  const encodedMessage = encodeURIComponent(messageText);
-  return `https://wa.me/${storeNumber}?text=${encodedMessage}`;
-};
+  return `https://wa.me/${normalizedStore}?text=${text}`;
+}

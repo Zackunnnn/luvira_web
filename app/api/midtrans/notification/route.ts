@@ -1,137 +1,235 @@
 // app/api/midtrans/notification/route.ts
 // ============================================================================
-// API Route: POST /api/midtrans/notification
-//
-// Webhook endpoint dari Midtrans server-to-server.
-// KEAMANAN & IDEMPOTENCY:
-// 1. Verifikasi SHA-512 signature key.
-// 2. Konfirmasi status transaksi resmi via Core API bila tersedia.
-// 3. Update bersyarat (Idempotency): status 'Lunas' TIDAK BOLEH diturunkan
-//    oleh notifikasi ganda / kedaluwarsa.
+// Midtrans Webhook Notification Endpoint Luvira 2.0
+// Sesuai docs/LUVIRA_2_PLAN.md Bagian 5.3, 8.2 & Aturan Autopilot
 // ============================================================================
 
-import { NextRequest } from 'next/server';
-import { readFile, writeFile, mkdir } from 'fs/promises';
-import { join } from 'path';
-import { MidtransNotificationPayload, StoredNotification } from '@/types/midtrans';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { OrderStatus } from '@prisma/client';
 import {
   verifyMidtransSignature,
-  mapMidtransStatus,
+  mapMidtransStatusToOrderStatus,
   evaluateStatusTransition,
-  confirmWithMidtransApi,
 } from '@/lib/midtrans-webhook';
-
-const NOTIFICATIONS_DIR = join(process.cwd(), 'data');
-const NOTIFICATIONS_FILE = join(NOTIFICATIONS_DIR, 'midtrans-notifications.json');
-
-async function readNotifications(): Promise<StoredNotification[]> {
-  try {
-    const data = await readFile(NOTIFICATIONS_FILE, 'utf-8');
-    return JSON.parse(data);
-  } catch {
-    return [];
-  }
-}
-
-async function writeNotifications(notifications: StoredNotification[]): Promise<void> {
-  await mkdir(NOTIFICATIONS_DIR, { recursive: true });
-  await writeFile(NOTIFICATIONS_FILE, JSON.stringify(notifications, null, 2), 'utf-8');
-}
+import { midtransAdapter } from '@/lib/payments/midtrans-adapter';
+import { OrderStatus, PaymentVerificationStatus, StockMovementType, Role } from '@prisma/client';
+import { audit } from '@/lib/audit';
 
 export async function POST(request: NextRequest) {
   try {
-    const payload: MidtransNotificationPayload = await request.json();
+    const payload = await request.json();
 
-    console.log('[Midtrans Webhook] Received notification:', {
-      order_id: payload.order_id,
-      transaction_status: payload.transaction_status,
-      payment_type: payload.payment_type,
-    });
+    const orderId = payload.order_id;
+    const statusCode = payload.status_code;
+    const grossAmount = payload.gross_amount;
+    const signatureKey = payload.signature_key;
+    const transactionStatus = payload.transaction_status;
+    const fraudStatus = payload.fraud_status;
 
-    // STEP 1: Verifikasi Signature Key
-    const serverKey = process.env.MIDTRANS_SERVER_KEY || '';
-    if (!verifyMidtransSignature(payload, serverKey)) {
-      console.error('[Midtrans Webhook] SIGNATURE VERIFICATION FAILED!', {
-        order_id: payload.order_id,
-        received_signature: payload.signature_key?.substring(0, 20) + '...',
-      });
-      return Response.json(
-        { error: 'Signature verification failed — notifikasi ditolak' },
+    if (!orderId || !statusCode || !grossAmount) {
+      return NextResponse.json(
+        { error: 'Payload tidak lengkap' },
+        { status: 400 }
+      );
+    }
+
+    // 1. Verifikasi Signature Key (Wajib demi keamanan webhook)
+    const serverKey = midtransAdapter.getServerKey();
+    const isValidSignature = verifyMidtransSignature(
+      {
+        order_id: orderId,
+        status_code: statusCode,
+        gross_amount: grossAmount,
+        signature_key: signatureKey,
+      },
+      serverKey
+    );
+
+    if (!isValidSignature) {
+      console.warn(`[Midtrans Webhook] Invalid Signature Key untuk order: ${orderId}`);
+      return NextResponse.json(
+        { error: 'Invalid signature key' },
         { status: 403 }
       );
     }
 
-    console.log('[Midtrans Webhook] Signature verified ✓ for order:', payload.order_id);
+    // 2. Cari pesanan di DB
+    const order = await prisma.order.findFirst({
+      where: {
+        OR: [{ code: orderId }, { id: orderId }],
+      },
+      include: {
+        items: true,
+        region: true,
+      },
+    });
 
-    // STEP 2: Konfirmasi status via Midtrans API bila memungkinkan
-    let mappedStatus = mapMidtransStatus(payload.transaction_status, payload.fraud_status);
-    const confirmedApiStatus = await confirmWithMidtransApi(payload.order_id);
-    if (confirmedApiStatus && confirmedApiStatus !== mappedStatus) {
-      console.log(`[Midtrans Webhook] Status dikonfirmasi ulang via Core API: ${mappedStatus} -> ${confirmedApiStatus}`);
-      mappedStatus = confirmedApiStatus;
+    if (!order) {
+      console.warn(`[Midtrans Webhook] Pesanan tidak ditemukan: ${orderId}`);
+      // Return 200 agar Midtrans tidak terus mengulang pengiriman
+      return NextResponse.json({ status: 'ok', message: 'Order not found, ignored' });
     }
 
-    // STEP 3: Simpan log notifikasi ke JSON
-    const notifications = await readNotifications();
-    const storedNotification: StoredNotification = {
-      orderId: payload.order_id,
-      transactionId: payload.transaction_id,
-      transactionStatus: payload.transaction_status,
-      paymentType: payload.payment_type,
-      grossAmount: payload.gross_amount,
-      statusCode: payload.status_code,
-      fraudStatus: payload.fraud_status,
-      updatedAt: new Date().toISOString(),
-    };
-
-    const existingIndex = notifications.findIndex((n) => n.orderId === payload.order_id);
-    if (existingIndex >= 0) {
-      notifications[existingIndex] = storedNotification;
-    } else {
-      notifications.push(storedNotification);
+    // 3. Petakan Status
+    const targetStatus = mapMidtransStatusToOrderStatus(transactionStatus, fraudStatus);
+    if (targetStatus === 'UNKNOWN') {
+      return NextResponse.json({ status: 'ok', message: 'Unknown status ignored' });
     }
-    await writeNotifications(notifications);
 
-    // STEP 4: Update status di Database dengan Proteksi Idempotency
-    if (mappedStatus !== 'unknown') {
-      try {
-        const currentOrder = await prisma.order.findUnique({
-          where: { id: payload.order_id },
-          select: { id: true, status: true },
-        });
+    // 4. Evaluasi Transisi Status (Guard Idempotency & Anti-Downgrade)
+    const transition = evaluateStatusTransition(order.status, targetStatus);
+    if (!transition.shouldUpdate) {
+      console.log(`[Midtrans Webhook Idempotency] ${transition.reason}`);
+      return NextResponse.json({
+        status: 'ok',
+        message: transition.reason,
+        currentStatus: order.status,
+      });
+    }
 
-        if (!currentOrder) {
-          console.warn(`[Midtrans Webhook] Order dengan ID ${payload.order_id} tidak ditemukan di DB`);
-        } else {
-          const transition = evaluateStatusTransition(currentOrder.status, mappedStatus);
+    // 5. Eksekusi Perubahan Status & Mutasi Stok dalam Transaksi Atomik
+    const previousStatus = order.status;
 
-          if (!transition.shouldUpdate) {
-            console.log(`[Midtrans Webhook Idempotency] ${transition.reason || 'Update diabaikan'}`);
-            const dbStatus =
-              transition.newStatus === 'Lunas'
-                ? OrderStatus.DIPROSES
-                : transition.newStatus === 'Gagal'
-                ? OrderStatus.DIBATALKAN
-                : OrderStatus.MENUNGGU_PEMBAYARAN;
+    await prisma.$transaction(async (tx) => {
+      // A. Jika transaksi LUNAS (berubah jadi DIPROSES)
+      if (targetStatus === OrderStatus.DIPROSES) {
+        // Kurangi stok fisik riil dan lepas reserved (Stok reservasi menjadi stok terjual)
+        for (const item of order.items) {
+          const stock = await tx.stock.findUnique({
+            where: {
+              variantId_regionId: {
+                variantId: item.variantId,
+                regionId: order.regionId,
+              },
+            },
+          });
 
-            const updated = await prisma.order.update({
-              where: { id: payload.order_id },
-              data: { status: dbStatus },
+          if (stock) {
+            const newQty = Math.max(0, stock.qty - item.quantity);
+            const newReserved = Math.max(0, stock.reserved - item.quantity);
+
+            await tx.stock.update({
+              where: { id: stock.id },
+              data: {
+                qty: newQty,
+                reserved: newReserved,
+              },
             });
-            console.log(`[Midtrans Webhook] Status order ${updated.id} diupdate: '${currentOrder.status}' -> '${updated.status}'`);
+
+            await tx.stockMovement.create({
+              data: {
+                stockId: stock.id,
+                type: StockMovementType.OUT,
+                qtyChange: -item.quantity,
+                balanceAfter: newQty,
+                reason: `Pembayaran Midtrans lunas #${order.code}`,
+              },
+            });
           }
         }
-      } catch (err) {
-        console.error('[Midtrans Webhook] Gagal menyinkronkan status order ke DB:', err);
-      }
-    }
 
-    return Response.json({ status: 'ok', mappedStatus });
-  } catch (error: unknown) {
+        // Catat Payment Lunas
+        await tx.payment.create({
+          data: {
+            orderId: order.id,
+            amount: order.totalPrice,
+            method: order.paymentMethod,
+            status: PaymentVerificationStatus.VERIFIED,
+            midtransTransactionId: payload.transaction_id || `midtrans-${order.code}`,
+            midtransStatus: transactionStatus,
+            rawNotification: payload,
+          },
+        });
+
+        // Notifikasi ke Admin Wilayah / Pusat
+        await tx.notification.create({
+          data: {
+            targetRole: order.region?.type === 'PUSAT' ? Role.ADMIN_PUSAT : Role.ADMIN_WILAYAH,
+            targetRegionId: order.regionId,
+            title: `Pesanan Lunas #${order.code}`,
+            message: `Pembayaran Midtrans sebesar Rp ${order.totalPrice.toLocaleString('id-ID')} telah diterima. Siap dikemas.`,
+            linkUrl: `/dashboard/admin?orderId=${order.id}`,
+          },
+        });
+      }
+
+      // B. Jika transaksi GAGAL / KEDALUWARSA / DIBATALKAN
+      if (targetStatus === OrderStatus.DIBATALKAN) {
+        // Lepas reserved stock kembali ke stok tersedia
+        for (const item of order.items) {
+          const stock = await tx.stock.findUnique({
+            where: {
+              variantId_regionId: {
+                variantId: item.variantId,
+                regionId: order.regionId,
+              },
+            },
+          });
+
+          if (stock) {
+            const newReserved = Math.max(0, stock.reserved - item.quantity);
+
+            await tx.stock.update({
+              where: { id: stock.id },
+              data: {
+                reserved: newReserved,
+              },
+            });
+
+            await tx.stockMovement.create({
+              data: {
+                stockId: stock.id,
+                type: StockMovementType.RELEASE,
+                qtyChange: item.quantity,
+                balanceAfter: stock.qty,
+                reason: `Pesanan dibatalkan / gagal bayar Midtrans #${order.code}`,
+              },
+            });
+          }
+        }
+
+        // Kembalikan kuota promo jika pesanan menggunakan promo
+        if (order.promoCodeId) {
+          await tx.promoCode.update({
+            where: { id: order.promoCodeId },
+            data: {
+              usedCount: { decrement: 1 },
+            },
+          });
+        }
+      }
+
+      // Update status pesanan
+      await tx.order.update({
+        where: { id: order.id },
+        data: { status: targetStatus },
+      });
+
+      // Catat riwayat status pesanan
+      await tx.orderStatusLog.create({
+        data: {
+          orderId: order.id,
+          fromStatus: previousStatus,
+          toStatus: targetStatus,
+          note: `Webhook Midtrans: ${transactionStatus} (${payload.payment_type || 'online'})`,
+          actorRole: 'SYSTEM',
+        },
+      });
+    });
+
+    // Audit log
+    await audit({
+      action: 'MIDTRANS_WEBHOOK_UPDATE',
+      entity: 'Order',
+      entityId: order.id,
+      before: { status: previousStatus },
+      after: { status: targetStatus, transactionStatus },
+    });
+
+    console.log(`[Midtrans Webhook] Order ${order.code} updated: ${previousStatus} -> ${targetStatus}`);
+    return NextResponse.json({ status: 'ok', newStatus: targetStatus });
+  } catch (error: any) {
     console.error('[Midtrans Webhook Error]', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    return Response.json({ status: 'error', message: errorMessage }, { status: 200 });
+    return NextResponse.json({ error: error.message || 'Internal error' }, { status: 500 });
   }
 }

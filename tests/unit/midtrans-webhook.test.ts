@@ -1,12 +1,14 @@
-// tests/midtrans-webhook.test.ts
+// tests/unit/midtrans-webhook.test.ts
 import { test, expect } from 'vitest';
 import { createHash } from 'crypto';
 import {
   verifyMidtransSignature,
   mapMidtransStatus,
+  mapMidtransStatusToOrderStatus,
   evaluateStatusTransition,
   FINAL_PAID_STATUS,
 } from '@/lib/midtrans-webhook';
+import { OrderStatus } from '@prisma/client';
 
 test('Midtrans Webhook: verifikasi signature valid dan tolak signature palsu', () => {
   const serverKey = 'SB-Mid-server-TESTKEY123';
@@ -43,21 +45,26 @@ test('Midtrans Webhook: status mapping yang benar', () => {
   expect(mapMidtransStatus('deny')).toBe('Gagal');
   expect(mapMidtransStatus('cancel')).toBe('Gagal');
   expect(mapMidtransStatus('something_else')).toBe('unknown');
+
+  // Prisma OrderStatus mapping
+  expect(mapMidtransStatusToOrderStatus('settlement')).toBe(OrderStatus.DIPROSES);
+  expect(mapMidtransStatusToOrderStatus('pending')).toBe(OrderStatus.MENUNGGU_PEMBAYARAN);
+  expect(mapMidtransStatusToOrderStatus('cancel')).toBe(OrderStatus.DIBATALKAN);
 });
 
 test('Midtrans Idempotency: status Lunas tidak boleh turun oleh notifikasi telat atau ganda', () => {
   // 1. Order pending berubah jadi Lunas -> Harus update
-  const res1 = evaluateStatusTransition('menunggu_transfer', FINAL_PAID_STATUS);
+  const res1 = evaluateStatusTransition(OrderStatus.MENUNGGU_PEMBAYARAN, FINAL_PAID_STATUS);
   expect(res1.shouldUpdate).toBe(true);
   expect(res1.newStatus).toBe(FINAL_PAID_STATUS);
 
   // 2. Order sudah Lunas, tiba notifikasi pending yang telat -> DITOLAK (tidak boleh turun)
-  const res2 = evaluateStatusTransition(FINAL_PAID_STATUS, 'Menunggu Pembayaran');
+  const res2 = evaluateStatusTransition(FINAL_PAID_STATUS, OrderStatus.MENUNGGU_PEMBAYARAN);
   expect(res2.shouldUpdate).toBe(false);
   expect(res2.newStatus).toBe(FINAL_PAID_STATUS);
 
   // 3. Order sudah Lunas, tiba notifikasi expire/cancel/deny yang telat -> DITOLAK
-  const res3 = evaluateStatusTransition(FINAL_PAID_STATUS, 'Gagal');
+  const res3 = evaluateStatusTransition(FINAL_PAID_STATUS, OrderStatus.DIBATALKAN);
   expect(res3.shouldUpdate).toBe(false);
   expect(res3.newStatus).toBe(FINAL_PAID_STATUS);
 

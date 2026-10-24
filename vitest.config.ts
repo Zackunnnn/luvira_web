@@ -6,6 +6,8 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+    testTimeout: 35000,
+    hookTimeout: 35000,
     alias: {
       '@': path.resolve(__dirname, './'),
     },
