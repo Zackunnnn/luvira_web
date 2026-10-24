@@ -24,7 +24,7 @@
 | # | Topik | Keputusan | Sumber |
 |---|---|---|---|
 | 1 | Tech stack | Tetap Next.js (App Router), TypeScript, Tailwind, Prisma | Wann |
-| 2 | Database | **MySQL bawaan Hostinger** (Managed MySQL), Prisma provider `mysql` | Wann |
+| 2 | Database | **PostgreSQL tetap** (Prisma provider `postgresql`). Layar Hostinger hanya menawarkan Supabase dan MongoDB Atlas, MySQL bawaan tidak ditemukan sehingga rencana pindah ke MySQL dibatalkan. Pengembangan memakai database PostgreSQL terpisah; host produksi diputuskan sebelum Fase 6 (Neon atau Supabase, paket yang tidak tertidur) | Wann + keputusan 24 Okt |
 | 3 | Hosting | Hostinger Business (Node.js, deploy dari GitHub) | Wann |
 | 4 | Peran | Pembeli, Admin Pusat, Admin Wilayah, Owner, Developer | Pak Dimas |
 | 5 | Wilayah awal | Pusat + 1 Admin Wilayah (Yogyakarta) | Pak Dimas |
@@ -38,7 +38,7 @@
 | 13 | Ongkir | **RajaOngkir API V2 (Komerce)**, API key sudah ada | Wann |
 | 14 | Input alamat | Dropdown/combobox bertingkat sampai kelurahan, ditambah kolom jalan, gang, nomor rumah, seperti e-commerce pada umumnya | Wann |
 | 15 | Notifikasi | Admin mendapat notifikasi saat ada pesanan masuk | Pak Dimas |
-| 16 | Penyimpanan file | Gambar produk di Cloudflare R2, bukti transfer di ImageKit (tetap) | Wann |
+| 16 | Penyimpanan file | Foto produk dan bukti transfer di **ImageKit** (hasil audit 24 Okt: foto produk sudah di ImageKit, R2 belum dipakai kode) | Wann + audit |
 | 17 | Lokasi Pusat | Kota Depok (kecamatan/kelurahan gudang menyusul untuk titik asal ongkir) | Wann |
 | 18 | Berat varian | Default 35 gram per varian, bisa diubah per varian oleh Admin Pusat | Wann |
 | 19 | Data produk dan foto | Produk yang ada dimigrasi ke skema 2.0 (bukan dibuang); foto baru diunggah lewat dashboard Admin Pusat setelah Fase 3 (lihat bagian 7) | Rekomendasi, menunggu OK Wann |
@@ -191,10 +191,10 @@ Server memanggil RajaOngkir dengan asal = wilayah penangan, tujuan = ID keluraha
 | Styling/UI | Tailwind + komponen aksesibel (mis. shadcn/ui), tema desain terpusat (token warna, tipografi, jarak) |
 | State sisi klien | Zustand (keranjang, lokasi), data server lewat Server Components/route handlers |
 | Validasi | Zod di semua input (form dan API) |
-| ORM/DB | Prisma + MySQL (Hostinger) |
+| ORM/DB | Prisma + PostgreSQL |
 | Auth | Email + sandi (hash argon2/bcrypt), sesi JWT di cookie `httpOnly`, `SameSite=Lax`, kedaluwarsa wajar |
 | Otorisasi | `lib/permissions.ts` sebagai matriks tunggal + helper `can(user, permission, resource)` |
-| File | R2 (gambar produk), ImageKit (bukti transfer) |
+| File | ImageKit (foto produk dan bukti transfer); tidak ada penyimpanan permanen di folder aplikasi |
 | Email | SMTP Hostinger |
 | Grafik/laporan | Recharts; PDF lewat halaman cetak/`pdf-lib`; Excel lewat `exceljs` |
 | Test | Vitest (unit/integrasi), Playwright (E2E) |
@@ -203,7 +203,7 @@ Struktur folder disarankan: `app/(buyer)`, `app/(admin)`, `app/(owner)`, `app/(d
 
 ---
 
-## 7. Model data (ringkas, MySQL)
+## 7. Model data (ringkas, PostgreSQL)
 
 Nama bersifat panduan; agent boleh menyesuaikan selama kebutuhan terpenuhi dan dijelaskan di `docs/DB_SCHEMA.md`.
 
@@ -230,14 +230,14 @@ Nama bersifat panduan; agent boleh menyesuaikan selama kebutuhan terpenuhi dan d
 | `DailyTraffic` | tanggal, path, jumlah kunjungan, perkiraan pengunjung unik |
 | `ShippingCache` | cache wilayah dan tarif dengan TTL |
 
-**Catatan khusus MySQL:** tidak ada tipe array native, `String` unik pakai `VarChar` yang aman untuk utf8mb4, uang pakai `Decimal` dengan presisi eksplisit, dan pencarian tidak peka huruf besar-kecil bergantung collation (jangan pakai `mode: 'insensitive'`).
+**Catatan khusus PostgreSQL:** uang pakai `Decimal` dengan presisi eksplisit; array native (`String[]`) boleh dipakai untuk data sederhana, tetapi data yang perlu difilter sebaiknya berupa relasi tabel; pencarian tidak peka huruf besar-kecil boleh memakai `mode: 'insensitive'`; beri indeks pada kolom yang sering difilter.
 
 ### Data produk dan foto (keputusan)
 
 - **Data produk yang sudah ada** (nama, varian/warna, harga jual, harga modal, deskripsi) **dimigrasi** ke skema 2.0 pada Prompt 01 dan Fase 1, bukan dibuang. Jika Wann menyatakan data itu hanya dummy, diganti seed baru.
 - **Struktur final:** `Product` → `ProductVariant` (warna/model, SKU, berat default 35 g) → `Stock` per wilayah. Harga jual seragam di produk/varian, harga modal di `ProductCost` yang terpisah.
-- **Foto tidak disimpan di database**, hanya URL/kunci berkas yang menunjuk ke R2. File lama di R2 tidak disentuh migrasi, jadi tetap tampil selama URL-nya ikut termigrasi.
-- **Unggah ulang foto lewat dashboard Admin Pusat (Fase 3)**, bukan manual ke R2 sekarang, supaya berkas tercatat di produk yang benar dan tidak ada berkas yatim. Sampai saat itu, halaman pembeli (Fase 2) memakai foto lama atau placeholder.
+- **Foto tidak disimpan di database**, hanya URL yang menunjuk ke ImageKit. File di ImageKit tidak disentuh migrasi, jadi tetap tampil selama URL-nya ikut termigrasi.
+- **Unggah ulang foto lewat dashboard Admin Pusat (Fase 3)**, bukan manual ke ImageKit sekarang, supaya berkas tercatat di produk yang benar dan tidak ada berkas yatim. Sampai saat itu, halaman pembeli (Fase 2) memakai foto lama atau placeholder.
 - **Persiapan foto (boleh dikerjakan dari sekarang, di komputer):** penamaan kode + nomor yang dipakai sekarang (mis. `as1.webp`, `bsst3.webp`) boleh dipertahankan, dengan pemetaan kode ke produk/varian dicatat di `docs/PHOTO_MAP.md` (untuk unggahan lewat dashboard nanti, nama berkas ditentukan sistem), rasio 1:1 (atau 4:5), sisi panjang sekitar 1200 px, JPG/WebP di bawah ±500 KB, latar bersih dan konsisten, 3 sampai 5 foto per varian termasuk satu foto detail bahan.
 
 ---
@@ -256,14 +256,14 @@ Nama bersifat panduan; agent boleh menyesuaikan selama kebutuhan terpenuhi dan d
 ### 8.2 Midtrans
 Snap + webhook seperti bagian 5.3. Dua set kunci (sandbox untuk pengujian, production untuk live) lewat env, dengan satu variabel penentu mode. Uji pembayaran di sandbox sebelum live.
 
-### 8.3 R2 dan ImageKit
-Tetap. Validasi tipe dan ukuran file di server, nama file diacak, tidak percaya ekstensi dari klien. Bukti transfer hanya bisa dilihat admin wilayah terkait, Owner, dan Developer.
+### 8.3 ImageKit
+ImageKit dipakai untuk foto produk dan bukti transfer. Validasi tipe dan ukuran file di server, nama file diacak, tidak percaya ekstensi dari klien. Bukti transfer hanya bisa dilihat admin wilayah terkait, Owner, dan Developer.
 
 **Kecepatan gambar produk (keputusan):**
-- Foto produk **tidak boleh** dilayani dari alamat bawaan `r2.dev` (tanpa cache CDN, hanya untuk uji). Pasang **domain kustom** pada bucket R2 (mis. subdomain gambar milik domain Luvira) agar lewat CDN Cloudflare, dan kirim header `Cache-Control: public, max-age=31536000, immutable` saat unggah.
-- Saat Admin Pusat mengunggah foto, server membuat beberapa ukuran WebP (mis. 400, 800, 1200 px) dan menyimpan semuanya, supaya halaman memuat ukuran yang pas tanpa mengandalkan optimasi gambar di server Hostinger yang terbatas.
-- Kolom foto di database menyimpan URL/jalur generik, sehingga bisa menunjuk ke `/socks/...` (berkas lokal di `public/`) selama pengembangan dan staging, lalu ke domain CDN R2 untuk produksi. Folder `public/socks` bukan penyimpanan akhir: unggahan dari dashboard tidak bisa menulis ke folder aplikasi di hosting, dan setiap ganti foto akan butuh deploy ulang.
-- Jika setelah perbaikan di atas masih lambat, alternatif yang disiapkan: pindahkan foto produk ke ImageKit (sudah ada di stack), yang memang CDN gambar dengan pengubahan ukuran otomatis. Putuskan setelah diukur.
+- **Temuan audit (24 Okt 2026):** seluruh foto produk di database sudah berupa URL ImageKit (`ik.imagekit.io`), bukan R2; domain `r2.dev` hanya terdaftar di `next.config` dan belum dipakai. Penyebab lambat yang ditemukan: berkas sumber besar (rata-rata ±1,6 MB, total ±41 MB untuk 26 foto di `public/socks`), `next/image` tanpa `sizes` dan `priority`, fallback ke tag `<img>` mentah, dan optimasi gambar di server Hostinger yang terbatas.
+- **Keputusan:** foto produk memakai **ImageKit sebagai CDN gambar**. Gunakan loader `next/image` kustom yang meminta ukuran lewat transformasi ImageKit (lebar sesuai `sizes`, format otomatis, kualitas ±80) sehingga server Hostinger tidak melakukan resize. Unggahan dari dashboard dikirim langsung ke ImageKit (bukan ke `public/uploads/`, yang tidak permanen di hosting). R2 tidak dipakai kecuali Wann memutuskan lain.
+- Kolom foto di database menyimpan URL/jalur generik, sehingga bisa menunjuk ke `/socks/...` (berkas lokal di `public/`) selama pengembangan dan staging, lalu ke URL ImageKit untuk produksi. Folder `public/socks` bukan penyimpanan akhir: unggahan dari dashboard tidak bisa menulis ke folder aplikasi di hosting, dan setiap ganti foto akan butuh deploy ulang.
+- Jika setelah perbaikan di atas masih lambat, periksa ukuran berkas sumber dan pengaturan cache ImageKit lebih dulu sebelum mempertimbangkan layanan lain.
 
 ### 8.4 Notifikasi
 Pesanan baru, bukti transfer baru, dan stok menipis (ambang diatur Owner) → baris di tabel `Notification` + email. Dashboard admin polling ringan (mis. tiap 30 detik) untuk badge lonceng.
@@ -315,7 +315,7 @@ Dashboard Developer menampilkan, dalam satu layar:
 
 | Fase | Isi | DoD (harus lolos sebelum lanjut) |
 |---|---|---|
-| **0. Cleaning** | Prompt 01: bersihkan kode lama, pindah ke MySQL, build bersih | Build dan lint hijau; data termigrasi; hasil di `CLEANUP_REPORT.md` disetujui Wann |
+| **0. Cleaning** | Prompt 01: bersihkan kode lama, rapikan, build bersih (migrasi MySQL dibatalkan) | Build dan lint hijau; data aman; hasil di `CLEANUP_REPORT.md` disetujui Wann |
 | **1. Fondasi** | Skema 2.0, wilayah, 5 peran, `permissions.ts`, auth, audit log, seed | Tes matriks hak akses lulus 100%; login semua peran jalan; skema terdokumentasi |
 | **2. Sisi pembeli** | Katalog sadar lokasi, alamat bertingkat, keranjang, ongkir RajaOngkir, checkout, Midtrans, transfer manual, tracking, nasihat | Pesanan end-to-end sukses di sandbox untuk kedua metode bayar; semua keadaan UI (kosong/error/memuat) ada |
 | **3. Sisi admin** | Katalog dan harga (Pusat), stok per wilayah, proses pesanan dan resi, verifikasi bukti, nasihat, promo, lokasi/profil, notifikasi | Admin Wilayah terbukti tidak bisa melihat/mengubah data wilayah lain; notifikasi pesanan baru sampai |
@@ -331,7 +331,7 @@ Dashboard Developer menampilkan, dalam satu layar:
 
 1. **Unit (Vitest):** perhitungan harga (subtotal, diskon, PPN 11% dari net, ongkir, total, pembulatan), validasi promo (kedaluwarsa, kuota, batas diskon, minimal belanja, cakupan wilayah), state machine pesanan, normalisasi nomor WhatsApp, mapping status Midtrans.
 2. **Matriks hak akses (otomatis):** tes yang dibangkitkan dari `permissions.ts` dan menembak **setiap** endpoint dengan **setiap** peran (dan tanpa login), memastikan hasil izin/tolak sesuai tabel bagian 4, termasuk pembatasan wilayah (Admin Wilayah A tidak bisa membaca/mengubah data wilayah B, Admin tidak pernah menerima harga modal).
-3. **Integrasi (database uji MySQL):** pembuatan pesanan dengan stok pas-pasan dan permintaan bersamaan (tidak boleh oversell), kedaluwarsa melepas stok, webhook Midtrans ganda tidak menggandakan efek, pembatalan mengembalikan kuota promo.
+3. **Integrasi (database uji PostgreSQL):** pembuatan pesanan dengan stok pas-pasan dan permintaan bersamaan (tidak boleh oversell), kedaluwarsa melepas stok, webhook Midtrans ganda tidak menggandakan efek, pembatalan mengembalikan kuota promo.
 4. **E2E (Playwright), minimal skenario ini:**
    - E2E-01 pembeli belanja dari katalog sampai bayar Midtrans (sandbox) → admin melihat pesanan `diproses`
    - E2E-02 pembeli bayar transfer manual → unggah bukti → admin konfirmasi → admin isi resi → pembeli melacak
@@ -349,7 +349,7 @@ Dashboard Developer menampilkan, dalam satu layar:
    - E2E-14 RajaOngkir gagal/kuota habis → pesan ramah, checkout tidak crash
    - E2E-15 lacak pesanan dengan kode + 4 digit WA (benar dan salah)
 5. **Kontrak integrasi:** RajaOngkir dan Midtrans dimock di CI; tambah **smoke test manual** terjadwal terhadap RajaOngkir asli dan Midtrans sandbox sebelum rilis.
-6. **Non-fungsional:** Lighthouse mobile untuk katalog/produk/checkout, uji beban ringan (mis. 50 pengguna bersamaan di alur checkout) untuk memastikan batas koneksi MySQL hosting tidak jebol, uji tampilan pada lebar 360, 390, 768, 1280.
+6. **Non-fungsional:** Lighthouse mobile untuk katalog/produk/checkout, uji beban ringan (mis. 50 pengguna bersamaan di alur checkout) untuk memastikan batas koneksi database tidak jebol, uji tampilan pada lebar 360, 390, 768, 1280.
 7. **UAT bersama Pak Dimas:** checklist berbahasa bisnis per peran, dijalankan di lingkungan staging, hasilnya dicatat.
 
 **Aturan lolos:** semua tes otomatis hijau, tidak ada bug berkeparahan tinggi (uang, stok, akses, tidak bisa checkout) yang terbuka, dan tidak ada error baru di `ErrorLog` selama uji.
@@ -362,7 +362,7 @@ Dashboard Developer menampilkan, dalam satu layar:
 - Build harus menjalankan `prisma generate`; migrasi produksi dengan `prisma migrate deploy` (langkah eksplisit, bukan otomatis tanpa pengawasan).
 - Batasi koneksi Prisma (`connection_limit` kecil) karena hosting bersama punya batas koneksi database.
 - **Job terjadwal** (kedaluwarsa pesanan tiap 5–10 menit, pembersihan log berkala, ringkasan harian) lewat Cron Jobs di hPanel yang memanggil route internal dengan token rahasia. Pastikan fitur Cron tersedia di paket yang dipakai.
-- **Backup:** aktifkan backup Hostinger, tambah ekspor database berkala yang disimpan di luar hosting (mis. bucket R2 terpisah), dan latih satu kali proses *restore* sebelum peluncuran.
+- **Backup:** pastikan paket database produksi menyertakan backup otomatis, tambah ekspor berkala (`pg_dump`) yang disimpan di luar hosting dan di luar penyedia database, dan latih satu kali proses *restore* sebelum peluncuran.
 - **Peluncuran:** staging → UAT → jadwal cutover di jam sepi → pantau `ErrorLog` dan dashboard Developer 48 jam pertama → rencana rollback siap (kembali ke versi sebelumnya; Neon dipertahankan sampai Wann menyatakan aman).
 
 ---
@@ -375,6 +375,7 @@ Dashboard Developer menampilkan, dalam satu layar:
 | Selisih total antara Midtrans dan pesanan | Satu fungsi hitung di server, baris item Midtrans dibangkitkan dari fungsi yang sama, tes unit khusus |
 | Oversell stok | Update stok bersyarat dalam transaksi, tes konkurensi |
 | Hosting bersama kewalahan | Batasi koneksi dan query berat, cache, uji beban ringan, siapkan jalur naik ke VPS bila perlu |
+| Database di luar Hostinger (latensi, paket gratis yang tertidur) | Pilih region database terdekat dengan server Hostinger, pakai paket berbayar yang tidak tertidur untuk produksi (Supabase Free berhenti setelah 7 hari tidak aktif), ukur latensi di staging |
 | Kebocoran harga modal | Tabel terpisah + tes matriks hak akses khusus kolom sensitif |
 | Salah nomor rekening di situs | Rekening dari tabel yang diatur Owner, ditampilkan konsisten, diperiksa sebelum peluncuran |
 | Cakupan wilayah salah (pesanan ke admin yang keliru) | Tabel cakupan bisa diubah Owner/Admin Pusat, tes E2E-04/05, laporan pesanan per wilayah |
