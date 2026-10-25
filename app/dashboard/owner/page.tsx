@@ -6,7 +6,7 @@ import OwnerDashboardClient from './OwnerDashboardClient';
 export default async function OwnerDashboardPage() {
   const isUserOwner = await isOwner();
   if (!isUserOwner) {
-    redirect('/admin');
+    redirect('/dashboard/login');
   }
 
   return <OwnerDashboardClient />;

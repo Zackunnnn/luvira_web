@@ -137,9 +137,14 @@ export class RajaOngkirService {
   private baseUrl: string;
 
   constructor() {
-    this.mode = (process.env.SHIPPING_MODE === 'live' ? 'live' : 'mock') as 'mock' | 'live';
-    this.apiKey = process.env.RAJAONGKIR_API_KEY || '';
-    this.baseUrl = process.env.RAJAONGKIR_URL || 'https://rajaongkir.komerce.id/api/v1';
+    const rawUrl = process.env.RAJAONGKIR_URL || '';
+    const isUrlAnApiKey = rawUrl && !rawUrl.startsWith('http');
+
+    this.apiKey = process.env.RAJAONGKIR_API_KEY || (isUrlAnApiKey ? rawUrl : '');
+    this.baseUrl = (isUrlAnApiKey || !rawUrl) ? 'https://rajaongkir.komerce.id/api/v1' : rawUrl;
+
+    const isTest = process.env.NODE_ENV === 'test' || Boolean(process.env.VITEST);
+    this.mode = (isTest ? 'mock' : (process.env.SHIPPING_MODE === 'live' ? 'live' : 'mock')) as 'mock' | 'live';
   }
 
   getMode() {
@@ -264,54 +269,61 @@ export class RajaOngkirService {
       }
     }
 
-    if (this.mode === 'mock' || results.length > 0) {
-      return results;
+    // 1. Jika live mode dan punya API key, cari langsung via Komerce API
+    if (this.mode === 'live' && this.apiKey) {
+      try {
+        const res = await fetch(`${this.baseUrl}/destination/domestic-destination?search=${encodeURIComponent(query)}`, {
+          headers: { key: this.apiKey },
+        });
+        if (res.ok) {
+          const json = await res.json();
+          const items = json.data || [];
+          if (Array.isArray(items) && items.length > 0) {
+            return items.map((item: any) => ({
+              id: String(item.id || item.subdistrict_id),
+              label: item.label,
+              provinceId: String(item.province_id || ''),
+              provinceName: item.province_name,
+              cityId: String(item.city_id || ''),
+              cityName: item.city_name,
+              districtId: String(item.district_id || ''),
+              districtName: item.district_name,
+              subDistrictId: String(item.subdistrict_id || item.id),
+              subDistrictName: item.subdistrict_name,
+              postalCode: item.zip_code || '',
+            }));
+          }
+        }
+      } catch (liveErr) {
+        console.warn('[RajaOngkir Live Search Error -> Fallback to Mock]', liveErr);
+      }
     }
 
-    // Live search jika live mode
-    try {
-      const res = await fetch(`${this.baseUrl}/destination/domestic-destination?search=${encodeURIComponent(query)}`, {
-        headers: { key: this.apiKey },
-      });
-      if (!res.ok) return results;
-      const json = await res.json();
-      return (json.data || []).map((item: any) => ({
-        id: String(item.subdistrict_id || item.id),
-        label: item.label,
-        provinceId: String(item.province_id),
-        provinceName: item.province_name,
-        cityId: String(item.city_id),
-        cityName: item.city_name,
-        districtId: String(item.district_id),
-        districtName: item.district_name,
-        subDistrictId: String(item.subdistrict_id),
-        subDistrictName: item.subdistrict_name,
-        postalCode: item.zip_code,
-      }));
-    } catch {
-      return results;
-    }
+    // 2. Fallback ke data deterministik
+    return results;
   }
 
   async calculateCost(input: CalculateShippingInput): Promise<ShippingCostOption[]> {
     const { originId, destinationId, weightGram, courier } = input;
     const cacheKey = `ship:${originId}:${destinationId}:${weightGram}:${courier.toLowerCase()}`;
 
-    // 1. Cek cache database
-    try {
-      const cached = await prisma.shippingCache.findUnique({
-        where: { cacheKey },
-      });
-      if (cached && new Date(cached.expiresAt).getTime() > Date.now()) {
-        return cached.data as unknown as ShippingCostOption[];
+    // 1. Cek cache database (khusus mode live)
+    if (this.mode === 'live') {
+      try {
+        const cached = await prisma.shippingCache.findUnique({
+          where: { cacheKey },
+        });
+        if (cached && new Date(cached.expiresAt).getTime() > Date.now()) {
+          return cached.data as unknown as ShippingCostOption[];
+        }
+      } catch {
+        // Abaikan jika cache query error
       }
-    } catch {
-      // Abaikan jika cache query error
     }
 
     let options: ShippingCostOption[] = [];
 
-    if (this.mode === 'mock') {
+    if (this.mode === 'mock' || !this.apiKey) {
       options = this.generateDeterministicMockRates(originId, destinationId, weightGram, courier);
     } else {
       try {
@@ -337,14 +349,32 @@ export class RajaOngkirService {
         }
 
         const json = await res.json();
-        const results = json.data?.[0]?.costs || [];
-        options = results.map((c: any) => ({
-          courier: courier.toUpperCase(),
-          service: c.service,
-          description: c.description,
-          cost: c.cost?.[0]?.value || 10000,
-          etd: c.cost?.[0]?.etd || '1-3 HARI',
-        }));
+        const rawData = json.data || [];
+
+        // Mendukung format Komerce V2 (flat array) maupun legacy RajaOngkir (nested costs)
+        if (Array.isArray(rawData) && rawData.length > 0) {
+          if (Array.isArray(rawData[0]?.costs)) {
+            // Legacy V1 structure
+            options = rawData[0].costs.map((c: any) => ({
+              courier: courier.toUpperCase(),
+              service: c.service,
+              description: c.description || 'Layanan Reguler',
+              cost: typeof c.cost === 'number' ? c.cost : (c.cost?.[0]?.value || 10000),
+              etd: typeof c.etd === 'string' ? c.etd : (c.cost?.[0]?.etd || '1-3 HARI'),
+            }));
+          } else {
+            // Komerce V2 structure (array of service objects)
+            options = rawData.map((c: any) => ({
+              courier: (c.code || courier).toUpperCase(),
+              service: c.service,
+              description: c.description || c.name || 'Layanan Reguler',
+              cost: typeof c.cost === 'number' ? c.cost : (typeof c.cost?.[0]?.value === 'number' ? c.cost[0].value : 10000),
+              etd: typeof c.etd === 'string' ? c.etd : (c.cost?.[0]?.etd || '1-3 HARI'),
+            }));
+          }
+        } else {
+          options = this.generateDeterministicMockRates(originId, destinationId, weightGram, courier);
+        }
       } catch (err) {
         console.warn('[RajaOngkir Cost API Error -> Graceful Fallback to Deterministic]', err);
         options = this.generateDeterministicMockRates(originId, destinationId, weightGram, courier);

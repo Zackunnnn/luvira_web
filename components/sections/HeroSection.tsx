@@ -84,6 +84,9 @@ export const HeroSection: React.FC = () => {
             <a href="#features" className="hover:text-deep-forest transition-colors">
               Keunggulan Fitur
             </a>
+            <Link href="/nasihat" className="hover:text-deep-forest transition-colors">
+              Nasihat Syar&apos;i
+            </Link>
             <Link href="/track" className="text-leaf-olive hover:text-deep-forest transition-colors flex items-center gap-1 font-extrabold">
               Lacak Pesanan
             </Link>
@@ -92,8 +95,14 @@ export const HeroSection: React.FC = () => {
           {/* Cart Trigger Button & Mobile Track Link */}
           <div className="flex items-center gap-2">
             <Link
+              href="/nasihat"
+              className="md:hidden text-xs font-bold text-deep-forest px-2 py-1.5 rounded-xl border border-deep-forest/15 hover:bg-deep-forest/5"
+            >
+              Nasihat
+            </Link>
+            <Link
               href="/track"
-              className="md:hidden text-xs font-bold text-deep-forest px-2.5 py-1.5 rounded-xl border border-deep-forest/15 hover:bg-deep-forest/5"
+              className="md:hidden text-xs font-bold text-deep-forest px-2 py-1.5 rounded-xl border border-deep-forest/15 hover:bg-deep-forest/5"
             >
               Lacak
             </Link>

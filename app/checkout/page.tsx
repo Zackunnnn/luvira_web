@@ -330,7 +330,7 @@ export default function CheckoutPage() {
 
       // Alur Pembayaran
       if (paymentMethod === 'MIDTRANS_SNAP') {
-        if (data.token && typeof window !== 'undefined' && window.snap) {
+        if (data.token && !data.token.startsWith('MOCK-') && typeof window !== 'undefined' && window.snap) {
           window.snap.pay(data.token, {
             onSuccess: () => {
               router.push(`/order/${createdOrder.code}/status`);
@@ -346,7 +346,7 @@ export default function CheckoutPage() {
             },
           });
         } else {
-          // Jika token mock / direct url
+          // Jika token mock simulasi atau fallback langsung
           router.push(`/order/${createdOrder.code}/status`);
         }
       } else {

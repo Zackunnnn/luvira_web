@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { isOwner } from '@/lib/auth';
+import { OrderStatus, PaymentMethod } from '@prisma/client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -26,8 +27,12 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // 1. Ambil transaksi yang masuk hitungan omzet (dikonfirmasi, diproses, selesai)
-    const validStatuses = ['dikonfirmasi', 'diproses', 'selesai'];
+    // 1. Ambil transaksi yang masuk hitungan omzet (DIPROSES, DIKIRIM, SELESAI)
+    const validStatuses: OrderStatus[] = [
+      OrderStatus.DIPROSES,
+      OrderStatus.DIKIRIM,
+      OrderStatus.SELESAI,
+    ];
     
     const whereClause: any = {
       status: { in: validStatuses },
@@ -35,7 +40,11 @@ export async function GET(request: NextRequest) {
     };
     
     if (payment !== 'all') {
-      whereClause.paymentMethod = payment;
+      if (payment === 'manual' || payment === PaymentMethod.MANUAL_TRANSFER) {
+        whereClause.paymentMethod = PaymentMethod.MANUAL_TRANSFER;
+      } else if (payment === 'midtrans' || payment === PaymentMethod.MIDTRANS_SNAP) {
+        whereClause.paymentMethod = PaymentMethod.MIDTRANS_SNAP;
+      }
     }
     
     const orders = await prisma.order.findMany({
@@ -116,6 +125,7 @@ export async function GET(request: NextRequest) {
       summary: {
         totalOrders: orders.length,
         actualRevenue, // Omzet setelah diskon
+        totalCost, // Total HPP (Harga Pokok Penjualan)
         totalPpn,
         netProfit,
       },

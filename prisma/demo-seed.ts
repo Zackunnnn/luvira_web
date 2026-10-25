@@ -296,6 +296,84 @@ async function main() {
         },
       });
 
+      // Buat OrderStatusLog realistis untuk pelacakan timeline
+      if (o.status === OrderStatus.MENUNGGU_PEMBAYARAN) {
+        await prisma.orderStatusLog.create({
+          data: {
+            orderId: createdOrder.id,
+            toStatus: OrderStatus.MENUNGGU_PEMBAYARAN,
+            note: 'Pesanan berhasil dibuat, menunggu pembayaran pembeli.',
+          },
+        });
+      } else if (o.status === OrderStatus.MENUNGGU_VERIFIKASI) {
+        await prisma.orderStatusLog.createMany({
+          data: [
+            {
+              orderId: createdOrder.id,
+              toStatus: OrderStatus.MENUNGGU_PEMBAYARAN,
+              note: 'Pesanan berhasil dibuat.',
+              createdAt: new Date(Date.now() - 3600000),
+            },
+            {
+              orderId: createdOrder.id,
+              toStatus: OrderStatus.MENUNGGU_VERIFIKASI,
+              note: 'Bukti pembayaran transfer manual telah diunggah oleh pembeli.',
+              createdAt: new Date(Date.now() - 1800000),
+            },
+          ],
+        });
+      } else if (o.status === OrderStatus.DIPROSES) {
+        await prisma.orderStatusLog.createMany({
+          data: [
+            {
+              orderId: createdOrder.id,
+              toStatus: OrderStatus.MENUNGGU_PEMBAYARAN,
+              note: 'Pesanan berhasil dibuat.',
+              createdAt: new Date(Date.now() - 7200000),
+            },
+            {
+              orderId: createdOrder.id,
+              toStatus: OrderStatus.DIPROSES,
+              note: 'Pembayaran terkonfirmasi, gudang Yogyakarta sedang mengemas pesanan.',
+              createdAt: new Date(Date.now() - 3600000),
+            },
+          ],
+        });
+
+        await prisma.notification.create({
+          data: {
+            targetRole: Role.ADMIN_WILAYAH,
+            targetRegionId: jogja.id,
+            title: `Pesanan Baru #${createdOrder.code}`,
+            message: `Pesanan baru a.n. ${o.customerName} masuk untuk gudang Yogyakarta.`,
+            linkUrl: `/dashboard/admin?orderId=${createdOrder.id}`,
+          },
+        });
+      } else if (o.status === OrderStatus.DIKIRIM) {
+        await prisma.orderStatusLog.createMany({
+          data: [
+            {
+              orderId: createdOrder.id,
+              toStatus: OrderStatus.MENUNGGU_PEMBAYARAN,
+              note: 'Pesanan berhasil dibuat.',
+              createdAt: new Date(Date.now() - 86400000),
+            },
+            {
+              orderId: createdOrder.id,
+              toStatus: OrderStatus.DIPROSES,
+              note: 'Pembayaran Midtrans lunas, pesanan dikemas.',
+              createdAt: new Date(Date.now() - 43200000),
+            },
+            {
+              orderId: createdOrder.id,
+              toStatus: OrderStatus.DIKIRIM,
+              note: `Pesanan diserahkan ke pihak kurir ${o.courierCode?.toUpperCase() || 'JNE'} (No. Resi: ${o.trackingNumber}).`,
+              createdAt: new Date(Date.now() - 7200000),
+            },
+          ],
+        });
+      }
+
       if (o.status === OrderStatus.MENUNGGU_VERIFIKASI && o.proofUrl) {
         await prisma.payment.create({
           data: {
