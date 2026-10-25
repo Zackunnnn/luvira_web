@@ -6,6 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { rajaOngkirService } from '@/lib/shipping/rajaongkir';
+import { reverseGeocodeCoordinates } from '@/lib/shipping/geolocation';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,29 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get('type') || 'provinces';
+
+    // 0. Deteksi Lokasi Otomatis dari Koordinat GPS Perangkat (Browser Geolocation)
+    if (type === 'gps' || type === 'reverse-geocode') {
+      const lat = parseFloat(searchParams.get('lat') || '');
+      const lng = parseFloat(searchParams.get('lng') || '');
+
+      if (isNaN(lat) || isNaN(lng)) {
+        return NextResponse.json(
+          { error: 'Parameter lat dan lng koordinat valid wajib disertakan' },
+          { status: 400 }
+        );
+      }
+
+      const geoResult = await reverseGeocodeCoordinates(lat, lng);
+      if (!geoResult) {
+        return NextResponse.json(
+          { error: 'Tidak dapat mendeteksi nama wilayah dari koordinat ini' },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({ success: true, data: geoResult });
+    }
 
     // 1. Pencarian Cepat (Quick Search / Autocomplete Debounced)
     if (type === 'quick') {

@@ -33,7 +33,7 @@ interface ProductState {
 }
 
 export const useProductStore = create<ProductState>()((set, get) => ({
-  products: [],
+  products: MOCK_PRODUCTS,
   categories: DEFAULT_CATEGORIES,
   isLoading: false,
 
@@ -43,12 +43,17 @@ export const useProductStore = create<ProductState>()((set, get) => ({
       const res = await fetch('/api/products');
       if (res.ok) {
         const json = await res.json();
-        if (json.data) {
+        if (json.data && Array.isArray(json.data) && json.data.length > 0) {
           set({ products: json.data });
+        } else {
+          set({ products: MOCK_PRODUCTS });
         }
+      } else {
+        set({ products: MOCK_PRODUCTS });
       }
     } catch (e) {
-      console.error('Failed to fetch products', e);
+      console.warn('Failed to fetch products from API, using default catalog', e);
+      set({ products: MOCK_PRODUCTS });
     } finally {
       set({ isLoading: false });
     }

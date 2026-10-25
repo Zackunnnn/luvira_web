@@ -10,6 +10,7 @@ import { Product, ColorVariant } from '@/types/product';
 import { useCartStore } from '@/store/useCartStore';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { resolveSockImage, handleSockImageError } from '@/lib/products/sock-images';
 import {
   X,
   Star,
@@ -153,16 +154,17 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           {/* Top Section: Split 2-Column Showcase */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
             
-            {/* Left: Product Visual Gallery */}
+              {/* Left: Product Visual Gallery */}
             <div className="space-y-3">
               <div className="relative aspect-square w-full rounded-2xl bg-warm-cream overflow-hidden border border-deep-forest/10 shadow-xs group">
                 <img
-                  key={selectedVariant.id}
-                  src={selectedVariant.image}
+                  key={`${selectedVariant.id}-${selectedVariant.image}`}
+                  src={resolveSockImage(selectedVariant.image, selectedVariant.name, selectedVariant.hex, product.model)}
                   alt={`${product.name} - ${selectedVariant.name}`}
                   className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   loading="lazy"
                   decoding="async"
+                  onError={(e) => handleSockImageError(e, selectedVariant.hex, product.model)}
                 />
                 
                 {/* Floating Badges */}

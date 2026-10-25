@@ -106,35 +106,35 @@ export const MOCK_PRODUCTS: Product[] = [
         id: 'emb-nude',
         name: 'Nude Cream',
         hex: '#E8D5C4',
-        image: generateSockImage('#E8D5C4', '#C9B39F', 'emboss'),
+        image: '/socks-web/est5.webp',
         stock: 50
       },
       {
         id: 'emb-rose',
         name: 'Dusty Rose',
         hex: '#D78A7E',
-        image: generateSockImage('#D78A7E', '#B56B5F', 'emboss'),
+        image: '/socks-web/est4.webp',
         stock: 50
       },
       {
         id: 'emb-olive',
         name: 'Sage Olive',
         hex: '#748E44',
-        image: generateSockImage('#748E44', '#556A30', 'emboss'),
+        image: '/socks-web/est1.webp',
         stock: 50
       },
       {
         id: 'emb-charcoal',
         name: 'Soft Charcoal',
         hex: '#4A5568',
-        image: generateSockImage('#4A5568', '#2D3748', 'emboss'),
+        image: '/socks-web/est3.webp',
         stock: 50
       },
       {
         id: 'emb-mocha',
         name: 'Mocha Brown',
         hex: '#8B6A56',
-        image: generateSockImage('#8B6A56', '#694F40', 'emboss'),
+        image: '/socks-web/est6.webp',
         stock: 50
       }
     ]
@@ -160,35 +160,35 @@ export const MOCK_PRODUCTS: Product[] = [
         id: 'bs-beige',
         name: 'Beige Sand',
         hex: '#E3D0B9',
-        image: generateSockImage('#E3D0B9', '#C4AF98', 'black-sole'),
+        image: '/socks-web/bsst1.webp',
         stock: 50
       },
       {
         id: 'bs-latte',
         name: 'Muted Latte',
         hex: '#C5A880',
-        image: generateSockImage('#C5A880', '#9F825B', 'black-sole'),
+        image: '/socks-web/bsst5.webp',
         stock: 50
       },
       {
         id: 'bs-white',
         name: 'Cloud White',
         hex: '#F7FAFC',
-        image: generateSockImage('#F7FAFC', '#E2E8F0', 'black-sole'),
+        image: '/socks-web/bsst2.webp',
         stock: 50
       },
       {
         id: 'bs-grey',
         name: 'Steel Grey',
         hex: '#718096',
-        image: generateSockImage('#718096', '#4A5568', 'black-sole'),
+        image: '/socks-web/bsst3.webp',
         stock: 50
       },
       {
         id: 'bs-navy',
         name: 'Navy Blue',
         hex: '#2A4365',
-        image: generateSockImage('#2A4365', '#1E3048', 'black-sole'),
+        image: '/socks-web/bsst4.webp',
         stock: 50
       }
     ]
@@ -214,28 +214,28 @@ export const MOCK_PRODUCTS: Product[] = [
         id: 'as-sage',
         name: 'Sage Green',
         hex: '#748E44',
-        image: generateSockImage('#748E44', '#556A30', 'anti-slip'),
+        image: '/socks-web/as1.webp',
         stock: 50
       },
       {
         id: 'as-pink',
         name: 'Blossom Pink',
         hex: '#E2A9A1',
-        image: generateSockImage('#E2A9A1', '#C7877F', 'anti-slip'),
+        image: '/socks-web/as3.webp',
         stock: 50
       },
       {
         id: 'as-cream',
         name: 'Cream Tan',
         hex: '#EBDCB9',
-        image: generateSockImage('#EBDCB9', '#CFBE9B', 'anti-slip'),
+        image: '/socks-web/as2.webp',
         stock: 50
       },
       {
         id: 'as-slate',
         name: 'Deep Slate',
         hex: '#1E4D48',
-        image: generateSockImage('#1E4D48', '#143632', 'anti-slip'),
+        image: '/socks-web/as1.webp',
         stock: 50
       }
     ]

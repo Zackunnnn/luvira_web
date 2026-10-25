@@ -8,7 +8,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, MapPin, ChevronDown, Check, Loader2 } from 'lucide-react';
+import { Search, MapPin, ChevronDown, Check, Loader2, Navigation } from 'lucide-react';
 
 export interface AddressDestination {
   provinceId: string;
@@ -39,6 +39,13 @@ export const CascadingAddressCombobox: React.FC<CascadingAddressProps> = ({
   // Mode: "quick" (pencarian cepat) atau "manual" (bertingkat)
   const [activeTab, setActiveTab] = useState<'quick' | 'manual'>('quick');
 
+  // GPS Geolocation state
+  const [isDetectingGps, setIsDetectingGps] = useState(false);
+  const [gpsMessage, setGpsMessage] = useState<{
+    type: 'success' | 'error' | 'info';
+    text: string;
+  } | null>(null);
+
   // Quick search state
   const [quickQuery, setQuickQuery] = useState('');
   const [quickResults, setQuickResults] = useState<any[]>([]);
@@ -57,6 +64,103 @@ export const CascadingAddressCombobox: React.FC<CascadingAddressProps> = ({
   const [loadingCities, setLoadingCities] = useState(false);
   const [loadingDistricts, setLoadingDistricts] = useState(false);
   const [loadingSubDistricts, setLoadingSubDistricts] = useState(false);
+
+  // Fungsi Deteksi Lokasi Otomatis dari Perangkat (Browser Geolocation API)
+  const handleDetectLocation = () => {
+    if (typeof window === 'undefined' || !navigator.geolocation) {
+      setGpsMessage({
+        type: 'error',
+        text: 'Perangkat atau browser Anda tidak mendukung akses lokasi GPS.',
+      });
+      return;
+    }
+
+    setIsDetectingGps(true);
+    setGpsMessage({
+      type: 'info',
+      text: 'Meminta izin akses lokasi perangkat Anda...',
+    });
+
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        setGpsMessage({
+          type: 'info',
+          text: 'Koordinat GPS diterima! Menghubungkan ke wilayah pengiriman...',
+        });
+
+        try {
+          const lat = pos.coords.latitude;
+          const lng = pos.coords.longitude;
+          const res = await fetch(
+            `/api/shipping/destinations?type=gps&lat=${lat}&lng=${lng}`
+          );
+          const json = await res.json();
+
+          if (json.success && json.data) {
+            const d = json.data;
+            onChange({
+              ...value,
+              provinceId: d.provinceId,
+              provinceName: d.provinceName,
+              cityId: d.cityId,
+              cityName: d.cityName,
+              districtId: d.districtId,
+              districtName: d.districtName,
+              subDistrictId: d.subDistrictId,
+              subDistrictName: d.subDistrictName,
+              postalCode: d.postalCode,
+              street: d.street ? (value.street ? value.street : d.street) : value.street,
+            });
+
+            setQuickQuery(
+              d.formattedAddress ||
+                `${d.subDistrictName}, ${d.districtName}, ${d.cityName}`
+            );
+
+            setGpsMessage({
+              type: 'success',
+              text: `Wilayah terdeteksi: ${d.cityName}, ${d.provinceName} (${d.postalCode})`,
+            });
+          } else {
+            setGpsMessage({
+              type: 'error',
+              text:
+                json.error ||
+                'Nama wilayah tidak dapat dicocokkan otomatis. Silakan gunakan Cari Cepat.',
+            });
+          }
+        } catch (err: any) {
+          console.error('[GPS Geolocation Error]', err);
+          setGpsMessage({
+            type: 'error',
+            text: 'Gagal mendeteksi wilayah dari server. Silakan ketik nama kota di Cari Cepat.',
+          });
+        } finally {
+          setIsDetectingGps(false);
+        }
+      },
+      (err) => {
+        setIsDetectingGps(false);
+        if (err.code === err.PERMISSION_DENIED) {
+          setGpsMessage({
+            type: 'error',
+            text: 'Izin lokasi tidak diberikan. Anda tetap bisa memilih wilayah via Cari Cepat di bawah.',
+          });
+        } else if (err.code === err.POSITION_UNAVAILABLE) {
+          setGpsMessage({
+            type: 'error',
+            text: 'Informasi lokasi tidak tersedia pada perangkat ini. Silakan gunakan Cari Cepat.',
+          });
+        } else {
+          setGpsMessage({
+            type: 'error',
+            text: 'Waktu deteksi lokasi habis. Silakan gunakan Cari Cepat di bawah.',
+          });
+        }
+      },
+      { timeout: 10000, enableHighAccuracy: true }
+    );
+  };
 
   // Load provinces awal
   useEffect(() => {
@@ -230,6 +334,65 @@ export const CascadingAddressCombobox: React.FC<CascadingAddressProps> = ({
             Pilih Bertingkat
           </button>
         </div>
+      </div>
+
+      {/* BANNER DETEKSI LOKASI OTOMATIS (GPS DEVICE) */}
+      <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 sm:p-3.5 transition-all">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-start gap-2.5">
+            <div className="mt-0.5 flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-800 shrink-0">
+              <Navigation className="h-4 w-4 animate-pulse" />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-emerald-950">
+                Deteksi Wilayah Otomatis (Izin Lokasi Perangkat)
+              </p>
+              <p className="text-[11px] text-emerald-800/90 leading-tight">
+                Tanpa perlu memilih manual — tekan tombol untuk mengizinkan deteksi otomatis lokasi & ongkir Anda.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            id="btn-detect-gps-location"
+            onClick={handleDetectLocation}
+            disabled={isDetectingGps}
+            className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-700 px-3.5 py-2 text-xs font-semibold text-white shadow-xs hover:bg-emerald-800 transition active:scale-95 disabled:opacity-50 shrink-0 cursor-pointer"
+          >
+            {isDetectingGps ? (
+              <>
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <span>Mendeteksi...</span>
+              </>
+            ) : (
+              <>
+                <Navigation className="h-3.5 w-3.5" />
+                <span>Gunakan Lokasi Saya</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {gpsMessage && (
+          <div
+            id="gps-feedback-message"
+            className={`mt-2.5 rounded-lg px-3 py-2 text-xs font-medium flex items-center gap-2 ${
+              gpsMessage.type === 'success'
+                ? 'bg-emerald-100/90 text-emerald-950 border border-emerald-300'
+                : gpsMessage.type === 'error'
+                ? 'bg-rose-50 text-rose-900 border border-rose-200'
+                : 'bg-amber-50 text-amber-900 border border-amber-200'
+            }`}
+          >
+            {gpsMessage.type === 'success' && (
+              <Check className="h-3.5 w-3.5 text-emerald-700 shrink-0" />
+            )}
+            {gpsMessage.type === 'info' && (
+              <Loader2 className="h-3.5 w-3.5 animate-spin text-amber-700 shrink-0" />
+            )}
+            <span className="flex-1">{gpsMessage.text}</span>
+          </div>
+        )}
       </div>
 
       {/* 1. CARI CEPAT AUTOCOMPLETE (DEBOUNCED 400MS) */}

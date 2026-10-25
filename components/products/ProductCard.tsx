@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { Star, Plus, Check, Eye, AlertCircle } from 'lucide-react';
 import { useCartStore } from '@/store/useCartStore';
 import { ProductDetailModal } from './ProductDetailModal';
+import { resolveSockImage, handleSockImageError } from '@/lib/products/sock-images';
 
 interface ProductCardProps {
   product: Product;
@@ -51,6 +52,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     }).format(amount);
   };
 
+  const imageSrc = resolveSockImage(
+    selectedVariant.image,
+    selectedVariant.name,
+    selectedVariant.hex,
+    product.model
+  );
+
   return (
     <>
       <div className="bg-white border border-deep-forest/10 rounded-3xl overflow-hidden shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 flex flex-col justify-between group">
@@ -61,12 +69,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             className="relative aspect-square w-full bg-warm-cream overflow-hidden cursor-pointer"
           >
             <img
-              key={selectedVariant.id}
-              src={selectedVariant.image}
+              key={`${selectedVariant.id}-${imageSrc}`}
+              src={imageSrc}
               alt={`${product.name} - ${selectedVariant.name}`}
               className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               loading="lazy"
               decoding="async"
+              onError={(e) => handleSockImageError(e, selectedVariant.hex, product.model)}
             />
 
             {/* Badges Overlay */}

@@ -12,6 +12,7 @@ import { useContentStore } from '@/store/useContentStore'; // Zustand dynamic co
 import { DEFAULT_SITE_CONTENT } from '@/data/defaultContent'; // Fallback seed content
 import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight, Truck } from 'lucide-react'; // Icon imports
 import { Button } from '@/components/ui/Button'; // Reusable Button component
+import { resolveSockImage, handleSockImageError } from '@/lib/products/sock-images';
 
 export const CartDrawer: React.FC = () => {
   // Destructure all required cart state and actions from Zustand store
@@ -111,12 +112,11 @@ export const CartDrawer: React.FC = () => {
                 >
                   {/* Product Thumbnail Image */}
                   <div className="relative w-16 h-16 rounded-xl bg-warm-cream overflow-hidden shrink-0">
-                    <Image
-                      src={item.selectedVariant.image} // Variant-specific image
+                    <img
+                      src={resolveSockImage(item.selectedVariant.image, item.selectedVariant.name, item.selectedVariant.hex, item.product.model)}
                       alt={item.product.name}
-                      fill // Fill the 16x16 container
-                      className="object-cover"
-                      unoptimized // SVG data URIs don't need optimization
+                      className="w-full h-full object-cover"
+                      onError={(e) => handleSockImageError(e, item.selectedVariant.hex, item.product.model)}
                     />
                   </div>
 

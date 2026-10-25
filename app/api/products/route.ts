@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { isOwner } from '@/lib/auth';
 import { Product } from '@/types/product';
+import { resolveSockImage } from '@/lib/products/sock-images';
+import { MOCK_PRODUCTS } from '@/data/products';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,16 +11,34 @@ export async function GET() {
   try {
     // Check if database is configured
     if (!process.env.DATABASE_URL) {
-      return Response.json({ warning: 'Database belum dikonfigurasi', data: [] });
+      const resolvedMock = MOCK_PRODUCTS.map((p) => ({
+        ...p,
+        variants: p.variants.map((v) => ({
+          ...v,
+          image: resolveSockImage(v.image, v.name, v.hex, p.model),
+        })),
+      }));
+      return Response.json({ warning: 'Database belum dikonfigurasi', data: resolvedMock });
     }
 
     const products = await prisma.product.findMany({
       include: { variants: true },
     });
+
+    if (!products || products.length === 0) {
+      const resolvedMock = MOCK_PRODUCTS.map((p) => ({
+        ...p,
+        variants: p.variants.map((v) => ({
+          ...v,
+          image: resolveSockImage(v.image, v.name, v.hex, p.model),
+        })),
+      }));
+      return Response.json({ data: resolvedMock });
+    }
     
     const ownerStatus = await isOwner();
 
-    const mappedProducts = products.map(p => {
+    const mappedProducts = products.map((p) => {
       // Strip cost fields if not owner
       const productData: any = { ...p };
       if (!ownerStatus) {
@@ -32,16 +52,23 @@ export async function GET() {
           id: v.id,
           name: v.name,
           hex: v.hex,
-          image: v.imageUrl,
+          image: resolveSockImage(v.imageUrl, v.name, v.hex, p.model),
           stock: v.stock,
-        }))
+        })),
       };
     });
     
     return Response.json({ data: mappedProducts });
   } catch (error) {
-    console.error('[Products API] Error GET:', error);
-    return Response.json({ error: 'Gagal mengambil data produk' }, { status: 500 });
+    console.warn('[Products API] Fallback to MOCK_PRODUCTS:', error);
+    const resolvedMock = MOCK_PRODUCTS.map((p) => ({
+      ...p,
+      variants: p.variants.map((v) => ({
+        ...v,
+        image: resolveSockImage(v.image, v.name, v.hex, p.model),
+      })),
+    }));
+    return Response.json({ data: resolvedMock });
   }
 }
 

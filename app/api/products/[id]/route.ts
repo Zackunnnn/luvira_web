@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { isOwner } from '@/lib/auth';
 import { Product } from '@/types/product';
+import { resolveSockImage } from '@/lib/products/sock-images';
 
 export const dynamic = 'force-dynamic';
 
@@ -66,7 +67,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
         id: v.id,
         name: v.name,
         hex: v.hex,
-        image: v.imageUrl,
+        image: resolveSockImage(v.imageUrl, v.name, v.hex, updatedProduct.model),
         stock: v.stock,
       }))
     };
