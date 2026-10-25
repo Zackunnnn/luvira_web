@@ -1,245 +1,296 @@
+// data/products.ts
+// ============================================================================
+// Katalog Produk Kaus Kaki Luvira 2.0 (5 Produk Asli & 26 Varian Warna Lengkap)
+// Diselaraskan 1-to-1 dengan backups/Product.json, backups/ColorVariant.json,
+// dan aset foto resolusi tinggi teroptimasi WebP di /socks-web/*.webp
+// ============================================================================
+
 import { Product } from '@/types/product';
-
-// Helper function to generate clean, high quality inline SVG sock graphics with specific colors
-const generateSockImage = (baseColor: string, accentColor: string, style: 'emboss' | 'black-sole' | 'anti-slip' | 'classic'): string => {
-  const isSplitToe = style !== 'classic';
-  const hasBlackSole = style === 'black-sole';
-  const hasAntiSlip = style === 'anti-slip';
-  const hasEmboss = style === 'emboss';
-
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%">
-    <defs>
-      <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="#FDFBF7"/>
-        <stop offset="100%" stop-color="#F5F0E6"/>
-      </linearGradient>
-      <linearGradient id="sockGrad-${baseColor.replace('#', '')}" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="${baseColor}"/>
-        <stop offset="100%" stop-color="${accentColor}"/>
-      </linearGradient>
-      <filter id="softShadow" x="-10%" y="-10%" width="125%" height="125%">
-        <feDropShadow dx="2" dy="8" stdDeviation="6" flood-color="#1E4D48" flood-opacity="0.12"/>
-      </filter>
-    </defs>
-    <rect width="400" height="400" rx="32" fill="url(#bgGrad)"/>
-    
-    <!-- Background Decor Rings -->
-    <circle cx="200" cy="200" r="140" fill="none" stroke="${accentColor}" stroke-opacity="0.15" stroke-width="2" stroke-dasharray="6 6"/>
-    
-    <!-- Main Sock Body Path -->
-    <g filter="url(#softShadow)">
-      <!-- Sock Cuff & Leg -->
-      <path d="M 175,70 L 235,70 C 240,70 244,74 244,79 L 238,200 C 238,220 250,240 270,250 L 290,260 C 310,270 320,290 315,310 C 310,330 288,340 260,340 L 190,340 C 160,340 140,320 140,290 C 140,240 175,200 175,180 Z" 
-            fill="url(#sockGrad-${baseColor.replace('#', '')})" />
-
-      <!-- Ribbed Cuff Details -->
-      <path d="M 175,70 L 235,70 L 234,95 L 175,95 Z" fill="${accentColor}" opacity="0.4"/>
-      <line x1="185" y1="70" x2="185" y2="95" stroke="#FFFFFF" stroke-width="2" opacity="0.5"/>
-      <line x1="195" y1="70" x2="195" y2="95" stroke="#FFFFFF" stroke-width="2" opacity="0.5"/>
-      <line x1="205" y1="70" x2="205" y2="95" stroke="#FFFFFF" stroke-width="2" opacity="0.5"/>
-      <line x1="215" y1="70" x2="215" y2="95" stroke="#FFFFFF" stroke-width="2" opacity="0.5"/>
-      <line x1="225" y1="70" x2="225" y2="95" stroke="#FFFFFF" stroke-width="2" opacity="0.5"/>
-
-      ${isSplitToe ? `
-      <!-- Split Toe Notch (Thumb Separator) -->
-      <path d="M 305,295 C 298,295 295,302 295,310 C 295,318 300,322 308,320" fill="none" stroke="${accentColor}" stroke-width="3" stroke-linecap="round"/>
-      <line x1="292" y1="285" x2="292" y2="330" stroke="#1E4D48" stroke-opacity="0.2" stroke-width="2"/>
-      ` : ''}
-
-      ${hasBlackSole ? `
-      <!-- Dark Stain-Resistant Sole -->
-      <path d="M 145,280 C 145,335 180,340 260,340 L 310,320 C 315,305 300,290 280,280 Z" fill="#2D3748" opacity="0.88"/>
-      ` : ''}
-
-      ${hasAntiSlip ? `
-      <!-- Silicon Anti-Slip Micro Grips -->
-      <g fill="#1E4D48" opacity="0.75">
-        <circle cx="180" cy="325" r="4"/>
-        <circle cx="195" cy="325" r="4"/>
-        <circle cx="210" cy="325" r="4"/>
-        <circle cx="225" cy="325" r="4"/>
-        <circle cx="240" cy="325" r="4"/>
-        <circle cx="255" cy="325" r="4"/>
-        <circle cx="270" cy="320" r="4"/>
-        <circle cx="190" cy="312" r="3"/>
-        <circle cx="210" cy="312" r="3"/>
-        <circle cx="230" cy="312" r="3"/>
-        <circle cx="250" cy="312" r="3"/>
-      </g>
-      ` : ''}
-
-      ${hasEmboss ? `
-      <!-- Textured Emboss Lines -->
-      <path d="M 180,120 Q 210,130 232,125" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
-      <path d="M 180,140 Q 210,150 230,145" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
-      <path d="M 178,160 Q 210,170 230,165" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
-      <path d="M 182,180 Q 210,190 232,185" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
-      ` : ''}
-
-      <!-- Luvira Signature Delicate Logo Dot -->
-      <circle cx="205" cy="115" r="5" fill="#D78A7E"/>
-    </g>
-  </svg>`;
-
-  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
-};
+import { generateSockSvg } from '@/lib/products/sock-images';
 
 export const MOCK_PRODUCTS: Product[] = [
   {
-    id: 'luv-emboss-split',
-    name: 'Emboss Split Toe Socks',
-    model: 'emboss',
+    id: 'luv-admin-1789102214581',
+    name: 'Emboss Split Toe All Variant',
+    model: 'emboss-split-toe',
     price: 35000,
     originalPrice: 45000,
     rating: 4.9,
     reviewsCount: 128,
-    badge: 'Best Seller',
-    description: 'Kaos kaki jempol emboss premium dengan tekstur 3D rajut yang halus, sejuk, dan fleksibel dipakai bersama sandal jepit maupun sepatu.',
+    badge: 'Must Have',
+    description:
+      "Kaos kaki jempol emboss dari Luvira, didesain untuk kamu yang mengutamakan kenyamanan tanpa mengorbankan gaya. Terbuat dari bahan nylon premium yang lembut di kulit, elastis, dan tetap nyaman dipakai seharian — cocok untuk aktivitas harian maupun tampilan syar'i yang tetap chic.",
     features: [
-      'Split-Toe Design (Jempol Terpisah)',
-      'Tekstur Knit Emboss Modern 3D',
-      'Katun Combed Ultra Soft',
-      'Karet Anti-Meral & Non-Binding Cuff'
+      'Bahan Nylon Premium — lembut, elastis, dan breathable seharian',
+      'Desain Emboss Eksklusif — motif unik 3D rajut yang nggak pasaran',
+      'Tahan Lama & Anti Melar — jahitan rapi, kualitas terjaga meski dicuci berulang',
+      'Desain Split-Toe Ergonomis — nyaman dipakai sandal maupun sepatu',
     ],
     variants: [
       {
-        id: 'emb-nude',
-        name: 'Nude Cream',
-        hex: '#E8D5C4',
-        image: '/socks-web/est5.webp',
-        stock: 50
-      },
-      {
-        id: 'emb-rose',
-        name: 'Dusty Rose',
-        hex: '#D78A7E',
-        image: '/socks-web/est4.webp',
-        stock: 50
-      },
-      {
-        id: 'emb-olive',
-        name: 'Sage Olive',
-        hex: '#748E44',
-        image: '/socks-web/est1.webp',
-        stock: 50
-      },
-      {
-        id: 'emb-charcoal',
-        name: 'Soft Charcoal',
-        hex: '#4A5568',
-        image: '/socks-web/est3.webp',
-        stock: 50
-      },
-      {
-        id: 'emb-mocha',
-        name: 'Mocha Brown',
-        hex: '#8B6A56',
+        id: 'var-1789102181091-u87dx',
+        name: 'Cudpahnut',
+        hex: '#e2be9e',
         image: '/socks-web/est6.webp',
-        stock: 50
-      }
-    ]
+        stock: 50,
+      },
+      {
+        id: 'var-1789262469407-6wt4k',
+        name: 'Special Tan',
+        hex: '#e3bea8',
+        image: '/socks-web/est5.webp',
+        stock: 50,
+      },
+      {
+        id: 'var-1789262495519-0xqar',
+        name: 'Deep Sea',
+        hex: '#113b4f',
+        image: '/socks-web/est1.webp',
+        stock: 50,
+      },
+      {
+        id: 'var-1789262514343-bhrr2',
+        name: 'Treehouse',
+        hex: '#392723',
+        image: '/socks-web/est3.webp',
+        stock: 50,
+      },
+      {
+        id: 'var-1789262514734-imp1v',
+        name: 'Boho Pink',
+        hex: '#f0bdbe',
+        image: '/socks-web/est4.webp',
+        stock: 50,
+      },
+      {
+        id: 'var-1789262515127-3qlku',
+        name: 'Tin',
+        hex: '#e3e0e6',
+        image: '/socks-web/est2.webp',
+        stock: 50,
+      },
+      {
+        id: 'var-1789262515511-nj631',
+        name: 'Floral Blue',
+        hex: '#92b1d5',
+        image: '/socks-web/est7.webp',
+        stock: 50,
+      },
+    ],
   },
   {
-    id: 'luv-black-sole-split',
-    name: 'Black Sole Split Toe Socks',
-    model: 'black-sole',
-    price: 38000,
-    originalPrice: 48000,
+    id: 'luv-admin-1789264533619',
+    name: 'Black Sole Split Toe All Variant',
+    model: 'black-sole-split-toe',
+    price: 35000,
+    originalPrice: 45000,
     rating: 4.95,
     reviewsCount: 210,
-    badge: 'Most Popular',
-    description: 'Sol bagian bawah berwarna gelap tahan noda tanah/debu. Sangat cocok untuk muslimah aktif dan penggunaan harian luar ruangan.',
+    badge: 'Best Seller',
+    description:
+      'Kaos kaki jempol black sole dari Luvira, didesain untuk kamu yang mengutamakan kenyamanan tanpa khawatir kotor. Sol bawah berwarna gelap tahan noda debu/tanah, sangat cocok untuk muslimah aktif dan kegiatan luar ruangan.',
     features: [
-      'Alas Hitam Anti Noda',
-      'Ergonomis Jempol Split-Toe',
-      'Serat Katun Anti Bau & Breathable',
-      'Perlindungan Ekstra Telapak'
+      'Alas Hitam Anti Noda — bagian telapak gelap tidak mudah terlihat kotor',
+      'Bahan Nylon Premium — lembut, sejuk, dan elastisitas tinggi',
+      'Desain Split-Toe Ergonomis — fleksibel bergerak seharian',
+      'Tahan Lama & Anti Melar — jahitan kokoh tahan cuci mesin',
     ],
     variants: [
       {
-        id: 'bs-beige',
-        name: 'Beige Sand',
-        hex: '#E3D0B9',
+        id: 'var-1789264186647-ooka3',
+        name: 'Penelope',
+        hex: '#ebc9b0',
+        image: '/socks-web/bsst6.webp',
+        stock: 50,
+      },
+      {
+        id: 'var-1789264293334-cpmkx',
+        name: 'Pink Blossom',
+        hex: '#f3d1d8',
         image: '/socks-web/bsst1.webp',
-        stock: 50
+        stock: 50,
       },
       {
-        id: 'bs-latte',
-        name: 'Muted Latte',
-        hex: '#C5A880',
-        image: '/socks-web/bsst5.webp',
-        stock: 50
-      },
-      {
-        id: 'bs-white',
-        name: 'Cloud White',
-        hex: '#F7FAFC',
+        id: 'var-1789264292503-t34o5',
+        name: 'Winter Blue',
+        hex: '#283858',
         image: '/socks-web/bsst2.webp',
-        stock: 50
+        stock: 50,
       },
       {
-        id: 'bs-grey',
-        name: 'Steel Grey',
-        hex: '#718096',
+        id: 'var-1789264291616-ptqg0',
+        name: 'Brushed Black',
+        hex: '#39363c',
         image: '/socks-web/bsst3.webp',
-        stock: 50
+        stock: 50,
       },
       {
-        id: 'bs-navy',
-        name: 'Navy Blue',
-        hex: '#2A4365',
+        id: 'var-1789264292095-qrh2h',
+        name: 'Pastel Blue',
+        hex: '#c9d7e4',
         image: '/socks-web/bsst4.webp',
-        stock: 50
-      }
-    ]
+        stock: 50,
+      },
+      {
+        id: 'var-1789264290559-9vozg',
+        name: 'Manatee Gray',
+        hex: '#949097',
+        image: '/socks-web/bsst5.webp',
+        stock: 50,
+      },
+      {
+        id: 'var-1789264293655-uuee8',
+        name: 'Powder',
+        hex: '#f4f3f8',
+        image: '/socks-web/bsst7.webp',
+        stock: 50,
+      },
+      {
+        id: 'var-1789264290167-7rggj',
+        name: 'Dark Taupe',
+        hex: '#372a2a',
+        image: '/socks-web/bsst8.webp',
+        stock: 50,
+      },
+    ],
   },
   {
-    id: 'luv-anti-slip-split',
-    name: 'Anti Slip Split Toe Socks',
-    model: 'anti-slip',
-    price: 38000,
-    originalPrice: 50000,
+    id: 'luv-admin-1789264862842',
+    name: 'Anti-Slip Split Toe All Variant',
+    model: 'anti-slip-split-toe',
+    price: 40000,
+    originalPrice: 45000,
     rating: 4.88,
     reviewsCount: 94,
     badge: 'Safe Grip',
-    description: 'Dilengkapi silicon bintik anti-slip di telapak bawah untuk cengkeraman maksimal saat beribadah di sajadah mulus maupun lantai licin.',
+    description:
+      'Kaos kaki jempol anti-slip dari Luvira, dilengkapi silicon dot grip premium di telapak bawah untuk mencegah tergelincir di lantai licin, sajadah masjid, maupun anak tangga saat beraktivitas.',
     features: [
-      'Silicon Anti-Slip Grid Telapak',
-      'Desain Split-Toe Nyaman',
-      'Mencegah Tergelincir di Lantai Licin',
-      'Bahan Adem & Menyerap Keringat'
+      'Silicone Anti-Slip Grid — cengkeraman mantap di segala permukaan licin',
+      'Bahan Nylon Premium — adem, lembut, dan menyerap kelembapan kaki',
+      'Desain Split-Toe Nyaman — fleksibel dipakai sehari-hari',
+      'Anti Melar & Jahitan Rapi — awet dipakai jangka panjang',
     ],
     variants: [
       {
-        id: 'as-sage',
-        name: 'Sage Green',
-        hex: '#748E44',
+        id: 'var-1789264622121-tb37e',
+        name: 'White Marble',
+        hex: '#e7e7eb',
         image: '/socks-web/as1.webp',
-        stock: 50
+        stock: 50,
       },
       {
-        id: 'as-pink',
-        name: 'Blossom Pink',
-        hex: '#E2A9A1',
+        id: 'var-1789264777351-24yqe',
+        name: 'Pink Aura',
+        hex: '#edd3dd',
         image: '/socks-web/as3.webp',
-        stock: 50
+        stock: 50,
       },
       {
-        id: 'as-cream',
-        name: 'Cream Tan',
-        hex: '#EBDCB9',
+        id: 'var-1789264777687-8qa0r',
+        name: 'Tender Light Blue',
+        hex: '#cad6e4',
         image: '/socks-web/as2.webp',
-        stock: 50
+        stock: 50,
+      },
+    ],
+  },
+  {
+    id: 'luv-admin-1789263524386',
+    name: 'Emboss All Variant',
+    model: 'emboss',
+    price: 30000,
+    originalPrice: 40000,
+    rating: 4.75,
+    reviewsCount: 68,
+    badge: 'Everyday Basic',
+    description:
+      'Kaos kaki polos classic emboss dengan rajutan motif geometris 3D yang elegan. Model standard cuff tanpa belah jempol, cocok untuk sepatu sneakers, flat shoes, maupun sepatu kerja harian.',
+    features: [
+      'Bahan Nylon Premium — serat rajut lembut & breathable',
+      'Motif Knit Emboss 3D Eksklusif — modis dan elegan',
+      'Model Round-Toe Classic — fleksibel untuk berbagai model sepatu',
+      'Karet Elastis Pas — tidak menekan betis dan tidak mudah melorot',
+    ],
+    variants: [
+      {
+        id: 'var-1789263230479-o0v6n',
+        name: 'Black Skin',
+        hex: '#523226',
+        image: '/socks-web/e1.webp',
+        stock: 50,
       },
       {
-        id: 'as-slate',
-        name: 'Deep Slate',
-        hex: '#1E4D48',
-        image: '/socks-web/as1.webp',
-        stock: 50
-      }
-    ]
-  }
+        id: 'var-1789263324759-b1i4n',
+        name: 'Penelope',
+        hex: '#edc7b0',
+        image: '/socks-web/e2.webp',
+        stock: 50,
+      },
+      {
+        id: 'var-1789263325199-csz7a',
+        name: 'Cuddle',
+        hex: '#ebc3ca',
+        image: '/socks-web/e4.webp',
+        stock: 50,
+      },
+      {
+        id: 'var-1789263328446-std2d',
+        name: 'Paper Blue',
+        hex: '#bfd1e1',
+        image: '/socks-web/e3.webp',
+        stock: 50,
+      },
+      {
+        id: 'var-1789263438784-ifq05',
+        name: 'Tin',
+        hex: '#e6e5e9',
+        image: '/socks-web/e5.webp',
+        stock: 50,
+      },
+    ],
+  },
+  {
+    id: 'luv-admin-1789264150617',
+    name: 'Black Sole All Variant',
+    model: 'black-sole',
+    price: 35000,
+    originalPrice: 45000,
+    rating: 4.82,
+    reviewsCount: 85,
+    badge: 'Anti Noda',
+    description:
+      'Kaos kaki model round-toe classic dengan teknologi dark sole anti kotor di bagian telapak. Menjaga kaus kaki tetap terlihat bersih dan segar meski beraktivitas seharian tanpa alas sepatu.',
+    features: [
+      'Telapak Hitam Anti Noda — noda debu & lantai tidak tampak',
+      'Bahan Nylon Premium — sejuk dan elastis di kaki',
+      'Model Classic Round-Toe — pas untuk sepatu sneakers dan kerja',
+      'Awet & Tahan Lama — jahitan dobel di bagian tumit dan jari',
+    ],
+    variants: [
+      {
+        id: 'var-1789263524387-1sap9',
+        name: 'Ivory Silk',
+        hex: '#E8D5C4',
+        image: '/socks-web/bs1.webp',
+        stock: 50,
+      },
+      {
+        id: 'var-1789264048903-j1r82',
+        name: 'Raspberry Ripple',
+        hex: '#eec1c8',
+        image: '/socks-web/bs2.webp',
+        stock: 50,
+      },
+      {
+        id: 'var-1789264045760-6ba2w',
+        name: 'Ebb',
+        hex: '#e8e1e6',
+        image: '/socks-web/bs3.webp',
+        stock: 50,
+      },
+    ],
+  },
 ];
 
 export const PRODUCTS = MOCK_PRODUCTS;

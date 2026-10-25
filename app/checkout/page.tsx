@@ -28,6 +28,7 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { normalizeWhatsAppNumber } from '@/lib/whatsapp';
+import { resolveSockImage } from '@/lib/products/sock-images';
 
 const PPN_RATE = 0.11;
 
@@ -654,12 +655,11 @@ export default function CheckoutPage() {
                 {cartItems.map((item, idx) => (
                   <div key={idx} className="flex items-center space-x-3 py-2.5">
                     <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-lg bg-stone-100">
-                      <Image
-                        src={item.selectedVariant.image || '/socks/as1.webp'}
+                      <img
+                        src={resolveSockImage(item.selectedVariant.image, item.selectedVariant.name, item.selectedVariant.hex, item.product.model)}
                         alt={item.product.name}
-                        fill
-                        className="object-cover"
-                        sizes="48px"
+                        className="h-full w-full object-cover"
+                        loading="lazy"
                       />
                     </div>
                     <div className="min-w-0 flex-1">

@@ -181,7 +181,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               <>Varian Stok Habis</>
             ) : (
               <>
-                <Plus className="w-4 h-4" /> + Tambah ke Keranjang
+                <Plus className="w-4 h-4 mr-1.5" /> Tambah ke Keranjang
               </>
             )}
           </Button>
