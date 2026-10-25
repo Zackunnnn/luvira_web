@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   Receipt, 
@@ -22,7 +22,7 @@ import { UsersTab } from '@/components/admin/UsersTab';
 import { AdviceTab } from '@/components/admin/AdviceTab';
 import { CopywritingTab } from '@/components/admin/CopywritingTab';
 
-export default function AdminDashboardPage() {
+function AdminDashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const initialOrderId = searchParams.get('orderId');
@@ -248,3 +248,19 @@ export default function AdminDashboardPage() {
     </div>
   );
 }
+
+export default function AdminDashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-stone-50 flex flex-col items-center justify-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-deep-forest" />
+          <span className="text-xs font-bold text-stone-600">Menghubungkan ke Portal Admin Luvira 2.0...</span>
+        </div>
+      }
+    >
+      <AdminDashboardContent />
+    </Suspense>
+  );
+}
+
