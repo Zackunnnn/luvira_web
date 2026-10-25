@@ -113,7 +113,7 @@ async function main() {
     },
   });
 
-  // 3. Akun Pengguna 5 Peran (Sandi Acak Dicetak Sekali)
+  // 3. Akun Pengguna 5 Peran
   console.log('[Seed] 3. Menyiapkan Akun untuk 4 Peran Sistem...');
   const usersToSeed = [
     {
@@ -140,12 +140,29 @@ async function main() {
       role: Role.DEVELOPER,
       regionId: null,
     },
+    {
+      email: 'developer@luvira.id',
+      name: 'Senior Developer (Alias)',
+      role: Role.DEVELOPER,
+      regionId: null,
+    },
   ];
+
+  const DEFAULT_SEED_PASSWORDS: Record<string, string> = {
+    'owner@luvira.id': process.env.SEED_OWNER_PASSWORD || 'LuviraOwner2026!',
+    'admin.pusat@luvira.id': process.env.SEED_PUSAT_PASSWORD || 'LuviraPusat2026!',
+    'admin.jogja@luvira.id': process.env.SEED_JOGJA_PASSWORD || 'LuviraJogja2026!',
+    'dev@luvira.id': process.env.SEED_DEV_PASSWORD || 'LuviraDev2026!',
+    'developer@luvira.id': process.env.SEED_DEV_PASSWORD || 'LuviraDev2026!',
+  };
 
   const credentialsLog: { email: string; role: Role; password: string }[] = [];
 
   for (const u of usersToSeed) {
-    const rawPass = generateRandomPassword();
+    const rawPass =
+      process.env.FORCE_RANDOM_SEED_PASSWORDS === 'true'
+        ? generateRandomPassword()
+        : DEFAULT_SEED_PASSWORDS[u.email] || generateRandomPassword();
     const hash = await bcrypt.hash(rawPass, 10);
     await prisma.user.upsert({
       where: { email: u.email },

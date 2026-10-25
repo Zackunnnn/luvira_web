@@ -73,6 +73,19 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     }
   }, [product, initialVariantId, isOpen]);
 
+  // Preload all variant images for this product into browser cache
+  useEffect(() => {
+    if (typeof window !== 'undefined' && product?.variants) {
+      product.variants.forEach((v) => {
+        const src = resolveSockImage(v.image, v.name, v.hex, product?.model);
+        if (src && !src.startsWith('data:')) {
+          const img = new window.Image();
+          img.src = src;
+        }
+      });
+    }
+  }, [product]);
+
   // Lock body scroll when modal is open
   useEffect(() => {
     if (isOpen) {
@@ -158,12 +171,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             <div className="space-y-3">
               <div className="relative aspect-square w-full rounded-2xl bg-warm-cream overflow-hidden border border-deep-forest/10 shadow-xs group">
                 <img
-                  key={`${selectedVariant.id}-${selectedVariant.image}`}
                   src={resolveSockImage(selectedVariant.image, selectedVariant.name, selectedVariant.hex, product.model)}
                   alt={`${product.name} - ${selectedVariant.name}`}
-                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  loading="lazy"
-                  decoding="async"
+                  className="absolute inset-0 w-full h-full object-cover transition-all duration-300 group-hover:scale-105"
                   onError={(e) => handleSockImageError(e, selectedVariant.hex, product.model)}
                 />
                 

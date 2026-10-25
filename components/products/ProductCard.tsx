@@ -35,6 +35,19 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     }
   }, [product.variants, selectedVariant]);
 
+  // Preload all variant images for instant zero-delay switching
+  useEffect(() => {
+    if (typeof window !== 'undefined' && product?.variants) {
+      product.variants.forEach((v) => {
+        const src = resolveSockImage(v.image, v.name, v.hex, product.model);
+        if (src && !src.startsWith('data:')) {
+          const img = new window.Image();
+          img.src = src;
+        }
+      });
+    }
+  }, [product]);
+
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent opening modal when clicking quick-add
     if (selectedVariant.stock === 0) return;
@@ -69,12 +82,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             className="relative aspect-square w-full bg-warm-cream overflow-hidden cursor-pointer"
           >
             <img
-              key={`${selectedVariant.id}-${imageSrc}`}
               src={imageSrc}
               alt={`${product.name} - ${selectedVariant.name}`}
-              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              loading="lazy"
-              decoding="async"
+              className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-all duration-300"
               onError={(e) => handleSockImageError(e, selectedVariant.hex, product.model)}
             />
 
