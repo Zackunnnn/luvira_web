@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db';
 import { isOwner } from '@/lib/auth';
 import { Product } from '@/types/product';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     // Check if database is configured

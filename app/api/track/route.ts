@@ -24,6 +24,8 @@ function isBot(userAgent: string | null): boolean {
   return BOT_PATTERNS.some((p) => p.test(userAgent));
 }
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const userAgent = request.headers.get('user-agent');

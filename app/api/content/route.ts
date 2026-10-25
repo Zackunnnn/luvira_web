@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 import { prisma } from '@/lib/db';
 import { SiteContent } from '@/types/content';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET() {
   try {
     if (!process.env.DATABASE_URL) {

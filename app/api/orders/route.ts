@@ -10,6 +10,8 @@ import { createOrderWithAtomicReservation } from '@/lib/orders/order-routing';
 import { midtransAdapter } from '@/lib/payments/midtrans-adapter';
 import { PaymentMethod } from '@prisma/client';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db';
 import { isOwner } from '@/lib/auth';
 import { OrderStatus, PaymentMethod } from '@prisma/client';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const isUserOwner = await isOwner();

@@ -12,6 +12,8 @@ import { audit } from '@/lib/audit';
 import { Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const user = await getAuthUser(request);

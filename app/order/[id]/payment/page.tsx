@@ -5,6 +5,8 @@ import BankAccountSelector from '@/components/checkout/BankAccountSelector';
 import { BrandLogo } from '@/components/ui/BrandLogo';
 import { ShieldCheck } from 'lucide-react';
 
+export const dynamic = 'force-dynamic';
+
 export default async function OrderPaymentPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 

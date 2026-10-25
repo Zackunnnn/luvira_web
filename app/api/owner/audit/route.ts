@@ -9,6 +9,8 @@ import { prisma } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
 import { can } from '@/lib/permissions';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const user = await getAuthUser(request);

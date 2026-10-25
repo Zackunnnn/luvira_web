@@ -9,6 +9,8 @@ import { prisma } from '@/lib/db';
 import { OrderStatus, PaymentVerificationStatus, PaymentMethod, Role } from '@prisma/client';
 import { audit } from '@/lib/audit';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

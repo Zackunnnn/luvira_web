@@ -12,6 +12,8 @@ import { can } from '@/lib/permissions';
 import { audit } from '@/lib/audit';
 import { OrderStatus, StockMovementType } from '@prisma/client';
 
+export const dynamic = 'force-dynamic';
+
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

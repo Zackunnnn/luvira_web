@@ -22,6 +22,8 @@ import {
 import OrderStatusClientView from './OrderStatusClientView';
 import { generateOrderHelpWhatsAppUrl } from '@/lib/whatsapp';
 
+export const dynamic = 'force-dynamic';
+
 export default async function OrderStatusPage({
   params,
 }: {

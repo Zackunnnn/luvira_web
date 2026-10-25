@@ -16,6 +16,8 @@ import {
   OrderFinancialRecord,
 } from '@/lib/reports/owner-reports';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   try {
     const user = await getAuthUser(request);

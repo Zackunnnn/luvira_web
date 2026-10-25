@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { resolveTargetRegion } from '@/lib/orders/order-routing';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const { code, regionId, destinationProvince, subtotal = 0 } = await request.json();

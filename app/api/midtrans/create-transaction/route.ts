@@ -13,6 +13,8 @@ import { NextRequest } from 'next/server';
 import { snap } from '@/lib/midtrans';
 import { CreateTransactionRequest } from '@/types/midtrans';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     // Parse request body dari checkout page

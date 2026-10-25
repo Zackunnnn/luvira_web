@@ -27,6 +27,8 @@ async function ensureDirs() {
   }
 }
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const authStatus = await isOwner();

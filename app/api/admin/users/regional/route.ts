@@ -2,6 +2,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { POST as mainUsersPost, GET as mainUsersGet, PUT as mainUsersPut } from '../route';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: NextRequest) {
   return mainUsersGet(request);
 }

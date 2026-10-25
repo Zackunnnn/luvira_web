@@ -3,7 +3,13 @@ import { PrismaClient } from '@prisma/client';
 import { assertDatabaseSafety } from './db-guard';
 
 const prismaClientSingleton = () => {
-  assertDatabaseSafety();
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    process.env.NEXT_PHASE !== 'phase-production-build' &&
+    process.env.ALLOW_PROD_DB !== 'true'
+  ) {
+    assertDatabaseSafety();
+  }
   return new PrismaClient();
 };
 

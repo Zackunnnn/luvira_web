@@ -15,6 +15,8 @@ import { midtransAdapter } from '@/lib/payments/midtrans-adapter';
 import { OrderStatus, PaymentVerificationStatus, StockMovementType, Role } from '@prisma/client';
 import { audit } from '@/lib/audit';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const payload = await request.json();

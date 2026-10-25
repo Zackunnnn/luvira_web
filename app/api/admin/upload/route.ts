@@ -10,6 +10,8 @@ import { can } from '@/lib/permissions';
 import { uploadImage } from '@/lib/storage/image-storage';
 import { prisma } from '@/lib/db';
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   try {
     const user = await getAuthUser(request);

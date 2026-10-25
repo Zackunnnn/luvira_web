@@ -128,6 +128,8 @@ async function handleExpireOrders(request: NextRequest) {
   }
 }
 
+export const dynamic = 'force-dynamic';
+
 export async function POST(request: NextRequest) {
   return handleExpireOrders(request);
 }

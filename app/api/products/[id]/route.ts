@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db';
 import { isOwner } from '@/lib/auth';
 import { Product } from '@/types/product';
 
+export const dynamic = 'force-dynamic';
+
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     if (!process.env.DATABASE_URL) {

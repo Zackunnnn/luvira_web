@@ -57,4 +57,31 @@ describe('Database Safety Guard', () => {
     const res = checkDatabaseSafety({ isTestEnvironment: true });
     expect(res.isSafe).toBe(true);
   });
+
+  it('lolos jika di lingkungan hosting produksi (NODE_ENV=production)', () => {
+    (process.env as any).NODE_ENV = 'production';
+    process.env.DATABASE_URL = `postgresql://user:pass@${PROD_HOST_KEYWORD}-pooler.neon.tech/neondb`;
+    const res = checkDatabaseSafety();
+    expect(res.isSafe).toBe(true);
+    expect(() => assertDatabaseSafety()).not.toThrow();
+  });
+
+  it('lolos saat proses build Next.js (phase-production-build)', () => {
+    (process.env as any).NODE_ENV = 'development';
+    process.env.NEXT_PHASE = 'phase-production-build';
+    process.env.DATABASE_URL = `postgresql://user:pass@${PROD_HOST_KEYWORD}-pooler.neon.tech/neondb`;
+    const res = checkDatabaseSafety();
+    expect(res.isSafe).toBe(true);
+    expect(() => assertDatabaseSafety()).not.toThrow();
+  });
+
+  it('lolos jika ALLOW_PROD_DB diaktifkan secara eksplisit', () => {
+    (process.env as any).NODE_ENV = 'development';
+    delete process.env.NEXT_PHASE;
+    process.env.ALLOW_PROD_DB = 'true';
+    process.env.DATABASE_URL = `postgresql://user:pass@${PROD_HOST_KEYWORD}-pooler.neon.tech/neondb`;
+    const res = checkDatabaseSafety();
+    expect(res.isSafe).toBe(true);
+    expect(() => assertDatabaseSafety()).not.toThrow();
+  });
 });
