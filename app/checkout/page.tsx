@@ -27,6 +27,7 @@ import {
   MapPin,
   ChevronRight,
   Info,
+  Zap,
 } from 'lucide-react';
 import { normalizeWhatsAppNumber } from '@/lib/whatsapp';
 import { resolveSockImage } from '@/lib/products/sock-images';
@@ -651,12 +652,12 @@ export default function CheckoutPage() {
               </div>
 
               <div className="mt-3 space-y-3">
-                {/* Midtrans Snap */}
+                {/* Midtrans Snap - Recommended */}
                 <label
-                  className={`flex cursor-pointer items-start space-x-3 rounded-xl border p-3.5 transition ${
+                  className={`relative flex cursor-pointer items-start space-x-3 rounded-2xl border p-4 transition-all ${
                     paymentMethod === 'MIDTRANS_SNAP'
-                      ? 'border-emerald-700 bg-emerald-50/40 ring-1 ring-emerald-700'
-                      : 'border-stone-200 hover:border-stone-300'
+                      ? 'border-emerald-600 bg-emerald-50/60 shadow-xs ring-2 ring-emerald-600/20'
+                      : 'border-stone-200 bg-white hover:border-emerald-300 hover:bg-stone-50/50'
                   }`}
                 >
                   <input
@@ -665,24 +666,34 @@ export default function CheckoutPage() {
                     value="MIDTRANS_SNAP"
                     checked={paymentMethod === 'MIDTRANS_SNAP'}
                     onChange={() => setPaymentMethod('MIDTRANS_SNAP')}
-                    className="mt-0.5 h-4 w-4 text-emerald-700 focus:ring-emerald-600"
+                    className="mt-1 h-4 w-4 text-emerald-700 focus:ring-emerald-600 accent-emerald-700"
                   />
                   <div className="flex-1">
-                    <p className="text-xs font-bold text-stone-900">
-                      Pembayaran Otomatis (Midtrans Snap)
+                    <div className="flex items-center flex-wrap gap-2">
+                      <p className="text-xs font-extrabold text-stone-900">
+                        Pembayaran Otomatis (Midtrans)
+                      </p>
+                      <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800 border border-emerald-300/60 shadow-2xs">
+                        <Zap className="h-2.5 w-2.5 text-emerald-700 fill-emerald-700" />
+                        Direkomendasikan • Konfirmasi Instan
+                      </span>
+                    </div>
+                    <p className="mt-1 text-[11px] leading-relaxed text-stone-600">
+                      Virtual Account (BCA, Mandiri, BRI, BNI, Permata), QRIS (Semua m-Banking & E-Wallet), dan Kartu.
                     </p>
-                    <p className="text-[11px] text-stone-500">
-                      QRIS (GoPay, OVO, ShopeePay), BCA/Mandiri/BNI Virtual Account, dan Kartu. Terverifikasi instan tanpa unggah struk.
-                    </p>
+                    <div className="mt-1.5 flex items-center gap-1.5 text-[11px] font-semibold text-emerald-800">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600 shrink-0" />
+                      <span>Otomatis lunas detik itu juga, tanpa perlu unggah atau verifikasi struk transfer.</span>
+                    </div>
                   </div>
                 </label>
 
                 {/* Manual Transfer */}
                 <label
-                  className={`flex cursor-pointer items-start space-x-3 rounded-xl border p-3.5 transition ${
+                  className={`flex cursor-pointer items-start space-x-3 rounded-2xl border p-4 transition-all ${
                     paymentMethod === 'MANUAL_TRANSFER'
-                      ? 'border-emerald-700 bg-emerald-50/40 ring-1 ring-emerald-700'
-                      : 'border-stone-200 hover:border-stone-300'
+                      ? 'border-stone-600 bg-stone-50 shadow-xs ring-2 ring-stone-600/20'
+                      : 'border-stone-200 bg-white hover:border-stone-300 hover:bg-stone-50/50'
                   }`}
                 >
                   <input
@@ -691,14 +702,14 @@ export default function CheckoutPage() {
                     value="MANUAL_TRANSFER"
                     checked={paymentMethod === 'MANUAL_TRANSFER'}
                     onChange={() => setPaymentMethod('MANUAL_TRANSFER')}
-                    className="mt-0.5 h-4 w-4 text-emerald-700 focus:ring-emerald-600"
+                    className="mt-1 h-4 w-4 text-stone-700 focus:ring-stone-600 accent-stone-700"
                   />
                   <div className="flex-1">
-                    <p className="text-xs font-bold text-stone-900">
+                    <p className="text-xs font-bold text-stone-800">
                       Transfer Bank Manual (BSI / Jago Syariah)
                     </p>
-                    <p className="text-[11px] text-stone-500">
-                      Transfer langsung ke rekening resmi Luvira dan unggah bukti transfer.
+                    <p className="mt-0.5 text-[11px] leading-relaxed text-stone-500">
+                      Transfer langsung ke rekening toko. Wajib mengunggah foto struk bukti transfer dan menunggu verifikasi admin.
                     </p>
                   </div>
                 </label>
@@ -862,7 +873,7 @@ export default function CheckoutPage() {
                   </>
                 ) : (
                   <span>
-                    {paymentMethod === 'MIDTRANS_SNAP' ? 'Bayar Sekarang (Midtrans)' : 'Buat Pesanan Sekarang'} • Rp{' '}
+                    {paymentMethod === 'MIDTRANS_SNAP' ? 'Bayar Otomatis Sekarang (Midtrans)' : 'Buat Pesanan & Upload Struk'} • Rp{' '}
                     {totalPrice.toLocaleString('id-ID')}
                   </span>
                 )}
@@ -888,7 +899,7 @@ export default function CheckoutPage() {
                 {isSubmitting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <span>{paymentMethod === 'MIDTRANS_SNAP' ? 'Bayar Sekarang' : 'Buat Pesanan'}</span>
+                  <span>{paymentMethod === 'MIDTRANS_SNAP' ? 'Bayar Otomatis (Instan)' : 'Buat Pesanan'}</span>
                 )}
               </button>
             </div>
