@@ -87,12 +87,14 @@ export function calculatePricingPure({
   productsMap,
   promo,
   shippingCourier,
+  shippingCost: customShippingCost,
   now = new Date(),
 }: {
   items: PricingItemInput[];
   productsMap: Map<string, ProductDataForCalculation>;
   promo: PromoDataForCalculation | null;
   shippingCourier?: string | null;
+  shippingCost?: number | null;
   now?: Date;
 }): ServerPricingResult {
   // 1. Hitung Subtotal berdasarkan harga database resmi
@@ -156,8 +158,12 @@ export function calculatePricingPure({
   // 5. Hitung Ongkir
   const isFreeShipping = promoApplied?.isFreeShipping || false;
   let shippingCost = 0;
-  if (!isFreeShipping && shippingCourier) {
-    shippingCost = SERVER_COURIER_RATES[shippingCourier] ?? DEFAULT_SHIPPING_COST;
+  if (!isFreeShipping) {
+    if (typeof customShippingCost === 'number' && customShippingCost >= 0) {
+      shippingCost = customShippingCost;
+    } else if (shippingCourier) {
+      shippingCost = SERVER_COURIER_RATES[shippingCourier] ?? DEFAULT_SHIPPING_COST;
+    }
   }
 
   // 6. Total Akhir

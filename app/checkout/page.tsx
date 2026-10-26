@@ -820,7 +820,7 @@ export default function CheckoutPage() {
                   </>
                 ) : (
                   <span>
-                    {paymentMethod === 'MIDTRANS_SNAP' ? 'Bayar Sekarang' : 'Konfirmasi Pesanan'} • Rp{' '}
+                    {paymentMethod === 'MIDTRANS_SNAP' ? 'Bayar Sekarang (Midtrans)' : 'Buat Pesanan Sekarang'} • Rp{' '}
                     {totalPrice.toLocaleString('id-ID')}
                   </span>
                 )}
@@ -846,7 +846,7 @@ export default function CheckoutPage() {
                 {isSubmitting ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  <span>{paymentMethod === 'MIDTRANS_SNAP' ? 'Bayar Sekarang' : 'Konfirmasi'}</span>
+                  <span>{paymentMethod === 'MIDTRANS_SNAP' ? 'Bayar Sekarang' : 'Buat Pesanan'}</span>
                 )}
               </button>
             </div>

@@ -22,7 +22,13 @@ export async function GET() {
     }
 
     const products = await prisma.product.findMany({
-      include: { variants: true },
+      include: {
+        variants: {
+          include: {
+            stocks: true,
+          },
+        },
+      },
     });
 
     if (!products || products.length === 0) {
@@ -48,13 +54,18 @@ export async function GET() {
 
       return {
         ...productData,
-        variants: p.variants.map((v: any) => ({
-          id: v.id,
-          name: v.name,
-          hex: v.hex,
-          image: resolveSockImage(v.imageUrl, v.name, v.hex, p.model),
-          stock: v.stock,
-        })),
+        variants: p.variants.map((v: any) => {
+          const totalStock = Array.isArray(v.stocks)
+            ? v.stocks.reduce((acc: number, s: any) => acc + Math.max(0, (s.qty || 0) - (s.reserved || 0)), 0)
+            : (typeof v.stock === 'number' ? v.stock : 50);
+          return {
+            id: v.id,
+            name: v.name,
+            hex: v.hex,
+            image: resolveSockImage(v.imageUrl, v.name, v.hex, p.model),
+            stock: totalStock,
+          };
+        }),
       };
     });
     

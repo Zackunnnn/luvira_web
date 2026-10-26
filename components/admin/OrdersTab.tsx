@@ -200,6 +200,20 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({
     return `Rp ${val.toLocaleString('id-ID')}`;
   };
 
+  const formatAddress = (addr: any) => {
+    if (!addr) return '-';
+    if (typeof addr === 'string') return addr;
+    const parts = [
+      addr.street,
+      addr.subDistrictName || addr.subDistrict,
+      addr.districtName || addr.district,
+      addr.cityName || addr.city,
+      addr.provinceName || addr.province,
+      addr.postalCode ? `(${addr.postalCode})` : '',
+    ].filter(Boolean);
+    return parts.length > 0 ? parts.join(', ') : '-';
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'MENUNGGU_PEMBAYARAN':
@@ -600,9 +614,7 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({
                 <div className="flex justify-between">
                   <span>Tujuan:</span>
                   <span className="truncate max-w-[200px]">
-                    {typeof shipModalOrder.shippingAddress === 'object'
-                      ? `${shipModalOrder.shippingAddress.cityName || ''}, ${shipModalOrder.shippingAddress.provinceName || ''}`
-                      : shipModalOrder.shippingAddress}
+                    {formatAddress(shipModalOrder.shippingAddress)}
                   </span>
                 </div>
               </div>
@@ -697,9 +709,7 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({
                 <span className="font-mono text-stone-500">({detailModalOrder.customerPhone})</span>
               </div>
               <p className="text-stone-600 leading-relaxed">
-                {typeof detailModalOrder.shippingAddress === 'object'
-                  ? `${detailModalOrder.shippingAddress.street || ''}, ${detailModalOrder.shippingAddress.district || ''}, ${detailModalOrder.shippingAddress.cityName || ''}, ${detailModalOrder.shippingAddress.provinceName || ''} ${detailModalOrder.shippingAddress.postalCode || ''}`
-                  : detailModalOrder.shippingAddress}
+                {formatAddress(detailModalOrder.shippingAddress)}
               </p>
             </div>
 

@@ -20,6 +20,7 @@ import {
   Loader2,
   ExternalLink,
   MessageCircle,
+  MapPin,
 } from 'lucide-react';
 import { OrderStatus, PaymentMethod } from '@prisma/client';
 
@@ -325,23 +326,78 @@ export default function OrderStatusClientView({
         </div>
       )}
 
-      {/* 3. RINCIAN ITEM BELANJA */}
-      <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
-        <h3 className="mb-3 text-sm font-bold text-stone-900">Rincian Barang</h3>
-        <div className="divide-y divide-stone-100">
-          {order.items.map((item: any) => (
-            <div key={item.id} className="flex items-center justify-between py-2 text-xs">
-              <div>
-                <p className="font-semibold text-stone-900">{item.productName}</p>
-                <p className="text-stone-500">
-                  {item.variantName} • {item.quantity} pasang
-                </p>
+      {/* 3. ALAMAT PENGIRIMAN, RINCIAN BARANG & RINGKASAN BIAYA */}
+      <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6 space-y-4">
+        {/* Alamat Pengiriman */}
+        <div>
+          <h3 className="mb-2 text-sm font-bold text-stone-900 flex items-center gap-1.5">
+            <MapPin className="h-4 w-4 text-emerald-700" />
+            Alamat Pengiriman
+          </h3>
+          <p className="text-xs text-stone-600 bg-stone-50 p-3 rounded-xl border border-stone-100 leading-relaxed">
+            {(() => {
+              const addr = order.shippingAddress;
+              if (!addr) return '-';
+              if (typeof addr === 'string') return addr;
+              const parts = [
+                addr.street,
+                addr.subDistrictName || addr.subDistrict,
+                addr.districtName || addr.district,
+                addr.cityName || addr.city,
+                addr.provinceName || addr.province,
+                addr.postalCode ? `(${addr.postalCode})` : '',
+              ].filter(Boolean);
+              return parts.length > 0 ? parts.join(', ') : '-';
+            })()}
+          </p>
+        </div>
+
+        {/* Item Belanja */}
+        <div>
+          <h3 className="mb-3 text-sm font-bold text-stone-900">Rincian Barang</h3>
+          <div className="divide-y divide-stone-100">
+            {order.items.map((item: any) => (
+              <div key={item.id} className="flex items-center justify-between py-2 text-xs">
+                <div>
+                  <p className="font-semibold text-stone-900">{item.productName}</p>
+                  <p className="text-stone-500">
+                    {item.variantName} • {item.quantity} pasang
+                  </p>
+                </div>
+                <span className="font-medium text-stone-900">
+                  Rp {item.subtotal.toLocaleString('id-ID')}
+                </span>
               </div>
-              <span className="font-medium text-stone-900">
-                Rp {item.subtotal.toLocaleString('id-ID')}
-              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Ringkasan Finansial Resmi */}
+        <div className="border-t border-stone-100 pt-3 space-y-2 text-xs">
+          <div className="flex justify-between text-stone-600">
+            <span>Subtotal Produk</span>
+            <span className="font-medium">
+              Rp {(order.subtotal || order.items.reduce((s: number, i: any) => s + i.subtotal, 0)).toLocaleString('id-ID')}
+            </span>
+          </div>
+          {order.discountAmount > 0 && (
+            <div className="flex justify-between text-emerald-700 font-medium">
+              <span>Diskon Promo</span>
+              <span>- Rp {order.discountAmount.toLocaleString('id-ID')}</span>
             </div>
-          ))}
+          )}
+          <div className="flex justify-between text-stone-600">
+            <span>PPN (11%)</span>
+            <span className="font-medium">Rp {(order.ppnAmount || 0).toLocaleString('id-ID')}</span>
+          </div>
+          <div className="flex justify-between text-stone-600">
+            <span>Ongkos Kirim {order.courierCode ? `(${order.courierCode.toUpperCase()}${order.courierService ? ` - ${order.courierService}` : ''})` : ''}</span>
+            <span className="font-medium">Rp {(order.shippingCost || 0).toLocaleString('id-ID')}</span>
+          </div>
+          <div className="flex justify-between text-stone-900 font-bold text-sm border-t border-stone-200 pt-2">
+            <span>Total Pembayaran</span>
+            <span className="text-emerald-800">Rp {order.totalPrice.toLocaleString('id-ID')}</span>
+          </div>
         </div>
       </div>
 

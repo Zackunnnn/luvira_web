@@ -211,8 +211,8 @@ export class RajaOngkirService {
         id: String(c.id),
         provinceId: String(c.province_id),
         name: c.name,
-        type: c.type,
-        postalCode: c.postal_code,
+        type: c.type || (c.name?.toLowerCase().includes('kota') ? 'Kota' : 'Kabupaten'),
+        postalCode: c.postal_code || c.zip_code || '',
       }));
     } catch (err) {
       console.warn('[RajaOngkir Live Fallback to Mock]', err);
@@ -257,7 +257,7 @@ export class RajaOngkirService {
         id: String(sd.id),
         districtId: String(sd.district_id),
         name: sd.name,
-        postalCode: sd.postal_code,
+        postalCode: sd.postal_code || sd.zip_code || '',
       }));
     } catch (err) {
       console.warn('[RajaOngkir Live Fallback to Mock]', err);

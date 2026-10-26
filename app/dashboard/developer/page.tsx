@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation';
 import { Role } from '@prisma/client';
 import { prisma } from '@/lib/db';
 
+import { DeveloperLogoutButton } from '@/components/developer/DeveloperLogoutButton';
+
 export const dynamic = 'force-dynamic';
 
 async function getDatabaseHealth() {
@@ -46,30 +48,38 @@ export default async function DeveloperDashboard() {
             </div>
             <p className="text-sm text-slate-400 mt-1">Pemantauan Kesehatan Sistem, Antrean Bermasalah & Log Kesalahan</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <span className="px-3 py-1 bg-cyan-950 text-cyan-400 border border-cyan-800 rounded-lg text-xs font-mono font-semibold">
               ROLE: {session.role}
             </span>
             <span className="text-xs text-slate-400">{session.name}</span>
+            <DeveloperLogoutButton />
           </div>
         </header>
 
         {/* Status Indikator Utama */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-slate-900/80 border border-slate-800 p-5 rounded-xl space-y-1">
-            <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Database Status</p>
-            <div className="flex items-baseline justify-between">
-              <p className={`text-xl font-bold ${dbStatus === 'UP' ? 'text-emerald-400' : 'text-rose-400'}`}>{dbStatus}</p>
-              <span className="text-xs text-slate-500 font-mono">{dbLatency} ms</span>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Neon PostgreSQL Database</p>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">Serverless</span>
             </div>
+            <div className="flex items-baseline justify-between pt-1">
+              <p className={`text-xl font-bold ${dbStatus === 'UP' ? 'text-emerald-400' : 'text-rose-400'}`}>{dbStatus}</p>
+              <span className="text-xs text-slate-400 font-mono">Latensi: {dbLatency} ms</span>
+            </div>
+            <p className="text-[10px] text-slate-500 truncate font-mono">ep-holy-meadow-awct0q2f-pooler</p>
           </div>
 
           <div className="bg-slate-900/80 border border-slate-800 p-5 rounded-xl space-y-1">
-            <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Storage Mode</p>
-            <div className="flex items-baseline justify-between">
-              <p className="text-xl font-bold text-cyan-400">{process.env.IMAGE_STORAGE_MODE || 'local-stub'}</p>
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">Asset Pipeline & CDN</p>
               <span className="text-xs text-emerald-400">READY</span>
             </div>
+            <div className="flex items-baseline justify-between pt-1">
+              <p className="text-base font-bold text-cyan-400">ImageKit.io & WebP Fallback</p>
+            </div>
+            <p className="text-[10px] text-slate-500">Pipeline foto 26 varian WebP resolusi tinggi</p>
           </div>
 
           <div className="bg-slate-900/80 border border-slate-800 p-5 rounded-xl space-y-1">

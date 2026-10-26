@@ -48,9 +48,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     }
   }, [product]);
 
+  const variantStock = typeof selectedVariant?.stock === 'number' ? selectedVariant.stock : 50;
+  const isOutOfStock = variantStock <= 0;
+  const isLowStock = variantStock > 0 && variantStock <= 5;
+
   const handleAddToCart = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent opening modal when clicking quick-add
-    if (selectedVariant.stock === 0) return;
+    if (isOutOfStock) return;
 
     addItem(product, selectedVariant, 1);
     setAdded(true);
@@ -94,7 +98,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             </div>
 
             {/* Stock indicator badge if out of stock */}
-            {selectedVariant.stock === 0 && (
+            {isOutOfStock && (
               <div className="absolute bottom-3 left-3 z-10">
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-dusty-rose text-white px-2 py-0.5 rounded-full shadow-xs">
                   <AlertCircle className="w-3 h-3" /> Stok Habis
@@ -103,10 +107,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             )}
 
             {/* Low stock indicator */}
-            {selectedVariant.stock > 0 && selectedVariant.stock <= 5 && (
+            {isLowStock && (
               <div className="absolute bottom-3 left-3 z-10">
                 <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-amber-500 text-white px-2 py-0.5 rounded-full shadow-xs">
-                  <AlertCircle className="w-3 h-3" /> Sisa {selectedVariant.stock} pcs
+                  <AlertCircle className="w-3 h-3" /> Sisa {variantStock} pcs
                 </span>
               </div>
             )}
@@ -177,7 +181,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         <div className="px-4 sm:px-5 pb-4 sm:pb-5">
           <Button
             onClick={handleAddToCart}
-            disabled={selectedVariant.stock === 0}
+            disabled={isOutOfStock}
             variant={added ? 'secondary' : 'primary'}
             fullWidth
             size="md"
@@ -187,7 +191,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               <>
                 <Check className="w-4 h-4" /> Masuk Keranjang!
               </>
-            ) : selectedVariant.stock === 0 ? (
+            ) : isOutOfStock ? (
               <>Varian Stok Habis</>
             ) : (
               <>

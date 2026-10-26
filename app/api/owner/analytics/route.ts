@@ -52,51 +52,36 @@ export async function GET(request: NextRequest) {
     const orders = await prisma.order.findMany({
       where: whereClause,
       include: {
-        items: true
+        items: true,
+        promoCode: { select: { code: true } },
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
     });
 
-    let totalRevenue = 0;
+    let totalGrossRevenue = 0;
+    let totalNetSales = 0;
     let totalPpn = 0;
     let totalCost = 0;
+    let totalShipping = 0;
 
-    orders.forEach(order => {
-      let orderProductRevenue = 0;
+    orders.forEach((order) => {
       let orderCost = 0;
-
-      order.items.forEach(item => {
-        orderProductRevenue += (item.priceEach * item.quantity);
+      order.items.forEach((item) => {
         orderCost += ((item.costEach + item.packingEach) * item.quantity);
       });
 
+      const netSale = (order.netPrice !== undefined && order.netPrice !== null)
+        ? order.netPrice
+        : (order.subtotal - (order.discountAmount || 0));
+
+      totalGrossRevenue += order.totalPrice;
+      totalNetSales += netSale;
       totalPpn += (order.ppnAmount || 0);
-      totalRevenue += orderProductRevenue;
+      totalShipping += (order.shippingCost || 0);
       totalCost += orderCost;
     });
-    
-    let netProfit = 0;
-    let actualRevenue = 0; 
 
-    orders.forEach(order => {
-      let itemsTotal = 0;
-      order.items.forEach(item => {
-        itemsTotal += (item.priceEach * item.quantity);
-      });
-      
-      // Harga bersih yang dibayar untuk produk (tanpa ongkir & ppn, blm dikurangi diskon krn tdk tersimpan)
-      const netProductPaid = itemsTotal;
-      
-      actualRevenue += netProductPaid;
-
-      // Cost untuk order ini
-      let orderCost = 0;
-      order.items.forEach(item => {
-        orderCost += ((item.costEach + item.packingEach) * item.quantity);
-      });
-
-      netProfit += (netProductPaid - orderCost);
-    });
+    const netProfit = totalNetSales - totalCost;
 
     // 2. Ambil produk dengan stok menipis (threshold < 10)
     const lowStockThreshold = 10;
@@ -126,10 +111,12 @@ export async function GET(request: NextRequest) {
       success: true,
       summary: {
         totalOrders: orders.length,
-        actualRevenue, // Omzet setelah diskon
-        totalCost, // Total HPP (Harga Pokok Penjualan)
-        totalPpn,
-        netProfit,
+        actualRevenue: totalGrossRevenue, // Total omzet transaksi kotor (cocok dengan sum total akhir)
+        netSales: totalNetSales, // Total penjualan produk bersih setelah diskon
+        totalCost, // Total HPP & packing
+        totalPpn, // Total PPN 11%
+        totalShipping, // Total Ongkir
+        netProfit, // Laba bersih riil (netSales - totalCost)
       },
       transactions: orders, // Untuk kebutuhan tabel & export CSV
       lowStock: lowStockVariants,

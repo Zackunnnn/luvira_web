@@ -117,9 +117,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : null;
 
+  // Stock safety calculations
+  const variantStock = typeof selectedVariant.stock === 'number' ? selectedVariant.stock : 50;
+  const isOutOfStock = variantStock <= 0;
+  const isLowStock = variantStock > 0 && variantStock <= 5;
+
   // Handle Add to Cart
   const handleAddToCart = () => {
-    if (selectedVariant.stock === 0) return;
+    if (isOutOfStock) return;
 
     addItem(product, selectedVariant, quantity);
     setIsAdded(true);
@@ -189,11 +194,11 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
                 {/* Stock Status Watermark / Pill */}
                 <div className="absolute bottom-3 right-3 z-10">
-                  {selectedVariant.stock > 0 ? (
+                  {!isOutOfStock ? (
                     <div className="flex flex-col items-end gap-1.5">
-                      {selectedVariant.stock <= 5 && (
+                      {isLowStock && (
                         <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-amber-500 text-white px-2.5 py-1 rounded-full shadow-xs">
-                          <AlertCircle className="w-3 h-3" /> Sisa {selectedVariant.stock} pcs
+                          <AlertCircle className="w-3 h-3" /> Sisa {variantStock} pcs
                         </span>
                       )}
                       <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-white/90 backdrop-blur-xs text-leaf-olive px-2.5 py-1 rounded-full shadow-xs border border-leaf-olive/20">
@@ -468,7 +473,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           {/* CTA Action Button */}
           <Button
             onClick={handleAddToCart}
-            disabled={selectedVariant.stock === 0}
+            disabled={isOutOfStock}
             variant={isAdded ? 'secondary' : 'primary'}
             size="lg"
             className="flex-1 sm:max-w-xs font-bold text-sm py-3.5 shadow-md transition-all duration-300"
@@ -477,7 +482,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               <>
                 <Check className="w-4 h-4" /> Masuk Keranjang!
               </>
-            ) : selectedVariant.stock === 0 ? (
+            ) : isOutOfStock ? (
               <>Varian Stok Habis</>
             ) : (
               <>

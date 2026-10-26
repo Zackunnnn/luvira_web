@@ -520,10 +520,11 @@ export const CascadingAddressCombobox: React.FC<CascadingAddressProps> = ({
                 onChange={(e) => {
                   const cId = e.target.value;
                   const cObj = cities.find((c) => c.id === cId);
+                  const formattedCityName = cObj ? (cObj.type ? `${cObj.type} ${cObj.name}` : cObj.name) : '';
                   onChange({
                     ...value,
                     cityId: cId,
-                    cityName: cObj ? `${cObj.type} ${cObj.name}` : '',
+                    cityName: formattedCityName,
                     districtId: '',
                     districtName: '',
                     subDistrictId: '',
@@ -537,7 +538,7 @@ export const CascadingAddressCombobox: React.FC<CascadingAddressProps> = ({
                 <option value="">-- Pilih Kota/Kabupaten --</option>
                 {cities.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.type} {c.name}
+                    {c.type ? `${c.type} ` : ''}{c.name}
                   </option>
                 ))}
               </select>
@@ -610,7 +611,7 @@ export const CascadingAddressCombobox: React.FC<CascadingAddressProps> = ({
                 <option value="">-- Pilih Kelurahan --</option>
                 {subDistricts.map((sd) => (
                   <option key={sd.id} value={sd.id}>
-                    {sd.name} ({sd.postalCode})
+                    {sd.name}{sd.postalCode ? ` (${sd.postalCode})` : ''}
                   </option>
                 ))}
               </select>

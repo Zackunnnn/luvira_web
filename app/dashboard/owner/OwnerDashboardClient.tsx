@@ -130,7 +130,7 @@ export default function OwnerDashboardClient() {
   const handleExportCsv = () => {
     if (!financeData || !financeData.transactions) return;
 
-    const headers = ['Invoice', 'Tanggal', 'Nama Pelanggan', 'Status', 'Metode Bayar', 'Subtotal Bersih', 'HPP Total', 'PPN', 'Ongkir', 'Total Akhir'];
+    const headers = ['Kode Pesanan', 'Tanggal', 'Nama Pelanggan', 'Status', 'Metode Bayar', 'Kode Promo', 'Subtotal Kotor', 'Diskon', 'Subtotal Bersih', 'HPP Total', 'PPN', 'Ongkir', 'Total Akhir'];
     const rows = financeData.transactions.map((tx: any) => {
       let costTotal = 0;
       if (Array.isArray(tx.items)) {
@@ -138,13 +138,21 @@ export default function OwnerDashboardClient() {
           costTotal += ((item.costEach + item.packingEach) * item.quantity);
         });
       }
+      const grossSubtotal = tx.subtotal || ((tx.netPrice || 0) + (tx.discountAmount || 0));
+      const netSubtotal = tx.netPrice !== undefined && tx.netPrice !== null ? tx.netPrice : (grossSubtotal - (tx.discountAmount || 0));
+      const payMethodLabel = tx.paymentMethod === 'MIDTRANS_SNAP' || tx.paymentMethod === 'midtrans' ? 'Midtrans' : 'Transfer Manual';
+      const promoCodeLabel = tx.promoCode?.code || '-';
+
       return [
-        tx.invoiceNumber,
+        tx.code || tx.invoiceNumber || '-',
         new Date(tx.createdAt).toLocaleString('id-ID'),
         `"${tx.customerName}"`,
         tx.status,
-        tx.paymentMethod || 'Transfer Manual',
-        tx.totalPrice - (tx.ppnAmount || 0) - (tx.shippingCost || 0),
+        payMethodLabel,
+        promoCodeLabel,
+        grossSubtotal,
+        tx.discountAmount || 0,
+        netSubtotal,
         costTotal,
         tx.ppnAmount || 0,
         tx.shippingCost || 0,
@@ -500,8 +508,9 @@ export default function OwnerDashboardClient() {
                       <table className="w-full text-left text-xs whitespace-nowrap">
                         <thead className="bg-white sticky top-0 border-b border-stone-100 z-10 text-stone-500 font-bold uppercase tracking-wider">
                           <tr>
-                            <th className="py-3 px-4">Invoice & Tanggal</th>
+                            <th className="py-3 px-4">Kode & Pelanggan</th>
                             <th className="py-3 px-4">Metode</th>
+                            <th className="py-3 px-4">Promo</th>
                             <th className="py-3 px-4">HPP Modal</th>
                             <th className="py-3 px-4">Laba Bersih</th>
                             <th className="py-3 px-4">Total Akhir</th>
@@ -516,23 +525,35 @@ export default function OwnerDashboardClient() {
                                 txCost += ((item.costEach + item.packingEach) * item.quantity);
                               });
                             }
-                            const txNetRevenue = tx.totalPrice - (tx.ppnAmount || 0) - (tx.shippingCost || 0);
+                            const txNetRevenue = tx.netPrice !== undefined && tx.netPrice !== null
+                              ? tx.netPrice
+                              : (tx.totalPrice - (tx.ppnAmount || 0) - (tx.shippingCost || 0));
                             const txProfit = txNetRevenue - txCost;
+                            const isMidtrans = tx.paymentMethod === 'MIDTRANS_SNAP' || tx.paymentMethod === 'midtrans';
 
                             return (
                               <tr key={tx.id} className="hover:bg-stone-50/60 transition-colors">
                                 <td className="py-3 px-4">
-                                  <div className="font-mono font-bold text-deep-forest text-xs">{tx.invoiceNumber}</div>
+                                  <div className="font-mono font-bold text-deep-forest text-xs">{tx.code || tx.invoiceNumber || '-'}</div>
                                   <div className="text-[10px] text-stone-400">
                                     {new Date(tx.createdAt).toLocaleDateString('id-ID')} • {tx.customerName}
                                   </div>
                                 </td>
                                 <td className="py-3 px-4">
                                   <span className={`px-2 py-0.5 text-[10px] font-bold rounded-full uppercase ${
-                                    tx.paymentMethod === 'midtrans' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-stone-100 text-stone-700 border border-stone-200'
+                                    isMidtrans ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'bg-stone-100 text-stone-700 border border-stone-200'
                                   }`}>
-                                    {tx.paymentMethod === 'midtrans' ? 'Midtrans' : 'Transfer'}
+                                    {isMidtrans ? 'Midtrans' : 'Transfer'}
                                   </span>
+                                </td>
+                                <td className="py-3 px-4">
+                                  {tx.promoCode?.code ? (
+                                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                      {tx.promoCode.code}
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] text-stone-400">-</span>
+                                  )}
                                 </td>
                                 <td className="py-3 px-4 font-semibold text-rose-700">
                                   {formatCurrency(txCost)}
@@ -553,7 +574,7 @@ export default function OwnerDashboardClient() {
                           })}
                           {financeData.transactions.length === 0 && (
                             <tr>
-                              <td colSpan={6} className="py-12 text-center text-xs text-stone-400">
+                              <td colSpan={7} className="py-12 text-center text-xs text-stone-400">
                                 Belum ada transaksi di periode ini.
                               </td>
                             </tr>

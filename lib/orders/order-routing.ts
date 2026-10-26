@@ -288,6 +288,7 @@ export async function createOrderWithAtomicReservation(params: CreateOrderParams
     productsMap,
     promo: promoData,
     shippingCourier: params.shippingCourier,
+    shippingCost: params.shippingCost,
   });
 
   // E. Bangkitkan Order Code unik: LVR-YYYYMMDD-XXXX (dengan pengecekan unik agar anti-tabrakan)
