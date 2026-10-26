@@ -26,6 +26,7 @@ import {
   CheckCircle2,
   MapPin,
   ChevronRight,
+  Info,
 } from 'lucide-react';
 import { normalizeWhatsAppNumber } from '@/lib/whatsapp';
 import { resolveSockImage } from '@/lib/products/sock-images';
@@ -163,7 +164,7 @@ export default function CheckoutPage() {
               variantId: i.selectedVariant.id,
               quantity: i.quantity,
             })),
-            courier: 'jne',
+            courier: 'all',
           }),
         });
 
@@ -520,6 +521,14 @@ export default function CheckoutPage() {
                 </div>
               )}
 
+              {/* Informative Tip: Standar Ekspedisi 1 kg */}
+              <div className="mt-2.5 flex items-start space-x-2 rounded-lg bg-emerald-50/70 p-2.5 text-[11px] text-emerald-900 border border-emerald-100">
+                <Info className="h-4 w-4 text-emerald-700 shrink-0 mt-0.5" />
+                <span>
+                  <strong className="font-semibold">Hemat Ongkir:</strong> Ekspedisi mengenakan tarif minimal 1 kg (muat hingga 25-28 pasang kaus kaki). Tambah belanjaan, ongkos kirim tidak naik!
+                </span>
+              </div>
+
               <div className="mt-3 space-y-2">
                 {!destination.provinceName ? (
                   <p className="text-xs text-stone-500 italic">
@@ -539,10 +548,19 @@ export default function CheckoutPage() {
                   </div>
                 ) : (
                   shippingRates.map((rate, idx) => {
-                    const isSelected = selectedRate?.service === rate.service;
+                    const isSelected = selectedRate?.courier === rate.courier && selectedRate?.service === rate.service;
+                    const courierColor =
+                      rate.courier === 'JNT'
+                        ? 'bg-red-50 text-red-700 border-red-200'
+                        : rate.courier === 'SICEPAT'
+                        ? 'bg-orange-50 text-orange-700 border-orange-200'
+                        : rate.courier === 'ANTERAJA'
+                        ? 'bg-purple-50 text-purple-700 border-purple-200'
+                        : 'bg-blue-50 text-blue-700 border-blue-200';
+
                     return (
                       <label
-                        key={idx}
+                        key={`${rate.courier}-${rate.service}-${idx}`}
                         className={`flex cursor-pointer items-center justify-between rounded-xl border p-3 transition ${
                           isSelected
                             ? 'border-emerald-700 bg-emerald-50/40 ring-1 ring-emerald-700'
@@ -558,10 +576,15 @@ export default function CheckoutPage() {
                             className="h-4 w-4 text-emerald-700 focus:ring-emerald-600"
                           />
                           <div>
-                            <p className="text-xs font-bold text-stone-900">
-                              {rate.courier} - {rate.service}
-                            </p>
-                            <p className="text-[11px] text-stone-500">
+                            <div className="flex items-center space-x-1.5">
+                              <span className={`rounded px-1.5 py-0.2 text-[10px] font-bold border ${courierColor}`}>
+                                {rate.courier}
+                              </span>
+                              <p className="text-xs font-bold text-stone-900">
+                                {rate.service}
+                              </p>
+                            </div>
+                            <p className="text-[11px] text-stone-500 mt-0.5">
                               {rate.description} • Estimasi: {rate.etd}
                             </p>
                           </div>

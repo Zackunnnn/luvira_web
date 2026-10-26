@@ -30,7 +30,7 @@ async function main() {
     update: {
       name: 'Pusat (Kota Depok)',
       type: RegionType.PUSAT,
-      originId: '115', // Kota Depok RajaOngkir ID
+      originId: '25976', // Kota Depok (Komerce ID: Beji Depok)
       address: '[PLACEHOLDER] Jl. Margonda Raya No. 100, Beji, Kota Depok',
       province: 'Jawa Barat',
       city: 'Kota Depok',
@@ -45,7 +45,7 @@ async function main() {
       name: 'Pusat (Kota Depok)',
       code: 'PUSAT',
       type: RegionType.PUSAT,
-      originId: '115',
+      originId: '25976',
       address: '[PLACEHOLDER] Jl. Margonda Raya No. 100, Beji, Kota Depok',
       province: 'Jawa Barat',
       city: 'Kota Depok',
@@ -63,7 +63,7 @@ async function main() {
     update: {
       name: 'Yogyakarta (DIY)',
       type: RegionType.WILAYAH,
-      originId: '501', // Kota Yogyakarta RajaOngkir ID
+      originId: '31405', // Kota Yogyakarta (Komerce ID: Danurejan)
       address: '[PLACEHOLDER] Jl. Malioboro No. 45, Danurejan, Kota Yogyakarta',
       province: 'DI Yogyakarta',
       city: 'Kota Yogyakarta',
@@ -78,7 +78,7 @@ async function main() {
       name: 'Yogyakarta (DIY)',
       code: 'YOGYAKARTA',
       type: RegionType.WILAYAH,
-      originId: '501',
+      originId: '31405',
       address: '[PLACEHOLDER] Jl. Malioboro No. 45, Danurejan, Kota Yogyakarta',
       province: 'DI Yogyakarta',
       city: 'Kota Yogyakarta',

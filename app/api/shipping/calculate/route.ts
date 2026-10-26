@@ -14,7 +14,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { destination, items, courier = 'jne' } = body;
+    const { destination, items, courier = 'all' } = body;
 
     if (!destination || !destination.provinceName) {
       return NextResponse.json(
@@ -45,11 +45,11 @@ export async function POST(request: NextRequest) {
 
     const handlingRegion = routeResult.handlingRegion;
     // Asal pengiriman ditentukan dari wilayah gudang penangan (A10)
-    const originId = handlingRegion.originId || '115'; // Default Depok
+    const originId = handlingRegion.originId || '25976'; // Default Depok
 
     // 2. Tentukan ID tujuan pengiriman (subDistrictId / cityId)
     const destinationId =
-      destination.subDistrictId || destination.districtId || destination.cityId || '501';
+      destination.subDistrictId || destination.districtId || destination.cityId || '31405';
 
     // 3. Hitung total berat dalam gram (Default 35 gram per varian kaus kaki)
     let totalWeightGram = 0;
@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
       originId,
       destinationId,
       weightGram: effectiveWeight,
-      courier,
+      courier: courier || 'all',
     });
 
     return NextResponse.json({

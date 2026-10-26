@@ -112,19 +112,46 @@ export const MOCK_DISTRICTS: District[] = [
   { id: '5022', cityId: '502', name: 'Mlati' },
 ];
 
+export const KOMERCE_ID_MAP: Record<string, string> = {
+  // Depok
+  '115': '25976',   // Kota Depok -> Beji Depok
+  '1151': '25976',  // Beji
+  '11511': '25978', // Kemiri Muka
+  '11512': '25977', // Beji Timur
+  '11513': '25979', // Kukusan
+  // Yogyakarta
+  '501': '31405',   // Kota Yogyakarta -> Danurejan
+  '5011': '31405',  // Danurejan
+  '50111': '31405', // Suryatmajan
+  '50112': '31404', // Bausasran
+  // Sleman
+  '502': '31590',   // Sleman -> Catur Tunggal
+  '5021': '31590',  // Depok Sleman
+  '50211': '31590', // Catur Tunggal
+  '50212': '31592', // Maguwoharjo
+  // Jakarta
+  '151': '17549',   // Jaksel
+  '152': '17601',   // Jakpus
+};
+
+export function resolveKomerceId(id: string): string {
+  if (!id) return id;
+  return KOMERCE_ID_MAP[id] || id;
+}
+
 export const MOCK_SUBDISTRICTS: SubDistrict[] = [
-  // Beji, Kota Depok
-  { id: '11511', districtId: '1151', name: 'Kemirimuka', postalCode: '16423' },
-  { id: '11512', districtId: '1151', name: 'Beji Timur', postalCode: '16422' },
-  { id: '11513', districtId: '1151', name: 'Kukusan', postalCode: '16425' },
+  // Beji, Kota Depok (Komerce IDs: 25978, 25977, 25979)
+  { id: '25978', districtId: '1151', name: 'Kemirimuka', postalCode: '16423' },
+  { id: '25977', districtId: '1151', name: 'Beji Timur', postalCode: '16422' },
+  { id: '25979', districtId: '1151', name: 'Kukusan', postalCode: '16425' },
 
-  // Danurejan, Yogyakarta
-  { id: '50111', districtId: '5011', name: 'Suryatmajan', postalCode: '55213' },
-  { id: '50112', districtId: '5011', name: 'Bausasran', postalCode: '55211' },
+  // Danurejan, Yogyakarta (Komerce IDs: 31405, 31404)
+  { id: '31405', districtId: '5011', name: 'Suryatmajan', postalCode: '55213' },
+  { id: '31404', districtId: '5011', name: 'Bausasran', postalCode: '55211' },
 
-  // Depok, Sleman
-  { id: '50211', districtId: '5021', name: 'Caturtunggal', postalCode: '55281' },
-  { id: '50212', districtId: '5021', name: 'Maguwoharjo', postalCode: '55282' },
+  // Depok, Sleman (Komerce IDs: 31590, 31592)
+  { id: '31590', districtId: '5021', name: 'Caturtunggal', postalCode: '55281' },
+  { id: '31592', districtId: '5021', name: 'Maguwoharjo', postalCode: '55282' },
 ];
 
 // ----------------------------------------------------------------------------
@@ -304,8 +331,12 @@ export class RajaOngkirService {
   }
 
   async calculateCost(input: CalculateShippingInput): Promise<ShippingCostOption[]> {
-    const { originId, destinationId, weightGram, courier } = input;
-    const cacheKey = `ship:${originId}:${destinationId}:${weightGram}:${courier.toLowerCase()}`;
+    const { originId: rawOriginId, destinationId: rawDestId, weightGram, courier = 'all' } = input;
+    const originId = resolveKomerceId(rawOriginId);
+    const destinationId = resolveKomerceId(rawDestId);
+    const effectiveWeight = Math.max(1, weightGram);
+    const courierKey = courier ? courier.toLowerCase() : 'all';
+    const cacheKey = `ship:${originId}:${destinationId}:${effectiveWeight}:${courierKey}`;
 
     // 1. Cek cache database (khusus mode live)
     if (this.mode === 'live') {
@@ -324,60 +355,76 @@ export class RajaOngkirService {
     let options: ShippingCostOption[] = [];
 
     if (this.mode === 'mock' || !this.apiKey) {
-      options = this.generateDeterministicMockRates(originId, destinationId, weightGram, courier);
+      options = this.generateDeterministicMockRates(rawOriginId, rawDestId, effectiveWeight, courierKey);
     } else {
       try {
-        const body = new URLSearchParams({
-          origin: originId,
-          destination: destinationId,
-          weight: String(Math.max(1, weightGram)),
-          courier: courier.toLowerCase(),
-          price: 'lowest',
-        });
+        const couriersToQuery = courierKey === 'all'
+          ? ['jne', 'sicepat', 'jnt', 'anteraja']
+          : courierKey.split(',').map((c) => c.trim().toLowerCase());
 
-        const res = await fetch(`${this.baseUrl}/calculate/domestic-cost`, {
-          method: 'POST',
-          headers: {
-            key: this.apiKey,
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: body.toString(),
-        });
+        const promises = couriersToQuery.map(async (c) => {
+          try {
+            const body = new URLSearchParams({
+              origin: originId,
+              destination: destinationId,
+              weight: String(effectiveWeight),
+              courier: c,
+              price: 'lowest',
+            });
 
-        if (!res.ok) {
-          throw new Error(`RajaOngkir HTTP Error ${res.status}`);
-        }
+            const res = await fetch(`${this.baseUrl}/calculate/domestic-cost`, {
+              method: 'POST',
+              headers: {
+                key: this.apiKey,
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+              body: body.toString(),
+            });
 
-        const json = await res.json();
-        const rawData = json.data || [];
+            if (!res.ok) return [];
+            const json = await res.json();
+            const rawData = json.data || [];
+            if (!Array.isArray(rawData)) return [];
 
-        // Mendukung format Komerce V2 (flat array) maupun legacy RajaOngkir (nested costs)
-        if (Array.isArray(rawData) && rawData.length > 0) {
-          if (Array.isArray(rawData[0]?.costs)) {
-            // Legacy V1 structure
-            options = rawData[0].costs.map((c: any) => ({
-              courier: courier.toUpperCase(),
-              service: c.service,
-              description: c.description || 'Layanan Reguler',
-              cost: typeof c.cost === 'number' ? c.cost : (c.cost?.[0]?.value || 10000),
-              etd: typeof c.etd === 'string' ? c.etd : (c.cost?.[0]?.etd || '1-3 HARI'),
+            return rawData.map((item: any) => ({
+              courier: (item.code || c).toUpperCase(),
+              service: item.service,
+              description: item.description || item.name || 'Layanan Reguler',
+              cost: typeof item.cost === 'number' ? item.cost : (typeof item.cost?.[0]?.value === 'number' ? item.cost[0].value : 10000),
+              etd: typeof item.etd === 'string'
+                ? (item.etd.endsWith('day') ? item.etd.replace('day', 'HARI') : item.etd)
+                : (item.cost?.[0]?.etd || '1-3 HARI'),
             }));
-          } else {
-            // Komerce V2 structure (array of service objects)
-            options = rawData.map((c: any) => ({
-              courier: (c.code || courier).toUpperCase(),
-              service: c.service,
-              description: c.description || c.name || 'Layanan Reguler',
-              cost: typeof c.cost === 'number' ? c.cost : (typeof c.cost?.[0]?.value === 'number' ? c.cost[0].value : 10000),
-              etd: typeof c.etd === 'string' ? c.etd : (c.cost?.[0]?.etd || '1-3 HARI'),
-            }));
+          } catch {
+            return [];
           }
+        });
+
+        const results = await Promise.all(promises);
+        const allFetched = results.flat();
+
+        // Filter out cargo and heavy freight for retail apparel/socks (< 10 kg)
+        const CARGO_KEYWORDS = [
+          'JTR', 'GOKIL', 'KARGO', 'BIG', 'SPS', 'DANGEROUS',
+          'VALUABLE', 'TRC', 'T15', 'T25', 'T60', 'CARGO', 'FROZEN', 'ICE'
+        ];
+
+        const parcelOnly = allFetched.filter((item) => {
+          const s = (item.service || '').toUpperCase();
+          const d = (item.description || '').toUpperCase();
+          return !CARGO_KEYWORDS.some((k) => s.includes(k) || d.includes(k));
+        });
+
+        if (parcelOnly.length > 0) {
+          options = parcelOnly.sort((a, b) => a.cost - b.cost);
+        } else if (allFetched.length > 0) {
+          options = allFetched.sort((a, b) => a.cost - b.cost);
         } else {
-          options = this.generateDeterministicMockRates(originId, destinationId, weightGram, courier);
+          options = this.generateDeterministicMockRates(rawOriginId, rawDestId, effectiveWeight, courierKey);
         }
       } catch (err) {
         console.warn('[RajaOngkir Cost API Error -> Graceful Fallback to Deterministic]', err);
-        options = this.generateDeterministicMockRates(originId, destinationId, weightGram, courier);
+        options = this.generateDeterministicMockRates(rawOriginId, rawDestId, effectiveWeight, courierKey);
       }
     }
 
@@ -409,10 +456,23 @@ export class RajaOngkirService {
     courier: string
   ): ShippingCostOption[] {
     const kg = Math.max(1, Math.ceil(weightGram / 1000));
-    // Jika origin dan destination sama-sama di satu wilayah (misal 501 dan 501xx)
-    const isSameRegion = originId === destinationId || destinationId.startsWith(originId.slice(0, 3));
+    // Jika origin dan destination sama-sama di satu wilayah
+    const isSameRegion =
+      originId === destinationId ||
+      destinationId.startsWith(originId.slice(0, 3)) ||
+      (originId.startsWith('259') && destinationId.startsWith('259')) ||
+      (originId.startsWith('314') && (destinationId.startsWith('314') || destinationId.startsWith('315')));
     const baseMultiplier = isSameRegion ? 1 : 1.8;
     const c = courier.toLowerCase();
+
+    if (c === 'all') {
+      const allMock = [
+        ...this.generateDeterministicMockRates(originId, destinationId, weightGram, 'sicepat'),
+        ...this.generateDeterministicMockRates(originId, destinationId, weightGram, 'jnt'),
+        ...this.generateDeterministicMockRates(originId, destinationId, weightGram, 'jne'),
+      ];
+      return allMock.sort((a, b) => a.cost - b.cost);
+    }
 
     if (c === 'jne') {
       return [
@@ -444,16 +504,23 @@ export class RajaOngkirService {
       return [
         {
           courier: 'SICEPAT',
-          service: 'SIUNT',
-          description: 'SiUntung Reguler',
-          cost: Math.round(10000 * baseMultiplier * kg),
+          service: 'HALU',
+          description: 'Harga Mulai Lima Ribu',
+          cost: Math.round(7500 * baseMultiplier * kg),
+          etd: isSameRegion ? '2-3 HARI' : '3-5 HARI',
+        },
+        {
+          courier: 'SICEPAT',
+          service: 'REG',
+          description: 'SiCepat Reguler',
+          cost: Math.round(8000 * baseMultiplier * kg),
           etd: isSameRegion ? '1-2 HARI' : '2-3 HARI',
         },
         {
           courier: 'SICEPAT',
           service: 'BEST',
           description: 'Besok Sampai Tujuan',
-          cost: Math.round(19000 * baseMultiplier * kg),
+          cost: Math.round(15000 * baseMultiplier * kg),
           etd: '1 HARI',
         },
       ];
@@ -465,13 +532,13 @@ export class RajaOngkirService {
           courier: 'JNT',
           service: 'EZ',
           description: 'J&T EZ Reguler',
-          cost: Math.round(10000 * baseMultiplier * kg),
+          cost: Math.round(8000 * baseMultiplier * kg),
           etd: isSameRegion ? '1-2 HARI' : '2-3 HARI',
         },
       ];
     }
 
-    // Default umum (POS / TIKI / kurir lain)
+    // Default umum (POS / TIKI / ANTERAJA / kurir lain)
     return [
       {
         courier: courier.toUpperCase(),
