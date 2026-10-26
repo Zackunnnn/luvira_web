@@ -7,8 +7,9 @@ import {
   PackageSearch, Download, Loader2, AlertTriangle, RefreshCcw,
   Sliders, ShieldCheck, History, Users, Building2, CheckCircle2,
   ExternalLink, LogOut, ArrowRight, Save, ToggleLeft, ToggleRight,
-  Layers, Package, Calendar
+  Layers, Package, Calendar, Eye, FileSpreadsheet, Printer
 } from 'lucide-react';
+import SalesReportModal from '@/components/owner/SalesReportModal';
 
 export default function OwnerDashboardClient() {
   const [activeTab, setActiveTab] = useState<'finances' | 'accounts' | 'settings' | 'audit' | 'users'>('finances');
@@ -18,6 +19,7 @@ export default function OwnerDashboardClient() {
   const [paymentFilter, setPaymentFilter] = useState('all');
   const [financeData, setFinanceData] = useState<any>(null);
   const [loadingFinances, setLoadingFinances] = useState(true);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   // Settings & Accounts tab state
   const [settingsData, setSettingsData] = useState<any>(null);
@@ -402,13 +404,24 @@ export default function OwnerDashboardClient() {
                   <RefreshCcw className={`w-4 h-4 ${loadingFinances ? 'animate-spin' : ''}`} />
                 </button>
                 <button
+                  onClick={() => setShowReportModal(true)}
+                  disabled={loadingFinances || !financeData?.transactions?.length}
+                  id="btn-preview-report"
+                  className="flex items-center gap-2 px-4 py-2 bg-[#800000] hover:bg-[#660000] text-white rounded-xl text-xs font-bold shadow-xs transition-all disabled:opacity-50 cursor-pointer"
+                  title="Lihat Pratinjau Laporan Penjualan Resmi"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>Preview Laporan Harian</span>
+                </button>
+                <button
                   onClick={handleExportCsv}
                   disabled={loadingFinances || !financeData?.transactions?.length}
                   id="btn-export-csv"
-                  className="flex items-center gap-2 px-4 py-2 bg-leaf-olive hover:bg-leaf-olive/90 text-white rounded-xl text-xs font-bold shadow-xs transition-all disabled:opacity-50 cursor-pointer"
+                  className="flex items-center gap-2 px-3 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-xl text-xs font-bold transition-all disabled:opacity-50 cursor-pointer border border-stone-200"
+                  title="Unduh langsung file CSV"
                 >
                   <Download className="w-3.5 h-3.5" />
-                  <span>Ekspor Laporan (CSV)</span>
+                  <span className="hidden sm:inline">Unduh CSV</span>
                 </button>
               </div>
             </div>
@@ -1006,6 +1019,13 @@ export default function OwnerDashboardClient() {
             )}
           </div>
         )}
+
+      {/* SALES REPORT PREVIEW & PRINT MODAL */}
+      <SalesReportModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        transactions={financeData?.transactions || []}
+      />
 
       </div>
     </div>

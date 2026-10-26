@@ -53,6 +53,7 @@ export async function GET(request: NextRequest) {
       where: whereClause,
       include: {
         items: true,
+        region: { select: { id: true, name: true, code: true } },
         promoCode: { select: { code: true } },
       },
       orderBy: { createdAt: 'desc' },
