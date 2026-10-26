@@ -109,11 +109,48 @@ export async function POST(request: NextRequest) {
 
     let snapToken: string | undefined = undefined;
     let snapRedirectUrl: string | undefined = undefined;
+    let isSandbox = false;
     let paymentAccounts: any[] = [];
 
     // 3. Penanganan Metode Pembayaran
     if (resolvedPaymentMethod === PaymentMethod.MIDTRANS_SNAP) {
       try {
+        // Susun rincian item secara presisi (Produk + Diskon + PPN + Ongkir)
+        // Midtrans mewajibkan sum(item_details) === gross_amount
+        const midtransItems: Array<{ id: string; price: number; quantity: number; name: string }> = order.items.map((item) => ({
+          id: item.variantId.slice(0, 50),
+          price: Math.round(item.priceEach),
+          quantity: item.quantity,
+          name: `${item.productName} (${item.variantName})`.slice(0, 50),
+        }));
+
+        if (order.discountAmount > 0) {
+          midtransItems.push({
+            id: 'PROMO_DISCOUNT',
+            price: -Math.round(order.discountAmount),
+            quantity: 1,
+            name: 'Diskon Promo',
+          });
+        }
+
+        if (order.ppnAmount > 0) {
+          midtransItems.push({
+            id: 'PPN_11',
+            price: Math.round(order.ppnAmount),
+            quantity: 1,
+            name: 'PPN 11%',
+          });
+        }
+
+        if (order.shippingCost > 0) {
+          midtransItems.push({
+            id: 'SHIPPING_FEE',
+            price: Math.round(order.shippingCost),
+            quantity: 1,
+            name: `Ongkir (${shippingCourier || 'Ekspedisi'})`.slice(0, 50),
+          });
+        }
+
         const snapRes = await midtransAdapter.createSnapToken({
           orderId: order.code,
           grossAmount: pricing.totalPrice,
@@ -122,24 +159,26 @@ export async function POST(request: NextRequest) {
             email: customerEmail || 'customer@luvira.id',
             phone: customerPhone,
           },
-          itemDetails: order.items.map((item) => ({
-            id: item.variantId,
-            price: item.priceEach,
-            quantity: item.quantity,
-            name: `${item.productName} (${item.variantName})`.slice(0, 50),
-          })),
+          itemDetails: midtransItems,
         });
 
         snapToken = snapRes.token;
         snapRedirectUrl = snapRes.redirect_url;
+        isSandbox = Boolean(snapRes.isSandbox);
 
         // Simpan snap token di order
         await prisma.order.update({
           where: { id: order.id },
           data: { midtransToken: snapToken },
         });
-      } catch (snapErr) {
+      } catch (snapErr: any) {
         console.error('[Midtrans Token Creation Error]', snapErr);
+        return NextResponse.json(
+          {
+            error: `Gagal memproses pembayaran Midtrans: ${snapErr?.message || 'Koneksi ke gateway pembayaran gagal'}`,
+          },
+          { status: 400 }
+        );
       }
     } else {
       // Ambil rekening transfer aktif
@@ -169,6 +208,8 @@ export async function POST(request: NextRequest) {
         },
         token: snapToken,
         redirectUrl: snapRedirectUrl,
+        isSandbox,
+        clientKey: midtransAdapter.getClientKey(),
         paymentAccounts,
       },
       { status: 201 }

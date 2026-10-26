@@ -93,27 +93,48 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  // Midtrans Snap Script Loader
+  // Helper pemuatan script Snap Midtrans yang adaptif sesuai environment token
+  const loadSnapScript = (isSandbox: boolean, clientKey?: string): Promise<void> => {
+    return new Promise((resolve) => {
+      if (typeof window === 'undefined') return resolve();
+
+      const targetSrc = isSandbox
+        ? 'https://app.sandbox.midtrans.com/snap/snap.js'
+        : 'https://app.midtrans.com/snap/snap.js';
+
+      const existing = document.querySelector('script[src*="snap.js"]') as HTMLScriptElement | null;
+      if (existing) {
+        if (existing.src.includes(isSandbox ? 'sandbox.midtrans.com' : 'app.midtrans.com') && window.snap) {
+          return resolve();
+        }
+        try {
+          existing.remove();
+          delete (window as any).snap;
+        } catch {
+          // Abaikan
+        }
+      }
+
+      const script = document.createElement('script');
+      script.src = targetSrc;
+      if (clientKey) {
+        script.setAttribute('data-client-key', clientKey);
+      }
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => {
+        console.warn('[Midtrans] Gagal memuat script snap.js');
+        resolve();
+      };
+      document.body.appendChild(script);
+    });
+  };
+
+  // Pre-load script Snap Midtrans saat halaman pertama kali dibuka
   useEffect(() => {
     const isProd = process.env.NEXT_PUBLIC_MIDTRANS_ENV === 'production';
-    const scriptUrl = isProd
-      ? 'https://app.midtrans.com/snap/snap.js'
-      : 'https://app.sandbox.midtrans.com/snap/snap.js';
     const clientKey = process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY || 'SB-Mid-client-TESTKEY123';
-
-    const script = document.createElement('script');
-    script.src = scriptUrl;
-    script.setAttribute('data-client-key', clientKey);
-    script.async = true;
-    document.body.appendChild(script);
-
-    return () => {
-      try {
-        document.body.removeChild(script);
-      } catch {
-        // Abaikan
-      }
-    };
+    loadSnapScript(!isProd, clientKey);
   }, []);
 
   // Restore saved address from localStorage
@@ -332,23 +353,44 @@ export default function CheckoutPage() {
 
       // Alur Pembayaran
       if (paymentMethod === 'MIDTRANS_SNAP') {
-        if (data.token && !data.token.startsWith('MOCK-') && typeof window !== 'undefined' && window.snap) {
-          window.snap.pay(data.token, {
-            onSuccess: () => {
-              router.push(`/order/${createdOrder.code}/status`);
-            },
-            onPending: () => {
-              router.push(`/order/${createdOrder.code}/status`);
-            },
-            onError: () => {
-              router.push(`/order/${createdOrder.code}/status?error=payment_failed`);
-            },
-            onClose: () => {
-              router.push(`/order/${createdOrder.code}/status`);
-            },
-          });
+        const isMockToken =
+          !data.token ||
+          data.token.startsWith('MOCK-') ||
+          data.token.startsWith('FALLBACK-');
+
+        if (data.token && !isMockToken) {
+          // Pastikan script Snap cocok persis dengan environment token (Sandbox vs Production)
+          await loadSnapScript(
+            Boolean(data.isSandbox),
+            data.clientKey || process.env.NEXT_PUBLIC_MIDTRANS_CLIENT_KEY
+          );
+
+          if (typeof window !== 'undefined' && window.snap && typeof window.snap.pay === 'function') {
+            window.snap.pay(data.token, {
+              onSuccess: () => {
+                router.push(`/order/${createdOrder.code}/status`);
+              },
+              onPending: () => {
+                router.push(`/order/${createdOrder.code}/status`);
+              },
+              onError: (err: any) => {
+                console.error('[Snap Error]', err);
+                router.push(`/order/${createdOrder.code}/status?error=payment_failed`);
+              },
+              onClose: () => {
+                router.push(`/order/${createdOrder.code}/status`);
+              },
+            });
+          } else if (data.redirectUrl) {
+            // Fallback buka URL pembayaran jika popup diblokir / snap gagal inisialisasi
+            window.location.href = data.redirectUrl;
+          } else {
+            router.push(`/order/${createdOrder.code}/status`);
+          }
+        } else if (data.redirectUrl && !isMockToken) {
+          window.location.href = data.redirectUrl;
         } else {
-          // Jika token mock simulasi atau fallback langsung
+          // Token mock simulasi
           router.push(`/order/${createdOrder.code}/status`);
         }
       } else {
