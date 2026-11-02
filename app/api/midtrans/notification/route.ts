@@ -1,3 +1,4 @@
+import { notifyPaymentConfirmed } from '@/lib/notify/order-events';
 // app/api/midtrans/notification/route.ts
 // ============================================================================
 // Midtrans Webhook Notification Endpoint Luvira 2.0
@@ -227,6 +228,11 @@ export async function POST(request: NextRequest) {
       before: { status: previousStatus },
       after: { status: targetStatus, transactionStatus },
     });
+
+    // Notifikasi WhatsApp pembayaran diterima ke pembeli jika waConsent aktif
+    if (targetStatus === OrderStatus.DIPROSES) {
+      notifyPaymentConfirmed(order).catch(err => console.error('[Midtrans WA Notification Error]', err));
+    }
 
     console.log(`[Midtrans Webhook] Order ${order.code} updated: ${previousStatus} -> ${targetStatus}`);
     return NextResponse.json({ status: 'ok', newStatus: targetStatus });

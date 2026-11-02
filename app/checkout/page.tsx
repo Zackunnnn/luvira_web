@@ -53,6 +53,7 @@ export default function CheckoutPage() {
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
+  const [waConsent, setWaConsent] = useState(true);
   const [phoneError, setPhoneError] = useState<string | null>(null);
 
   // Alamat Cascading
@@ -502,6 +503,18 @@ export default function CheckoutPage() {
                   <p className="mt-1 text-[11px] text-stone-500">
                     Notifikasi pesanan dan konfirmasi akan dikirim ke nomor ini.
                   </p>
+                  <label className="mt-2.5 flex items-start gap-2.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      id="wa-consent-checkbox"
+                      checked={waConsent}
+                      onChange={(e) => setWaConsent(e.target.checked)}
+                      className="mt-0.5 h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500"
+                    />
+                    <span className="text-xs text-stone-700">
+                      Kirim update pesanan lewat WhatsApp
+                    </span>
+                  </label>
                   {phoneError && <p className="mt-1 text-xs text-rose-600">{phoneError}</p>}
                 </div>
 

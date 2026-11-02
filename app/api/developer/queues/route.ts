@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
-import { OrderStatus, Role } from '@prisma/client';
+import { OrderStatus, Role, WaOutboxStatus } from '@prisma/client';
 import { recordAuditLog } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
@@ -164,7 +164,32 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const hasIssues =
+
+  // 5. WhatsApp Outbox Backlog & Observabilitas (FT-1)
+  const waPendingCount = await prisma.waOutbox.count({
+    where: { status: WaOutboxStatus.PENDING },
+  });
+
+  const recentWaMessages = await prisma.waOutbox.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: 10,
+    select: { status: true, sentAt: true },
+  });
+
+  let waConsecutiveFailures = 0;
+  for (const m of recentWaMessages) {
+    if (m.status === WaOutboxStatus.FAILED) waConsecutiveFailures++;
+    else break;
+  }
+
+  const lastSuccessfulWa = await prisma.waOutbox.findFirst({
+    where: { status: WaOutboxStatus.SENT },
+    orderBy: { sentAt: 'desc' },
+    select: { sentAt: true },
+  });
+
+  const waHasBacklog = waPendingCount > 10 || waConsecutiveFailures >= 3;
+  const hasIssues = waHasBacklog ||
     stuckVerificationOrders.length > 0 ||
     stuckProcessingOrders.length > 0 ||
     stockMismatches.length > 0;
@@ -176,6 +201,9 @@ export async function GET(req: NextRequest) {
       stuckVerificationCount: stuckVerificationOrders.length,
       stuckProcessingCount: stuckProcessingOrders.length,
       stockMismatchCount: stockMismatches.length,
+      waPendingCount,
+      waConsecutiveFailures,
+      waLastSuccessAt: lastSuccessfulWa?.sentAt || null,
     },
     queues: {
       stuckVerificationOrders,

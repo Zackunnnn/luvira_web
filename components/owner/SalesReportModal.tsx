@@ -234,7 +234,7 @@ export default function SalesReportModal({
         {/* MODAL HEADER WITH CONTROLS */}
         <div className="p-4 sm:p-5 border-b border-stone-200 bg-stone-50 flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-2.5">
-            <div className="p-2 bg-[#800000] text-white rounded-xl shadow-xs">
+            <div className="p-2 bg-[#14532d] text-white rounded-xl shadow-xs">
               <FileSpreadsheet className="w-5 h-5" />
             </div>
             <div>
@@ -259,7 +259,7 @@ export default function SalesReportModal({
 
             <button
               onClick={handleExportCsv}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#800000] hover:bg-[#660000] text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#14532d] hover:bg-[#0f3f22] text-white rounded-xl text-xs font-bold shadow-xs transition cursor-pointer"
               title="Unduh file Excel / CSV"
             >
               <Download className="w-3.5 h-3.5" />
@@ -284,7 +284,7 @@ export default function SalesReportModal({
             <select
               value={periodFilter}
               onChange={(e: any) => setPeriodFilter(e.target.value)}
-              className="bg-stone-50 border border-stone-200 rounded-lg px-2.5 py-1 text-xs font-bold text-stone-800 outline-none focus:ring-1 focus:ring-[#800000]"
+              className="bg-stone-50 border border-stone-200 rounded-lg px-2.5 py-1 text-xs font-bold text-stone-800 outline-none focus:ring-1 focus:ring-[#14532d]"
             >
               <option value="today">Hari Ini</option>
               <option value="7days">7 Hari Terakhir</option>
@@ -300,7 +300,7 @@ export default function SalesReportModal({
             <select
               value={outletFilter}
               onChange={(e) => setOutletFilter(e.target.value)}
-              className="bg-stone-50 border border-stone-200 rounded-lg px-2.5 py-1 text-xs font-bold text-stone-800 outline-none focus:ring-1 focus:ring-[#800000]"
+              className="bg-stone-50 border border-stone-200 rounded-lg px-2.5 py-1 text-xs font-bold text-stone-800 outline-none focus:ring-1 focus:ring-[#14532d]"
             >
               <option value="ALL">Semua Toko</option>
               <option value="pusat">Pusat (Depok)</option>
@@ -315,7 +315,7 @@ export default function SalesReportModal({
             <select
               value={paymentFilter}
               onChange={(e) => setPaymentFilter(e.target.value)}
-              className="bg-stone-50 border border-stone-200 rounded-lg px-2.5 py-1 text-xs font-bold text-stone-800 outline-none focus:ring-1 focus:ring-[#800000]"
+              className="bg-stone-50 border border-stone-200 rounded-lg px-2.5 py-1 text-xs font-bold text-stone-800 outline-none focus:ring-1 focus:ring-[#14532d]"
             >
               <option value="ALL">Semua Metode</option>
               <option value="midtrans">QRIS & Midtrans</option>
@@ -359,15 +359,15 @@ export default function SalesReportModal({
             <div className="overflow-x-auto border border-stone-300 rounded-lg">
               <table className="w-full text-left text-xs border-collapse">
                 <thead>
-                  <tr className="bg-[#800000] text-white">
-                    <th className="py-2.5 px-3 font-bold text-center border-r border-[#990000] w-10">No</th>
-                    <th className="py-2.5 px-3 font-bold text-center border-r border-[#990000] w-24">Tanggal</th>
-                    <th className="py-2.5 px-3 font-bold text-center border-r border-[#990000] w-32">No. Invoice</th>
-                    <th className="py-2.5 px-3 font-bold border-r border-[#990000]">Produk</th>
-                    <th className="py-2.5 px-3 font-bold text-center border-r border-[#990000] w-12">Qty</th>
-                    <th className="py-2.5 px-3 font-bold text-right border-r border-[#990000] w-28">Harga Satuan</th>
-                    <th className="py-2.5 px-3 font-bold text-right border-r border-[#990000] w-24">Diskon</th>
-                    <th className="py-2.5 px-3 font-bold text-right border-r border-[#990000] w-28">Total</th>
+                  <tr className="bg-[#14532d] text-white">
+                    <th className="py-2.5 px-3 font-bold text-center border-r border-[#166534] w-10">No</th>
+                    <th className="py-2.5 px-3 font-bold text-center border-r border-[#166534] w-24">Tanggal</th>
+                    <th className="py-2.5 px-3 font-bold text-center border-r border-[#166534] w-32">No. Invoice</th>
+                    <th className="py-2.5 px-3 font-bold border-r border-[#166534]">Produk</th>
+                    <th className="py-2.5 px-3 font-bold text-center border-r border-[#166534] w-12">Qty</th>
+                    <th className="py-2.5 px-3 font-bold text-right border-r border-[#166534] w-28">Harga Satuan</th>
+                    <th className="py-2.5 px-3 font-bold text-right border-r border-[#166534] w-24">Diskon</th>
+                    <th className="py-2.5 px-3 font-bold text-right border-r border-[#166534] w-28">Total</th>
                     <th className="py-2.5 px-3 font-bold text-center w-28">Metode Bayar</th>
                   </tr>
                 </thead>
@@ -416,7 +416,7 @@ export default function SalesReportModal({
                   )}
                 </tbody>
                 <tfoot>
-                  <tr className="bg-[#FFF5F5] font-black border-t-2 border-stone-300 text-stone-900">
+                  <tr className="bg-[#F0FDF4] font-black border-t-2 border-stone-300 text-stone-900">
                     <td colSpan={4} className="py-2.5 px-3 text-center border-r border-stone-300 uppercase tracking-wider text-xs">
                       TOTAL
                     </td>
@@ -427,7 +427,7 @@ export default function SalesReportModal({
                     <td className="py-2.5 px-3 text-right border-r border-stone-300 font-mono text-stone-800">
                       {formatRp(totalDiscount)}
                     </td>
-                    <td className="py-2.5 px-3 text-right border-r border-stone-300 font-mono font-black text-sm text-[#800000]">
+                    <td className="py-2.5 px-3 text-right border-r border-stone-300 font-mono font-black text-sm text-[#14532d]">
                       {formatRp(totalSales)}
                     </td>
                     <td></td>

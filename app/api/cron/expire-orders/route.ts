@@ -1,3 +1,4 @@
+import { notifyOrderExpired } from '@/lib/notify/order-events';
 // app/api/cron/expire-orders/route.ts
 // ============================================================================
 // Cron Job: Pembatalan Pesanan Kedaluwarsa 24 Jam & Pelepasan Stok Otomatis
@@ -110,6 +111,7 @@ async function handleExpireOrders(request: NextRequest) {
         after: { status: OrderStatus.DIBATALKAN },
       });
 
+      notifyOrderExpired(order).catch(err => console.error('[Order Expired WA Error]', err));
       results.push({ orderId: order.id, code: order.code });
     }
 

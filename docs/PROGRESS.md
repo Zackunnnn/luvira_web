@@ -10,12 +10,32 @@
 | **5. Observabilitas** | Dashboard Developer, Health ping, Antrean macet, ErrorLog, Audit Log, RBAC Developer Guard | **GREEN** | `phase-5-green`, `be0333e` | `test:phase5` (237/237 PASS), tsc, lint, build (56/56) | Developer read-only observabilitas, penolakan mutasi bisnis 403 |
 | **Testing Menyeluruh** | QA skeptis, uji keamanan, uji konkurensi, batas laju, laporan akhir | **DONE** | - | `verify` & `comprehensive-qa` (244/244 PASS) | `docs/TEST_REPORT.md` terbit, rekomendasi GO |
 | **FT-0: Reseller & Skema** | Peran ke-6 (RESELLER), RBAC 6 Peran, Skema COD/Promo Uji/Outbox/Sheets, API Kelola Reseller | **GREEN** | `ft-0-green` | `test:unit` (78/78), `test:rbac` (217/217), `test:integration` (49/49) | tsc, lint, build hijau (59 rute) |
-| **FT-1: Fonnte WhatsApp** | Gateway WhatsApp Fonnte, Antrean WaOutbox, Cron Dispatch, Consent Checkout, Template | **IN_PROGRESS** | - | Unit adapter, Queue integration, E2E Buyer | WA_MODE=mock/log/fonnte |
+| **FT-1: Fonnte WhatsApp** | Gateway WhatsApp Fonnte, Antrean WaOutbox, Cron Dispatch, Consent Checkout, Template | **GREEN** | `ft-1-green` | Unit adapter (15/15), Queue (8/8), E2E Buyer | tsc, lint, build hijau (61 rute) |
 | **FT-2: COD Admin/Reseller** | Pesanan Manual COD (Ongkir 0 dipaksa), Alur Serah Terima -> Kas Diterima, Laporan Pendapatan | **PENDING** | - | Pricing unit, COD integration, E2E Admin/Reseller | Asumsi F1-F3 |
 | **FT-3: Promo Uji (Testing)** | Promo kind=TESTING (Owner only), Bypass Midtrans, QR Simulasi & Tombol Bayar Cepat, Exclude Laporan | **PENDING** | - | Bypass test, Promo testing unit, E2E Uji | Asumsi F5 |
 | **FT-4: Dashboard Reseller** | /dashboard/reseller mobile-first, Ringkasan, Pesanan Disamarkan (F4), Promo Saya, Buat COD | **PENDING** | - | Reseller E2E, Masking verification | Asumsi F4, F7 |
 | **FT-5: Google Sheets** | Ekspor & Cermin 1-Arah Google Sheets, Scope Global/Region/Reseller, Tombol Sync & UI | **PENDING** | - | Sheets adapter mock/google, Sync integration | Asumsi F6 |
 | **FT-6: Laporan WhatsApp** | Berlangganan Laporan WA, Cron Digest Harian/Mingguan, Tokenized Short-Lived Link (15m) | **PENDING** | - | Cron report unit, Subscription integration | Asumsi F9 |
+
+---
+
+## Ringkasan Eksekusi FT-1: Integrasi Gateway WhatsApp Fonnte (Green)
+- **Status Akhir**: Selesai dan Lolos Semua Gerbang FT-1.
+- **Rincian Implementasi**:
+  1. Adapter WhatsApp `lib/notify/whatsapp.ts` mendukung 3 mode (`mock`, `log`, `fonnte`). Mode fonnte mematuhi spesifikasi resmi: POST ke `https://api.fonnte.com/send` dengan Authorization token langsung tanpa "Bearer", normalisasi nomor `62...`, parameter delay bertipe string, pengecekan status perangkat (`checkFonnteDeviceStatus`), serta pemetaan galat ramah Bahasa Indonesia yang membedakan galat sementara (retryable) dan permanen.
+  2. Modul Antrean `WaOutbox` (`lib/notify/queue.ts`) dilengkapi proteksi kunci idempoten (`idempotencyKey`) untuk mencegah pengiriman ganda, penegakan jeda minimal `FONNTE_MIN_INTERVAL_MS`, batas harian `FONNTE_DAILY_CAP`, dan mekanisme retry bertahap (maksimal 3 percobaan).
+  3. Template pesan Bahasa Indonesia terstandarisasi (`lib/notify/templates.ts`) dengan kode pesanan dan tautan pelacakan. Pesanan uji (`isTest`) otomatis diawali awalan `[UJI]`. Tersedia template laporan penjualan lengkap harian (`salesReportDigest`).
+  4. Penegakan persetujuan pembeli (`waConsent`): Kotak centang "Kirim update pesanan lewat WhatsApp" ditambahkan di formulir checkout publik (`app/checkout/page.tsx`) dan disimpan di tabel pesanan. Server MENOLAK mengirim WhatsApp ke pembeli jika `waConsent === false` (`lib/notify/order-events.ts`).
+  5. Route Cron Dispatcher `/api/cron/wa-dispatch` dilindungi `CRON_SECRET`.
+  6. Endpoint Pengaturan & Monitoring Owner `/api/owner/settings/wa` (status perangkat, metrik antrean, kirim pesan uji, coba ulang manual).
+  7. Observabilitas antrean ditambahkan pada Developer Queues `/api/developer/queues` (indikator backlog, kegagalan beruntun, waktu sukses terakhir).
+  8. Rute Webhook `/api/webhooks/fonnte` dengan verifikasi rahasia URL/header.
+  9. Desain tabel laporan penjualan Owner diubah menjadi warna hijau tua (#14532d) sesuai permintaan pengguna.
+  10. Pengujian Lolos 100%:
+      - Unit adapter `tests/unit/fonnte-adapter.test.ts` (15/15 PASS)
+      - Integrasi antrean `tests/integration/wa-queue.test.ts` (8/8 PASS)
+      - E2E pembeli `tests/e2e/buyer/e2e-16-wa-consent.spec.ts`
+      - `tsc --noEmit` (0 error), `npm run lint` (0 error), `npm run build` (61 rute sukses dikompilasi).
 
 ---
 

@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
       try {
         // Susun rincian item secara presisi (Produk + Diskon + PPN + Ongkir)
         // Midtrans mewajibkan sum(item_details) === gross_amount
-        const midtransItems: Array<{ id: string; price: number; quantity: number; name: string }> = order.items.map((item) => ({
+        const midtransItems: Array<{ id: string; price: number; quantity: number; name: string }> = (order as any).items.map((item: any) => ({
           id: item.variantId.slice(0, 50),
           price: Math.round(item.priceEach),
           quantity: item.quantity,

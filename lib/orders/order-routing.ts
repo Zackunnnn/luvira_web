@@ -1,3 +1,4 @@
+import { notifyNewOrderCreated } from '@/lib/notify/order-events';
 // lib/orders/order-routing.ts
 // ============================================================================
 // Order Routing Engine & Atomic Stock Reservation Luvira 2.0
@@ -207,6 +208,11 @@ export interface CreateOrderParams {
   promoCodeId?: string;
   shippingCourier?: string;
   shippingCost?: number;
+  waConsent?: boolean;
+  isTest?: boolean;
+  isManual?: boolean;
+  createdByUserId?: string;
+  createdByRole?: string;
 }
 
 /**
@@ -391,6 +397,11 @@ export async function createOrderWithAtomicReservation(params: CreateOrderParams
         shippingCost: pricing.shippingCost,
         totalPrice: pricing.totalPrice,
         courierCode: params.shippingCourier || null,
+        waConsent: params.waConsent !== undefined ? Boolean(params.waConsent) : true,
+        isTest: Boolean(params.isTest),
+        isManual: Boolean(params.isManual),
+        createdByUserId: params.createdByUserId || null,
+        createdByRole: (params.createdByRole as any) || null,
         promoCodeId: pricing.promoApplied?.id || null,
         expiresAt,
         items: {
