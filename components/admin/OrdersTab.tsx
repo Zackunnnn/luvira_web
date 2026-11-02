@@ -353,7 +353,19 @@ export const OrdersTab: React.FC<OrdersTabProps> = ({
                 {orders.map((o) => (
                   <tr key={o.id} className="hover:bg-stone-50/60 transition-colors">
                     <td className="p-3.5 align-top">
-                      <div className="font-mono font-bold text-stone-900">{o.code}</div>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="font-mono font-bold text-stone-900">{o.code}</span>
+                        {o.isTest && (
+                          <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 border border-purple-300">
+                            [UJI]
+                          </span>
+                        )}
+                        {o.isManual && (
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 border border-amber-300">
+                            MANUAL
+                          </span>
+                        )}
+                      </div>
                       <div className="text-[10px] text-stone-400 mt-0.5">
                         {new Date(o.createdAt).toLocaleDateString('id-ID', {
                           day: 'numeric',

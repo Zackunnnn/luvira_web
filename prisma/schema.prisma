@@ -113,6 +113,7 @@ model Region {
   originId    String         // ID RajaOngkir untuk titik asal pengiriman
   phone       String?        // Kontak WhatsApp
   email       String?
+  activeCouriers String[]    @default(["jne", "sicepat", "jnt"])
   isActive    Boolean        @default(true)
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt

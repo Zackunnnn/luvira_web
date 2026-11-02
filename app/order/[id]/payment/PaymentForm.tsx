@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/Button';
-import { Upload, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
+import { Upload, CheckCircle2, Loader2, AlertCircle, FlaskConical } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 
 export default function PaymentForm({ order }: { order: any }) {
@@ -10,6 +10,30 @@ export default function PaymentForm({ order }: { order: any }) {
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isSimulating, setIsSimulating] = useState(false);
+  const [simulationSuccess, setSimulationSuccess] = useState(false);
+
+  const handleSimulatePayment = async () => {
+    setIsSimulating(true);
+    setError(null);
+    try {
+      const res = await fetch(`/api/test/orders/${order.id}/simulate-payment`, {
+        method: 'POST',
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Simulasi pembayaran gagal.');
+      }
+      setSimulationSuccess(true);
+      setTimeout(() => {
+        router.push(`/order/${order.code || order.id}/track`);
+      }, 1500);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setIsSimulating(false);
+    }
+  };
 
   useEffect(() => {
     if (order.paymentMethod === 'midtrans' && order.status === 'menunggu_transfer') {
@@ -88,6 +112,95 @@ export default function PaymentForm({ order }: { order: any }) {
       setIsUploading(false);
     }
   };
+
+  if (order.isTest || order.paymentMethod === 'TEST_SIMULATION') {
+    return (
+      <div className="bg-white p-6 sm:p-8 rounded-3xl border-2 border-purple-200 shadow-sm space-y-6">
+        <div className="bg-purple-50 p-4 rounded-2xl border border-purple-200 flex items-start gap-3">
+          <FlaskConical className="w-5 h-5 text-purple-700 mt-0.5 shrink-0" />
+          <div>
+            <span className="text-xs font-bold uppercase tracking-wider text-purple-800 bg-purple-200 px-2 py-0.5 rounded-full">
+              [MODE PENGUJIAN]
+            </span>
+            <h3 className="text-sm font-bold text-purple-950 mt-1">Simulasi Pembayaran Promo Uji</h3>
+            <p className="text-xs text-purple-800/90 mt-0.5 leading-relaxed">
+              Pesanan ini menggunakan kode promo uji coba. Gateway Midtrans dilewati sepenuhnya dan Anda dapat menyimulasikan transaksi sukses secara gratis.
+            </p>
+          </div>
+        </div>
+
+        {/* QR Code Simulasi */}
+        <div className="flex flex-col items-center justify-center p-6 bg-stone-50 rounded-2xl border border-stone-200 text-center space-y-3">
+          <div className="p-3 bg-white rounded-xl shadow-xs border border-stone-200">
+            <svg className="w-44 h-44 text-purple-900" viewBox="0 0 100 100" fill="currentColor">
+              <rect x="5" y="5" width="25" height="25" fill="#581c87" rx="3" />
+              <rect x="10" y="10" width="15" height="15" fill="#ffffff" rx="1" />
+              <rect x="14" y="14" width="7" height="7" fill="#581c87" />
+
+              <rect x="70" y="5" width="25" height="25" fill="#581c87" rx="3" />
+              <rect x="75" y="10" width="15" height="15" fill="#ffffff" rx="1" />
+              <rect x="79" y="14" width="7" height="7" fill="#581c87" />
+
+              <rect x="5" y="70" width="25" height="25" fill="#581c87" rx="3" />
+              <rect x="10" y="75" width="15" height="15" fill="#ffffff" rx="1" />
+              <rect x="14" y="79" width="7" height="7" fill="#581c87" />
+
+              <rect x="35" y="10" width="8" height="8" fill="#7e22ce" />
+              <rect x="50" y="10" width="12" height="8" fill="#7e22ce" />
+              <rect x="40" y="25" width="20" height="8" fill="#7e22ce" />
+              <rect x="10" y="40" width="20" height="8" fill="#7e22ce" />
+              <rect x="35" y="40" width="8" height="8" fill="#581c87" />
+              <rect x="48" y="40" width="16" height="8" fill="#7e22ce" />
+              <rect x="70" y="40" width="20" height="8" fill="#7e22ce" />
+              <rect x="15" y="55" width="25" height="8" fill="#7e22ce" />
+              <rect x="45" y="55" width="22" height="8" fill="#581c87" />
+              <rect x="75" y="55" width="15" height="8" fill="#7e22ce" />
+              <rect x="40" y="70" width="18" height="8" fill="#7e22ce" />
+              <rect x="65" y="70" width="25" height="8" fill="#581c87" />
+              <rect x="45" y="85" width="30" height="8" fill="#7e22ce" />
+            </svg>
+          </div>
+          <div>
+            <div className="text-xs font-mono font-bold text-purple-900 bg-purple-100/70 px-3 py-1 rounded-md inline-block">
+              {`LUVIRA-UJI:${order.code}`}
+            </div>
+            <p className="text-[11px] text-stone-500 mt-1">Scan kode QR simulasi di atas atau tekan tombol simulasi di bawah</p>
+          </div>
+        </div>
+
+        {error && (
+          <div className="p-3 bg-rose-50 text-rose-700 text-xs rounded-xl flex items-center gap-2 border border-rose-200">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
+          </div>
+        )}
+
+        {simulationSuccess && (
+          <div className="p-4 bg-emerald-50 text-emerald-800 text-sm rounded-xl flex items-center gap-2 border border-emerald-200">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            <span>Simulasi berhasil! Mengalihkan ke pelacakan pesanan...</span>
+          </div>
+        )}
+
+        <Button
+          onClick={handleSimulatePayment}
+          disabled={isSimulating || simulationSuccess}
+          fullWidth
+          size="lg"
+          className="bg-purple-800 hover:bg-purple-900 text-white font-bold py-3.5 rounded-2xl shadow-sm transition-all cursor-pointer"
+        >
+          {isSimulating ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin mr-2" />
+              <span>Memproses Simulasi Bayar Sukses...</span>
+            </>
+          ) : (
+            'Simulasikan Bayar Sukses'
+          )}
+        </Button>
+      </div>
+    );
+  }
 
   if (order.status !== 'menunggu_transfer') {
     return (

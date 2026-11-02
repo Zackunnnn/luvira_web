@@ -100,6 +100,7 @@ export async function resolveTargetRegion(destination: {
       phone: '081298765432',
       email: 'jogja@luvira.id',
       isActive: true,
+      activeCouriers: ['jne', 'sicepat', 'jnt'],
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -120,6 +121,7 @@ export async function resolveTargetRegion(destination: {
     phone: '081234567890',
     email: 'pusat@luvira.id',
     isActive: true,
+    activeCouriers: ['jne', 'sicepat', 'jnt'],
     createdAt: new Date(),
     updatedAt: new Date(),
   };

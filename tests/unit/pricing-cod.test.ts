@@ -96,3 +96,4 @@ test('FT-2 Unit: COD mengabaikan tarif kurir ekspedisi jika dikirim oleh klien',
   expect(result.shippingCost).toBe(0);
   expect(result.totalPrice).toBe(175000 + Math.round(175000 * 0.11));
 });
+

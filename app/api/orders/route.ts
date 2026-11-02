@@ -45,16 +45,17 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
 
     const {
-      customerName,
-      customerPhone,
-      customerEmail,
       destination,
       items,
       paymentMethod = 'MIDTRANS_SNAP',
-      promoCodeId,
-      shippingCourier,
-      shippingCost,
     } = body;
+
+    const customerName = body.customerName || body.customer?.name;
+    const customerPhone = body.customerPhone || body.customer?.phone || body.customer?.whatsapp;
+    const customerEmail = body.customerEmail || body.customer?.email;
+    const shippingCourier = body.shippingCourier || body.shipping?.courier;
+    const shippingCost = body.shippingCost !== undefined ? body.shippingCost : (body.shipping?.cost ?? 0);
+    let promoCodeId = body.promoCodeId || body.promoCode || body.code;
 
     // Validasi penolakan COD di checkout publik (Asumsi F1)
     if (paymentMethod === 'COD' || paymentMethod === PaymentMethod.COD) {
@@ -86,12 +87,41 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Normalisasi enum payment method
+    // Normalisasi enum payment method & FT-3 Deteksi Promo Uji (TESTING)
     let resolvedPaymentMethod: PaymentMethod = PaymentMethod.MIDTRANS_SNAP;
+    let isTestPromo = false;
+
+    if (promoCodeId) {
+      const promoRecord = await prisma.promoCode.findFirst({
+        where: {
+          OR: [
+            { id: promoCodeId },
+            { code: String(promoCodeId).trim().toUpperCase() }
+          ]
+        },
+      });
+      if (promoRecord) {
+        promoCodeId = promoRecord.id;
+        if (promoRecord.kind === 'TESTING') {
+          const testSetting = await prisma.setting.findUnique({ where: { key: 'testPromoEnabled' } });
+          const isTestPromoActive = testSetting ? Boolean(testSetting.value) : (process.env.TEST_PROMO_DEFAULT_ENABLED === 'true' || process.env.NODE_ENV !== 'production');
+          if (!isTestPromoActive) {
+            return NextResponse.json(
+              { error: 'Kode promo uji coba (TESTING) sedang dinonaktifkan oleh sistem.' },
+              { status: 400 }
+            );
+          }
+          isTestPromo = true;
+          resolvedPaymentMethod = PaymentMethod.TEST_SIMULATION;
+        }
+      }
+    }
+
     if (
-      paymentMethod === 'manual' ||
+      !isTestPromo &&
+      (paymentMethod === 'manual' ||
       paymentMethod === 'MANUAL_TRANSFER' ||
-      paymentMethod === 'TRANSFER_MANUAL'
+      paymentMethod === 'TRANSFER_MANUAL')
     ) {
       resolvedPaymentMethod = PaymentMethod.MANUAL_TRANSFER;
     }
@@ -111,6 +141,7 @@ export async function POST(request: NextRequest) {
       promoCodeId,
       shippingCourier,
       shippingCost,
+      isTest: isTestPromo,
     });
 
     const { order, pricing, routeResult } = result;
@@ -121,6 +152,35 @@ export async function POST(request: NextRequest) {
     let paymentAccounts: any[] = [];
 
     // 3. Penanganan Metode Pembayaran
+    if (resolvedPaymentMethod === PaymentMethod.TEST_SIMULATION || order.isTest) {
+      // FT-3: Lewati Midtrans Snap sepenuhnya (F5)
+      return NextResponse.json(
+        {
+          success: true,
+          order: {
+            id: order.id,
+            code: order.code,
+            status: order.status,
+            totalPrice: order.totalPrice,
+            subtotal: order.subtotal,
+            discountAmount: order.discountAmount,
+            ppnAmount: order.ppnAmount,
+            shippingCost: order.shippingCost,
+            paymentMethod: order.paymentMethod,
+            expiresAt: order.expiresAt,
+            regionId: order.regionId,
+            isTest: true,
+            isFallbackToPusat: routeResult.isFallbackToPusat,
+            fallbackReason: routeResult.reason,
+          },
+          isTest: true,
+          simulationQrPayload: `LUVIRA-UJI:${order.code}`,
+          paymentUrl: `/order/${order.id}/payment`,
+        },
+        { status: 201 }
+      );
+    }
+
     if (resolvedPaymentMethod === PaymentMethod.MIDTRANS_SNAP) {
       try {
         // Susun rincian item secara presisi (Produk + Diskon + PPN + Ongkir)

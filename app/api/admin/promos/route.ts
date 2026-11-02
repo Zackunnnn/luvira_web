@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
     const {
       code,
       type,
+      kind,
       regionId,
       discountType,
       discountValue,
@@ -83,6 +84,54 @@ export async function POST(request: NextRequest) {
       resellerName,
       resellerWaNumber,
     } = body;
+
+    const effectiveQuota = quota !== undefined ? quota : body.maxUses;
+    const isTestingKind = kind === 'TESTING';
+
+    if (isTestingKind) {
+      // 1. Khusus Owner (promo:test_manage)
+      if (!can(user, 'promo:test_manage')) {
+        return NextResponse.json(
+          { error: 'Akses ditolak: Hanya Owner yang dapat membuat kode promo uji (TESTING).' },
+          { status: 403 }
+        );
+      }
+
+      // 2. Setting testPromoEnabled
+      const testSetting = await prisma.setting.findUnique({ where: { key: 'testPromoEnabled' } });
+      const isTestPromoActive = testSetting ? Boolean(testSetting.value) : (process.env.TEST_PROMO_DEFAULT_ENABLED === 'true' || process.env.NODE_ENV !== 'production');
+      if (!isTestPromoActive) {
+        return NextResponse.json(
+          { error: 'Fitur kode promo uji (TESTING) sedang dinonaktifkan di pengaturan sistem.' },
+          { status: 400 }
+        );
+      }
+
+      // 3. Wajib masa berlaku maksimal 7 hari
+      if (!expiresAt) {
+        return NextResponse.json(
+          { error: 'Kode promo uji wajib menyertakan tanggal kedaluwarsa (maksimal 7 hari).' },
+          { status: 400 }
+        );
+      }
+      const expDate = new Date(expiresAt);
+      const maxExpDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000 + 60000);
+      if (expDate > maxExpDate || expDate <= new Date()) {
+        return NextResponse.json(
+          { error: 'Masa berlaku kode promo uji tidak boleh lebih dari 7 hari dari sekarang.' },
+          { status: 400 }
+        );
+      }
+
+      // 4. Kuota kecil maksimal 20
+      const testQuota = effectiveQuota !== undefined ? parseInt(effectiveQuota, 10) : 20;
+      if (testQuota <= 0 || testQuota > 20) {
+        return NextResponse.json(
+          { error: 'Kuota kode promo uji maksimal 20 pemakaian.' },
+          { status: 400 }
+        );
+      }
+    }
 
     if (!code?.trim() || !discountType || discountValue === undefined) {
       return NextResponse.json({ error: 'Kode, tipe diskon, dan nilai diskon wajib diisi.' }, { status: 400 });
@@ -132,10 +181,11 @@ export async function POST(request: NextRequest) {
         discountValue: val,
         maxDiscountAmount: maxDiscountAmount ? parseInt(maxDiscountAmount, 10) : null,
         minOrderAmount: minOrderAmount ? Math.max(0, parseInt(minOrderAmount, 10)) : 0,
-        quota: quota ? Math.max(0, parseInt(quota, 10)) : 100,
+        quota: effectiveQuota !== undefined ? Math.max(0, parseInt(effectiveQuota, 10)) : 100,
         expiresAt: expiresAt ? new Date(expiresAt) : null,
         resellerName: resellerName?.trim() || null,
         resellerWaNumber: resellerWaNumber?.trim() || null,
+        kind: isTestingKind ? ('TESTING' as any) : ('REGULAR' as any),
         createdById: user.id,
       },
     });
@@ -152,7 +202,7 @@ export async function POST(request: NextRequest) {
       success: true,
       message: `Kode promo "${cleanCode}" berhasil dibuat.`,
       promo: newPromo,
-    });
+    }, { status: 201 });
   } catch (error: any) {
     console.error('[API Admin Promos POST Error]', error);
     return NextResponse.json({ error: error.message || 'Gagal membuat kode promo' }, { status: 500 });

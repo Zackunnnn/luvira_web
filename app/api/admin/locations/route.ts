@@ -48,7 +48,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, address, phone, email, originId, postalCode, district, subDistrict } = body;
+    const { id, address, phone, email, originId, postalCode, district, subDistrict, activeCouriers } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'ID wilayah wajib disertakan.' }, { status: 400 });
@@ -73,6 +73,25 @@ export async function PUT(request: NextRequest) {
     if (district !== undefined) updateData.district = district.trim();
     if (subDistrict !== undefined) updateData.subDistrict = subDistrict.trim();
 
+    if (activeCouriers !== undefined) {
+      if (!Array.isArray(activeCouriers) || activeCouriers.length === 0) {
+        return NextResponse.json(
+          { error: 'Setidaknya satu kurir ekspedisi harus diaktifkan untuk wilayah ini.' },
+          { status: 400 }
+        );
+      }
+      const validCouriers = ['jne', 'sicepat', 'jnt', 'pos', 'tiki'];
+      const normalizedCouriers = activeCouriers.map((c) => String(c).toLowerCase().trim()).filter(Boolean);
+      const invalid = normalizedCouriers.filter((c) => !validCouriers.includes(c));
+      if (invalid.length > 0) {
+        return NextResponse.json(
+          { error: `Kurir tidak valid: ${invalid.join(', ')}. Kurir yang didukung: ${validCouriers.join(', ')}` },
+          { status: 400 }
+        );
+      }
+      updateData.activeCouriers = Array.from(new Set(normalizedCouriers));
+    }
+
     const updated = await prisma.region.update({
       where: { id },
       data: updateData,
@@ -83,8 +102,8 @@ export async function PUT(request: NextRequest) {
       action: 'UPDATE_REGION',
       entity: 'Region',
       entityId: id,
-      before: { address: targetRegion.address, originId: targetRegion.originId, phone: targetRegion.phone },
-      after: { address: updated.address, originId: updated.originId, phone: updated.phone },
+      before: { address: targetRegion.address, originId: targetRegion.originId, phone: targetRegion.phone, activeCouriers: targetRegion.activeCouriers },
+      after: { address: updated.address, originId: updated.originId, phone: updated.phone, activeCouriers: updated.activeCouriers },
     });
 
     return NextResponse.json({

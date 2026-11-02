@@ -59,6 +59,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // 6. Validasi Promo Uji (TESTING)
+    if (promo.kind === 'TESTING') {
+      const setting = await prisma.setting.findUnique({ where: { key: 'testPromoEnabled' } });
+      const isEnabled = setting ? Boolean(setting.value) : (process.env.TEST_PROMO_DEFAULT_ENABLED === 'true' || process.env.NODE_ENV !== 'production');
+      if (!isEnabled) {
+        return NextResponse.json(
+          { error: 'Kode promo uji coba (TESTING) sedang dinonaktifkan oleh Owner di pengaturan sistem.' },
+          { status: 400 }
+        );
+      }
+    }
+
     // 6. Validasi Promo Wilayah (A4 / E2E-06)
     if (promo.type === 'WILAYAH' && promo.regionId) {
       let targetRegionId = regionId;
@@ -93,6 +105,8 @@ export async function POST(request: NextRequest) {
           isFreeTax: promo.isFreeTax,
           regionId: promo.regionId,
           regionName: promo.region?.name || null,
+          kind: promo.kind,
+          isTest: promo.kind === 'TESTING',
         },
       },
       { status: 200 }

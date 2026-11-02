@@ -70,12 +70,20 @@ export async function POST(request: NextRequest) {
     const effectiveWeight = Math.max(35, totalWeightGram);
 
     // 4. Panggil layanan RajaOngkir
-    const rates = await rajaOngkirService.calculateCost({
+    const rawRates = await rajaOngkirService.calculateCost({
       originId,
       destinationId,
       weightGram: effectiveWeight,
       courier: courier || 'all',
     });
+
+    // 5. Filter opsi ongkir berdasarkan kurir yang diaktifkan pada wilayah penangan
+    const allowedCouriers =
+      handlingRegion.activeCouriers && handlingRegion.activeCouriers.length > 0
+        ? handlingRegion.activeCouriers.map((c: string) => c.toLowerCase())
+        : ['jne', 'sicepat', 'jnt'];
+
+    const rates = rawRates.filter((r) => allowedCouriers.includes(r.courier.toLowerCase()));
 
     return NextResponse.json({
       success: true,

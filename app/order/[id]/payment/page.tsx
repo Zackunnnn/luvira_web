@@ -62,19 +62,33 @@ export default async function OrderPaymentPage({ params }: { params: Promise<{ i
               <span className="text-muted-charcoal/70">Nama Pemesan</span>
               <span className="font-semibold text-muted-charcoal">{finalOrder.customerName}</span>
             </div>
-            <BankAccountSelector />
+            {finalOrder.isTest || finalOrder.paymentMethod === 'TEST_SIMULATION' ? (
+              <div className="bg-purple-50 p-3.5 rounded-xl text-xs text-purple-900 border border-purple-200 space-y-1 my-2">
+                <div className="font-bold flex items-center gap-1.5 text-purple-950">
+                  <span className="w-2 h-2 rounded-full bg-purple-600 animate-pulse"></span>
+                  Pesanan Simulasi Sandbox / Promo Uji
+                </div>
+                <p className="text-purple-800/80">Metode bayar simulasi aktif. Tidak memerlukan transfer bank sungguhan.</p>
+              </div>
+            ) : (
+              <BankAccountSelector />
+            )}
             
             <div className="pt-4 mt-4 border-t border-gray-100 flex justify-between items-center">
-              <span className="font-bold text-muted-charcoal">Total Transfer</span>
+              <span className="font-bold text-muted-charcoal">
+                {finalOrder.isTest ? 'Total Simulasi' : 'Total Transfer'}
+              </span>
               <span className="text-2xl font-black text-deep-forest">
                 {formatCurrency(totalPrice)}
               </span>
             </div>
           </div>
 
-          <div className="bg-amber-50 p-4 rounded-xl text-xs text-amber-800 mt-4 border border-amber-200">
-            Pastikan Anda mentransfer tepat sejumlah <strong>{formatCurrency(totalPrice)}</strong> ke rekening yang tertera sebelum batas waktu habis.
-          </div>
+          {(!finalOrder.isTest && finalOrder.paymentMethod !== 'TEST_SIMULATION') && (
+            <div className="bg-amber-50 p-4 rounded-xl text-xs text-amber-800 mt-4 border border-amber-200">
+              Pastikan Anda mentransfer tepat sejumlah <strong>{formatCurrency(totalPrice)}</strong> ke rekening yang tertera sebelum batas waktu habis.
+            </div>
+          )}
         </div>
 
         {/* Form Upload */}

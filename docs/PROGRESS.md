@@ -12,10 +12,46 @@
 | **FT-0: Reseller & Skema** | Peran ke-6 (RESELLER), RBAC 6 Peran, Skema COD/Promo Uji/Outbox/Sheets, API Kelola Reseller | **GREEN** | `ft-0-green` | `test:unit` (78/78), `test:rbac` (217/217), `test:integration` (49/49) | tsc, lint, build hijau (59 rute) |
 | **FT-1: Fonnte WhatsApp** | Gateway WhatsApp Fonnte, Antrean WaOutbox, Cron Dispatch, Consent Checkout, Template | **GREEN** | `ft-1-green` | Unit adapter (15/15), Queue (8/8), E2E Buyer | tsc, lint, build hijau (61 rute) |
 | **FT-2: COD Admin/Reseller** | Pesanan Manual COD (Ongkir 0 dipaksa), Alur Serah Terima -> Kas Diterima, Laporan Pendapatan | **GREEN** | `ft-2-green` | Pricing unit (3/3), COD integration (11/11), E2E Admin/Reseller (5/5) | Asumsi F1-F3, F7 terpenuhi |
-| **FT-3: Promo Uji (Testing)** | Promo kind=TESTING (Owner only), Bypass Midtrans, QR Simulasi & Tombol Bayar Cepat, Exclude Laporan | **PENDING** | - | Bypass test, Promo testing unit, E2E Uji | Asumsi F5 |
+| **FT-3: Promo Uji & Kurir Wilayah** | Kontrol Kurir per Wilayah (Admin Pusat), Promo kind=TESTING (Owner only), Bypass Midtrans, QR Simulasi & Bayar Cepat, Reset Data Uji | **GREEN** | `ft-3-green` | `test-promos` (8/8), `region-couriers` (7/7), E2E Screenshot (4/4) | Asumsi F5 |
 | **FT-4: Dashboard Reseller** | /dashboard/reseller mobile-first, Ringkasan, Pesanan Disamarkan (F4), Promo Saya, Buat COD | **PENDING** | - | Reseller E2E, Masking verification | Asumsi F4, F7 |
 | **FT-5: Google Sheets** | Ekspor & Cermin 1-Arah Google Sheets, Scope Global/Region/Reseller, Tombol Sync & UI | **PENDING** | - | Sheets adapter mock/google, Sync integration | Asumsi F6 |
 | **FT-6: Laporan WhatsApp** | Berlangganan Laporan WA, Cron Digest Harian/Mingguan, Tokenized Short-Lived Link (15m) | **PENDING** | - | Cron report unit, Subscription integration | Asumsi F9 |
+
+---
+
+## Ringkasan Eksekusi FT-3: Kontrol Kurir per Wilayah & Kode Promo Uji (Green)
+- **Status Akhir**: Selesai dan Lolos Semua Gerbang FT-3.
+- **Rincian Implementasi**:
+  1. **Kontrol Kurir Ekspedisi per Wilayah Gudang (Admin Pusat)**:
+     - Penambahan kolom `activeCouriers String[] @default(["jne", "sicepat", "jnt"])` pada model `Region`.
+     - Sinkronisasi dev DB via `prisma db push` aman tanpa menyentuh database produksi.
+     - API `PUT /api/admin/locations`: Admin Pusat dapat mengaktifkan / menonaktifkan kurir (J&T, JNE, SiCepat) per wilayah secara dinamis dengan validasi minimal 1 kurir aktif dan audit log lengkap.
+     - API Ongkir `/api/shipping/calculate`: Memfilter opsi tarif ongkir secara presisi berdasarkan `handlingRegion.activeCouriers`. Contoh: jika gudang penangan di Yogyakarta hanya mengaktifkan J&T, pembeli di checkout hanya melihat opsi layanan J&T (JNE & SiCepat otomatis disaring).
+     - UI Tab "Wilayah & Kurir" (`LocationsTab.tsx`) pada Dashboard Admin Pusat (`/dashboard/admin`) dengan tombol toggle interaktif, badge status kurir aktif, dan feedback instan.
+  2. **Kode Promo Uji (Testing Promo & Bypass Midtrans)**:
+     - `PromoCode.kind === 'TESTING'`: Khusus dibuat oleh Owner (`promo:test_manage`) dengan masa berlaku maksimal 7 hari dan kuota pemakaian maksimal 20 (Asumsi F5).
+     - Dikontrol oleh pengaturan sistem `testPromoEnabled` (dapat diaktifkan/dinonaktifkan Owner).
+     - Checkout dengan promo uji secara otomatis menetapkan `isTest: true` dan `paymentMethod: 'TEST_SIMULATION'`.
+     - Server sepenuhnya melewati (bypass) pemanggilan Midtrans Snap, sehingga tidak akan pernah gagal karena penolakan nilai 0 atau gateway error.
+     - Endpoint pembayaran mengembalikan `simulationQrPayload: 'LUVIRA-UJI:<orderCode>'`.
+  3. **Halaman Pembayaran Simulasi & QR**:
+     - Halaman `/order/[id]/payment` menampilkan banner khusus `[MODE PENGUJIAN]`.
+     - Kode QR SVG dinamis dengan payload `LUVIRA-UJI:<orderCode>`.
+     - Tombol "Simulasikan Bayar Sukses" memanggil `POST /api/test/orders/[id]/simulate-payment`, mengubah status ke `DIPROSES` dan mencatat OrderStatusLog.
+  4. **Pembersihan & Isolasi Laporan Keuangan**:
+     - Laporan penjualan (`/api/owner/reports` & export CSV/Excel) secara mutlak mengecualikan pesanan bertanda `isTest: true` (Asumsi F5).
+     - Dashboard Owner menampilkan badge `[UJI]` pada tabel transaksi terbaru.
+     - Tombol "Reset Data Uji" memanggil `POST /api/owner/test-orders/reset` (`test_orders:reset`), melepaskan reserved stock pesanan uji dan menghapus seluruh data uji coba tanpa menyentuh pesanan riil.
+  5. **Pengujian & Bukti Visual Lolos 100%**:
+     - Unit & integrasi kurir wilayah: `tests/integration/region-couriers.test.ts` (7/7 PASS).
+     - Unit & integrasi promo uji & bypass Midtrans: `tests/integration/test-promos.test.ts` (8/8 PASS).
+     - Playwright E2E visual showcase: `tests/e2e/screenshot-ft3-couriers.spec.ts` (4/4 PASS).
+     - Screenshot tersimpan di Artifact Directory:
+       1. `screenshot_admin_courier_control.png` (Admin Pusat kontrol kurir per wilayah)
+       2. `screenshot_checkout_courier_restricted.png` (Checkout pembeli hanya menampilkan kurir aktif J&T)
+       3. `screenshot_payment_test_simulation.png` (Halaman pembayaran QR simulasi & tombol bayar sukses)
+       4. `screenshot_owner_test_orders.png` (Dashboard Owner dengan badge `[UJI]` & tombol Reset Data Uji)
+     - Verifikasi kode: `tsc --noEmit` (0 error), `npm run lint` (0 error), `npm run build` (63 rute sukses dikompilasi).
 
 ---
 

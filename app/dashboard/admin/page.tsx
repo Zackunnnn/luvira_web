@@ -21,6 +21,8 @@ import { PromosTab } from '@/components/admin/PromosTab';
 import { UsersTab } from '@/components/admin/UsersTab';
 import { AdviceTab } from '@/components/admin/AdviceTab';
 import { CopywritingTab } from '@/components/admin/CopywritingTab';
+import { LocationsTab } from '@/components/admin/LocationsTab';
+import { Truck } from 'lucide-react';
 
 function AdminDashboardContent() {
   const router = useRouter();
@@ -29,7 +31,7 @@ function AdminDashboardContent() {
 
   const [user, setUser] = useState<any | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
-  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'stock' | 'promos' | 'advice' | 'users' | 'copywriting'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'stock' | 'promos' | 'advice' | 'users' | 'copywriting' | 'locations'>('orders');
 
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -208,6 +210,20 @@ function AdminDashboardContent() {
             <FileText className="w-4 h-4 text-stone-400" />
             <span>Copywriting CMS</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('locations')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === 'locations'
+                ? 'bg-deep-forest text-warm-cream shadow-xs'
+                : 'text-stone-600 hover:bg-stone-100 hover:text-deep-forest'
+            }`}
+            id="tab-locations"
+          >
+            <Truck className="w-4 h-4 text-stone-400" />
+            <span>Wilayah & Kurir</span>
+          </button>
         </div>
       </div>
 
@@ -243,6 +259,10 @@ function AdminDashboardContent() {
 
         {activeTab === 'copywriting' && (
           <CopywritingTab />
+        )}
+
+        {activeTab === 'locations' && (
+          <LocationsTab user={user} />
         )}
       </main>
     </div>

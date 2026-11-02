@@ -7,7 +7,7 @@ import {
   PackageSearch, Download, Loader2, AlertTriangle, RefreshCcw,
   Sliders, ShieldCheck, History, Users, Building2, CheckCircle2,
   ExternalLink, LogOut, ArrowRight, Save, ToggleLeft, ToggleRight,
-  Layers, Package, Calendar, Eye, FileSpreadsheet, Printer
+  Layers, Package, Calendar, Eye, FileSpreadsheet, Printer, FlaskConical
 } from 'lucide-react';
 import SalesReportModal from '@/components/owner/SalesReportModal';
 
@@ -20,6 +20,25 @@ export default function OwnerDashboardClient() {
   const [financeData, setFinanceData] = useState<any>(null);
   const [loadingFinances, setLoadingFinances] = useState(true);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [resettingTest, setResettingTest] = useState(false);
+
+  const handleResetTestOrders = async () => {
+    if (!confirm('Apakah Anda yakin ingin mereset dan menghapus semua data pesanan uji coba (isTest)? Tindakan ini aman dan tidak akan menyentuh pesanan sungguhan.')) {
+      return;
+    }
+    setResettingTest(true);
+    try {
+      const res = await fetch('/api/owner/test-orders/reset', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal reset data uji');
+      alert(data.message || 'Data uji berhasil direset.');
+      fetchFinances();
+    } catch (e: any) {
+      alert(e.message);
+    } finally {
+      setResettingTest(false);
+    }
+  };
 
   // Settings & Accounts tab state
   const [settingsData, setSettingsData] = useState<any>(null);
@@ -275,6 +294,16 @@ export default function OwnerDashboardClient() {
               <ExternalLink className="w-3.5 h-3.5 text-stone-400" />
               <span>Portal Admin</span>
             </Link>
+
+            <button
+              onClick={handleResetTestOrders}
+              disabled={resettingTest}
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-xl text-xs font-bold transition-all border border-purple-200 cursor-pointer shadow-2xs"
+              title="Hapus data pesanan uji coba (isTest)"
+            >
+              <FlaskConical className="w-3.5 h-3.5 text-purple-600" />
+              <span>{resettingTest ? 'Mereset...' : 'Reset Data Uji'}</span>
+            </button>
 
             <Link
               href="/dashboard/developer"
@@ -548,7 +577,14 @@ export default function OwnerDashboardClient() {
                             return (
                               <tr key={tx.id} className="hover:bg-stone-50/60 transition-colors">
                                 <td className="py-3 px-4">
-                                  <div className="font-mono font-bold text-deep-forest text-xs">{tx.code || tx.invoiceNumber || '-'}</div>
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="font-mono font-bold text-deep-forest text-xs">{tx.code || tx.invoiceNumber || '-'}</span>
+                                    {tx.isTest && (
+                                      <span className="px-1.5 py-0.2 text-[9px] font-extrabold rounded bg-purple-100 text-purple-800 border border-purple-300">
+                                        [UJI]
+                                      </span>
+                                    )}
+                                  </div>
                                   <div className="text-[10px] text-stone-400">
                                     {new Date(tx.createdAt).toLocaleDateString('id-ID')} • {tx.customerName}
                                   </div>

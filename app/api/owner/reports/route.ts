@@ -34,7 +34,7 @@ export async function GET(request: NextRequest) {
     const endDateParam = searchParams.get('endDate');
     const regionIdParam = searchParams.get('regionId');
 
-    const where: any = {};
+    const where: any = { isTest: false };
     if (regionIdParam) {
       where.regionId = regionIdParam;
     }
