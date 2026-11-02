@@ -269,3 +269,4 @@ export async function checkFonnteDeviceStatus(): Promise<FonnteDeviceStatusResul
     };
   }
 }
+

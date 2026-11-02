@@ -246,3 +246,4 @@ describe('Unit Test: Fonnte WhatsApp Gateway Adapter (FT-1)', () => {
     });
   });
 });
+

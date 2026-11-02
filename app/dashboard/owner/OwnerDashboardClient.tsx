@@ -407,7 +407,7 @@ export default function OwnerDashboardClient() {
                   onClick={() => setShowReportModal(true)}
                   disabled={loadingFinances || !financeData?.transactions?.length}
                   id="btn-preview-report"
-                  className="flex items-center gap-2 px-4 py-2 bg-[#800000] hover:bg-[#660000] text-white rounded-xl text-xs font-bold shadow-xs transition-all disabled:opacity-50 cursor-pointer"
+                  className="flex items-center gap-2 px-4 py-2 bg-[#14532d] hover:bg-[#0f3f22] text-white rounded-xl text-xs font-bold shadow-xs transition-all disabled:opacity-50 cursor-pointer"
                   title="Lihat Pratinjau Laporan Penjualan Resmi"
                 >
                   <Eye className="w-3.5 h-3.5" />
