@@ -46,8 +46,9 @@ export interface ServerPricingResult {
 export interface PromoDataForCalculation {
   id: string;
   code: string;
-  discountType: string; // 'percentage' | 'fixed'
+  discountType: string; // 'PERCENTAGE' | 'FIXED' | 'percentage' | 'fixed'
   discountValue: number;
+  maxDiscountAmount?: number | null;
   quota: number;
   usedCount: number;
   expiresAt: Date | null;
@@ -128,8 +129,12 @@ export function calculatePricingPure({
     const hasQuota = promo.quota <= 0 || promo.usedCount < promo.quota;
 
     if (promo.isActive && isNotExpired && hasQuota) {
-      if (promo.discountType === 'percentage') {
+      const dType = (promo.discountType || '').toLowerCase();
+      if (dType === 'percentage' || dType === 'persen') {
         discountAmount = Math.round((subtotal * promo.discountValue) / 100);
+        if (promo.maxDiscountAmount && promo.maxDiscountAmount > 0 && discountAmount > promo.maxDiscountAmount) {
+          discountAmount = promo.maxDiscountAmount;
+        }
       } else {
         discountAmount = promo.discountValue;
       }
@@ -222,6 +227,7 @@ export async function calculateOrderPricing(
         code: dbPromo.code,
         discountType: dbPromo.discountType,
         discountValue: dbPromo.discountValue,
+        maxDiscountAmount: dbPromo.maxDiscountAmount,
         quota: dbPromo.quota,
         usedCount: dbPromo.usedCount,
         expiresAt: dbPromo.expiresAt,

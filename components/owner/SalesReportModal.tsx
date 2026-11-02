@@ -78,7 +78,8 @@ export default function SalesReportModal({
       if (paymentFilter === 'manual' && isMidtrans) return [];
 
       // Determine payment label
-      const paymentLabel = isMidtrans ? 'QRIS / Midtrans' : 'Transfer Bank';
+      const isCod = tx.paymentMethod === 'COD' || tx.paymentMethod === 'cod';
+      const paymentLabel = isCod ? 'COD (Serah Langsung)' : isMidtrans ? 'QRIS / Midtrans' : 'Transfer Bank';
 
       // Expand items per order
       if (Array.isArray(tx.items) && tx.items.length > 0) {

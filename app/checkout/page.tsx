@@ -258,10 +258,12 @@ export default function CheckoutPage() {
   // Kalkulasi Harga Tampilan Klien
   let discountAmount = 0;
   if (promoData) {
-    if (promoData.discountType === 'percentage' || promoData.discountType === 'PERSEN') {
+    const dType = (promoData.discountType || '').toLowerCase();
+    if (dType === 'percentage' || dType === 'persen') {
       discountAmount = Math.round((baseSubtotal * promoData.discountValue) / 100);
-      if (promoData.maxDiscount && discountAmount > promoData.maxDiscount) {
-        discountAmount = promoData.maxDiscount;
+      const maxD = promoData.maxDiscount || promoData.maxDiscountAmount;
+      if (maxD && discountAmount > maxD) {
+        discountAmount = maxD;
       }
     } else {
       discountAmount = Math.min(baseSubtotal, promoData.discountValue);

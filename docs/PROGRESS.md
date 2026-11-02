@@ -11,11 +11,44 @@
 | **Testing Menyeluruh** | QA skeptis, uji keamanan, uji konkurensi, batas laju, laporan akhir | **DONE** | - | `verify` & `comprehensive-qa` (244/244 PASS) | `docs/TEST_REPORT.md` terbit, rekomendasi GO |
 | **FT-0: Reseller & Skema** | Peran ke-6 (RESELLER), RBAC 6 Peran, Skema COD/Promo Uji/Outbox/Sheets, API Kelola Reseller | **GREEN** | `ft-0-green` | `test:unit` (78/78), `test:rbac` (217/217), `test:integration` (49/49) | tsc, lint, build hijau (59 rute) |
 | **FT-1: Fonnte WhatsApp** | Gateway WhatsApp Fonnte, Antrean WaOutbox, Cron Dispatch, Consent Checkout, Template | **GREEN** | `ft-1-green` | Unit adapter (15/15), Queue (8/8), E2E Buyer | tsc, lint, build hijau (61 rute) |
-| **FT-2: COD Admin/Reseller** | Pesanan Manual COD (Ongkir 0 dipaksa), Alur Serah Terima -> Kas Diterima, Laporan Pendapatan | **PENDING** | - | Pricing unit, COD integration, E2E Admin/Reseller | Asumsi F1-F3 |
+| **FT-2: COD Admin/Reseller** | Pesanan Manual COD (Ongkir 0 dipaksa), Alur Serah Terima -> Kas Diterima, Laporan Pendapatan | **GREEN** | `ft-2-green` | Pricing unit (3/3), COD integration (11/11), E2E Admin/Reseller (5/5) | Asumsi F1-F3, F7 terpenuhi |
 | **FT-3: Promo Uji (Testing)** | Promo kind=TESTING (Owner only), Bypass Midtrans, QR Simulasi & Tombol Bayar Cepat, Exclude Laporan | **PENDING** | - | Bypass test, Promo testing unit, E2E Uji | Asumsi F5 |
 | **FT-4: Dashboard Reseller** | /dashboard/reseller mobile-first, Ringkasan, Pesanan Disamarkan (F4), Promo Saya, Buat COD | **PENDING** | - | Reseller E2E, Masking verification | Asumsi F4, F7 |
 | **FT-5: Google Sheets** | Ekspor & Cermin 1-Arah Google Sheets, Scope Global/Region/Reseller, Tombol Sync & UI | **PENDING** | - | Sheets adapter mock/google, Sync integration | Asumsi F6 |
 | **FT-6: Laporan WhatsApp** | Berlangganan Laporan WA, Cron Digest Harian/Mingguan, Tokenized Short-Lived Link (15m) | **PENDING** | - | Cron report unit, Subscription integration | Asumsi F9 |
+
+---
+
+## Ringkasan Eksekusi FT-2: COD untuk Admin dan Reseller (Green)
+- **Status Akhir**: Selesai dan Lolos Semua Gerbang FT-2.
+- **Rincian Implementasi**:
+  1. **Perbaikan Masalah Kode Promo**: Memperbaiki diskon persentase dan maxDiscountAmount pada `lib/pricing.ts`, `lib/orders/order-routing.ts`, dan checkout publik. Casing jenis diskon dinormalisasi (case-insensitive `percentage` / `PERCENTAGE`). Unit testing harga & promo 8/8 PASS.
+  2. **Engine Pesanan Manual COD** (`lib/orders/manual-cod.ts`):
+     - Memaksa `shippingCost = 0` secara mutlak di sisi server tanpa memanggil RajaOngkir (Asumsi F1).
+     - Resolusi wilayah pemenuhan: Admin Wilayah mengikuti wilayahnya; Reseller mengikuti wilayah akunnya (jika null, default ke Gudang Pusat per Asumsi F7).
+     - Reservasi stok atomik saat pesanan dibuat dan pelepasan stok (`StockMovementType.RELEASE`) jika pesanan dibatalkan.
+     - Generator kode pesanan anti-tabrakan: `LVR-COD-YYYYMMDD-XXXX`.
+     - Notifikasi WhatsApp otomatis ke Admin Wilayah penangan saat pesanan COD dibuat.
+  3. **Penolakan Mutlak COD di Checkout Publik**:
+     - `POST /api/orders` publik menolak `paymentMethod === 'COD'` dengan HTTP 403 Forbidden. COD hanya dapat dibuat via Pesanan Manual.
+  4. **State Machine & Alur Otorisasi COD** (`app/api/admin/orders/[id]/status/route.ts`):
+     - Menunggu Serah Terima -> Diserahkan (bisa ditandai Reseller atau Admin).
+     - Diserahkan -> Selesai / Uang Diterima: Reseller MUTLAK DITOLAK (HTTP 403). Hanya Admin Wilayah penangan yang memiliki wewenang menandai kas diterima dan menyelesaikan pesanan (Asumsi F3).
+     - Admin wilayah lain MUTLAK DITOLAK (HTTP 403) jika mencoba menyelesaikan COD di luar wilayahnya.
+     - Saat uang diterima & status selesai: stok fisik riil dipotong (`StockMovementType.OUT`), `codCashConfirmedAt` dan `codCashConfirmedBy` dicatat.
+  5. **Laporan Pendapatan Owner & Observabilitas**:
+     - Pendapatan COD hanya dihitung setelah status `SELESAI` (Asumsi F2 pada `app/api/owner/analytics/route.ts`).
+     - Metrik pemisah "COD belum diselesaikan" (`pendingCodRevenue` & `pendingCodOrders`) ditampilkan terpisah di analitik Owner.
+     - Antrean pesanan COD menggantung (> 7 hari) dipantau pada Developer Queues (`/api/developer/queues`).
+  6. **UI Pesanan Manual**:
+     - Formulir `CreateManualOrderForm.tsx` untuk Admin (`/dashboard/admin/orders/manual`) dan Reseller (`/dashboard/reseller/orders/manual`) menampilkan ringkasan "Ongkir: Rp 0 (COD, serah langsung)".
+  7. **Pengujian Lolos 100%**:
+     - Unit pricing COD: `tests/unit/pricing-cod.test.ts` (3/3 PASS).
+     - Unit pricing & promo: `tests/unit/pricing.test.ts` (8/8 PASS).
+     - Integrasi izin & penolakan: `tests/integration/cod-api-permissions.test.ts` (3/3 PASS).
+     - Integrasi alur stok & pembatalan: `tests/integration/cod-manual-orders.test.ts` (8/8 PASS).
+     - E2E Admin/Reseller alur lengkap COD: `tests/e2e/admin/e2e-17-cod-manual-orders.spec.ts` (5/5 PASS).
+     - Verifikasi kode: `tsc --noEmit` (0 error), `npm run lint` (0 error), `npm run build` (63 rute sukses dikompilasi).
 
 ---
 

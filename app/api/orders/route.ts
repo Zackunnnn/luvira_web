@@ -56,6 +56,14 @@ export async function POST(request: NextRequest) {
       shippingCost,
     } = body;
 
+    // Validasi penolakan COD di checkout publik (Asumsi F1)
+    if (paymentMethod === 'COD' || paymentMethod === PaymentMethod.COD) {
+      return NextResponse.json(
+        { error: 'Metode pembayaran COD hanya dapat dibuat melalui Pesanan Manual oleh Admin atau Reseller.' },
+        { status: 403 }
+      );
+    }
+
     // 1. Validasi Input Dasar
     if (!customerName || !customerPhone) {
       return NextResponse.json(

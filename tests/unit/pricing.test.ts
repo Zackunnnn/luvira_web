@@ -199,3 +199,33 @@ test('Pricing: manipulasi client totalPrice dikoreksi ke angka server resmi', ()
   expect(serverResult.ppnAmount).toBe(13200);
   expect(serverResult.shippingCost).toBe(6000);
 });
+
+test('Pricing: promo diskon persentase uppercase PERCENTAGE dan batasan maxDiscountAmount', () => {
+  const promoPercentUpper: PromoDataForCalculation = {
+    id: 'promo-pct-upper',
+    code: 'DISKON50MAX',
+    discountType: 'PERCENTAGE',
+    discountValue: 50,
+    maxDiscountAmount: 25000, // Capped di 25.000 walaupun 50% dari 120.000 adalah 60.000
+    quota: 100,
+    usedCount: 0,
+    expiresAt: null,
+    isActive: true,
+    isFreeShipping: false,
+    isFreeTax: false,
+  };
+
+  const result = calculatePricingPure({
+    items: sampleItems,
+    productsMap: mockProductsMap,
+    promo: promoPercentUpper,
+    shippingCourier: 'JNE - REG',
+  });
+
+  expect(result.subtotal).toBe(120000);
+  expect(result.discountAmount).toBe(25000); // capped at maxDiscountAmount
+  expect(result.netPrice).toBe(95000);
+  expect(result.ppnAmount).toBe(Math.round(95000 * 0.11));
+  expect(result.shippingCost).toBe(6000);
+  expect(result.totalPrice).toBe(95000 + Math.round(95000 * 0.11) + 6000);
+});

@@ -111,6 +111,28 @@ export async function GET(request: NextRequest) {
     // Masking harga modal (HPP) untuk peran Admin & Publik
     const safeOrders = orders.map((order) => maskProductCost(user, order));
 
+    // Ambil nama pembuat jika order dibuat manual oleh Reseller/Admin
+    const creatorUserIds = Array.from(new Set(orders.map(o => o.createdByUserId).filter(Boolean))) as string[];
+    const creatorUsers = creatorUserIds.length > 0 ? await prisma.user.findMany({
+      where: { id: { in: creatorUserIds } },
+      select: { id: true, name: true, phone: true, role: true },
+    }) : [];
+    const creatorMap = new Map(creatorUsers.map(u => [u.id, u]));
+
+    const enrichedOrders = safeOrders.map(order => ({
+      ...order,
+      creator: order.createdByUserId ? creatorMap.get(order.createdByUserId) || null : null,
+    }));
+
+    // Hitung pesanan COD yang menunggu penyelesaian di wilayah ini
+    const pendingCodCount = await prisma.order.count({
+      where: {
+        ...(user.role === Role.ADMIN_WILAYAH && user.regionId ? { regionId: user.regionId } : {}),
+        paymentMethod: PaymentMethod.COD,
+        status: { in: [OrderStatus.DIPROSES, OrderStatus.DIKIRIM] },
+      },
+    });
+
     // Ringkasan pesanan yang butuh tindakan untuk dashboard
     const actionCounts = await prisma.order.groupBy({
       by: ['status'],

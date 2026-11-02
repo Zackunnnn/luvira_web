@@ -93,6 +93,16 @@ export async function getAuthUser(request?: any): Promise<import('./permissions'
     if (authHeader && authHeader.startsWith('Bearer ')) {
       token = authHeader.substring(7).trim();
     }
+    if (!token && typeof request.cookies?.get === 'function') {
+      token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
+    }
+    if (!token && typeof request.headers?.get === 'function') {
+      const cookieHeader = request.headers.get('cookie');
+      if (cookieHeader) {
+        const match = cookieHeader.match(new RegExp(`${SESSION_COOKIE_NAME}=([^;]+)`));
+        if (match) token = match[1];
+      }
+    }
   }
   if (!token) {
     try {

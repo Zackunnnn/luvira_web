@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
-import { OrderStatus, Role, WaOutboxStatus } from '@prisma/client';
+import { OrderStatus, Role, WaOutboxStatus, PaymentMethod } from '@prisma/client';
 import { recordAuditLog } from '@/lib/audit';
 
 export const dynamic = 'force-dynamic';
@@ -28,6 +28,26 @@ export async function GET(req: NextRequest) {
   const now = new Date();
   const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
   const threeDaysAgo = new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000);
+
+  // 1b. Pesanan COD Melewati Batas 7 Hari Belum Selesai (FT-2)
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  const overdueCodOrders = await prisma.order.findMany({
+    where: {
+      paymentMethod: PaymentMethod.COD,
+      status: { notIn: [OrderStatus.SELESAI, OrderStatus.DIBATALKAN] },
+      createdAt: { lte: sevenDaysAgo },
+    },
+    select: {
+      id: true,
+      code: true,
+      customerName: true,
+      totalPrice: true,
+      createdAt: true,
+      createdByRole: true,
+      region: { select: { name: true, code: true } },
+    },
+    orderBy: { createdAt: 'asc' },
+  });
 
   // 2. Pesanan Menunggu Verifikasi > 24 Jam
   const stuckVerificationOrders = await prisma.order.findMany({
@@ -190,6 +210,7 @@ export async function GET(req: NextRequest) {
 
   const waHasBacklog = waPendingCount > 10 || waConsecutiveFailures >= 3;
   const hasIssues = waHasBacklog ||
+    overdueCodOrders.length > 0 ||
     stuckVerificationOrders.length > 0 ||
     stuckProcessingOrders.length > 0 ||
     stockMismatches.length > 0;
@@ -198,6 +219,7 @@ export async function GET(req: NextRequest) {
     status: hasIssues ? 'HAS_ISSUES' : 'CLEAN',
     timestamp: now.toISOString(),
     summary: {
+      overdueCodCount: overdueCodOrders.length,
       stuckVerificationCount: stuckVerificationOrders.length,
       stuckProcessingCount: stuckProcessingOrders.length,
       stockMismatchCount: stockMismatches.length,
@@ -206,6 +228,7 @@ export async function GET(req: NextRequest) {
       waLastSuccessAt: lastSuccessfulWa?.sentAt || null,
     },
     queues: {
+      overdueCodOrders,
       stuckVerificationOrders,
       stuckProcessingOrders,
       stockMismatches,

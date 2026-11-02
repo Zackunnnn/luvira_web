@@ -270,8 +270,9 @@ export async function createOrderWithAtomicReservation(params: CreateOrderParams
       promoData = {
         id: promo.id,
         code: promo.code,
-        discountType: promo.discountType.toLowerCase(),
+        discountType: promo.discountType,
         discountValue: promo.discountValue,
+        maxDiscountAmount: promo.maxDiscountAmount,
         quota: promo.quota,
         usedCount: promo.usedCount,
         expiresAt: promo.expiresAt,

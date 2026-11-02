@@ -142,7 +142,7 @@ export default function OwnerDashboardClient() {
       }
       const grossSubtotal = tx.subtotal || ((tx.netPrice || 0) + (tx.discountAmount || 0));
       const netSubtotal = tx.netPrice !== undefined && tx.netPrice !== null ? tx.netPrice : (grossSubtotal - (tx.discountAmount || 0));
-      const payMethodLabel = tx.paymentMethod === 'MIDTRANS_SNAP' || tx.paymentMethod === 'midtrans' ? 'Midtrans' : 'Transfer Manual';
+      const payMethodLabel = tx.paymentMethod === 'MIDTRANS_SNAP' || tx.paymentMethod === 'midtrans' ? 'Midtrans' : (tx.paymentMethod === 'COD' ? 'COD' : 'Transfer Manual');
       const promoCodeLabel = tx.promoCode?.code || '-';
 
       return [
@@ -392,6 +392,7 @@ export default function OwnerDashboardClient() {
                   <option value="all">Semua Metode Pembayaran</option>
                   <option value="manual">Transfer Manual (2 Rekening)</option>
                   <option value="midtrans">Midtrans Snap</option>
+                  <option value="cod">COD (Bayar di Tempat)</option>
                 </select>
               </div>
 
