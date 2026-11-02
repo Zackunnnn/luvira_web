@@ -24,6 +24,9 @@ export async function proxy(request: NextRequest) {
       if (session.role === Role.DEVELOPER) {
         return NextResponse.redirect(new URL('/dashboard/developer', request.url));
       }
+      if (session.role === Role.RESELLER) {
+        return NextResponse.redirect(new URL('/dashboard/reseller', request.url));
+      }
       return NextResponse.redirect(new URL('/dashboard/admin', request.url));
     }
 
@@ -58,9 +61,16 @@ export async function proxy(request: NextRequest) {
       }
     }
 
-    // C. Dashboard Admin: Hanya ADMIN_PUSAT, ADMIN_WILAYAH, OWNER, DEVELOPER
+    // C. Dashboard Reseller: Hanya peran RESELLER (dan OWNER untuk supervisi)
+    if (pathname.startsWith('/dashboard/reseller')) {
+      if (session.role !== Role.RESELLER && session.role !== Role.OWNER) {
+        return NextResponse.redirect(new URL('/forbidden', request.url));
+      }
+    }
+
+    // D. Dashboard Admin: Hanya ADMIN_PUSAT, ADMIN_WILAYAH, OWNER, DEVELOPER
     if (pathname.startsWith('/dashboard/admin')) {
-      const allowedAdminRoles = [
+      const allowedAdminRoles: Role[] = [
         Role.ADMIN_PUSAT,
         Role.ADMIN_WILAYAH,
         Role.OWNER,

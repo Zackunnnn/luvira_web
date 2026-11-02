@@ -9,6 +9,26 @@
 | **4. Dashboard Owner** | KPI, Laba Kotor, HPP historis OrderItem, Rekap, Cetak/Export CSV/Excel, Pengaturan, Manajemen Admin | **GREEN** | `phase-4-green`, `6c3315c` | `test:phase4` (227/227 PASS), tsc, lint, build (57/57) | HPP historis snapshot, isolasi wewenang owner |
 | **5. Observabilitas** | Dashboard Developer, Health ping, Antrean macet, ErrorLog, Audit Log, RBAC Developer Guard | **GREEN** | `phase-5-green`, `be0333e` | `test:phase5` (237/237 PASS), tsc, lint, build (56/56) | Developer read-only observabilitas, penolakan mutasi bisnis 403 |
 | **Testing Menyeluruh** | QA skeptis, uji keamanan, uji konkurensi, batas laju, laporan akhir | **DONE** | - | `verify` & `comprehensive-qa` (244/244 PASS) | `docs/TEST_REPORT.md` terbit, rekomendasi GO |
+| **FT-0: Reseller & Skema** | Peran ke-6 (RESELLER), RBAC 6 Peran, Skema COD/Promo Uji/Outbox/Sheets, API Kelola Reseller | **GREEN** | `ft-0-green` | `test:unit` (78/78), `test:rbac` (217/217), `test:integration` (49/49) | tsc, lint, build hijau (59 rute) |
+| **FT-1: Fonnte WhatsApp** | Gateway WhatsApp Fonnte, Antrean WaOutbox, Cron Dispatch, Consent Checkout, Template | **IN_PROGRESS** | - | Unit adapter, Queue integration, E2E Buyer | WA_MODE=mock/log/fonnte |
+| **FT-2: COD Admin/Reseller** | Pesanan Manual COD (Ongkir 0 dipaksa), Alur Serah Terima -> Kas Diterima, Laporan Pendapatan | **PENDING** | - | Pricing unit, COD integration, E2E Admin/Reseller | Asumsi F1-F3 |
+| **FT-3: Promo Uji (Testing)** | Promo kind=TESTING (Owner only), Bypass Midtrans, QR Simulasi & Tombol Bayar Cepat, Exclude Laporan | **PENDING** | - | Bypass test, Promo testing unit, E2E Uji | Asumsi F5 |
+| **FT-4: Dashboard Reseller** | /dashboard/reseller mobile-first, Ringkasan, Pesanan Disamarkan (F4), Promo Saya, Buat COD | **PENDING** | - | Reseller E2E, Masking verification | Asumsi F4, F7 |
+| **FT-5: Google Sheets** | Ekspor & Cermin 1-Arah Google Sheets, Scope Global/Region/Reseller, Tombol Sync & UI | **PENDING** | - | Sheets adapter mock/google, Sync integration | Asumsi F6 |
+| **FT-6: Laporan WhatsApp** | Berlangganan Laporan WA, Cron Digest Harian/Mingguan, Tokenized Short-Lived Link (15m) | **PENDING** | - | Cron report unit, Subscription integration | Asumsi F9 |
+
+---
+
+## Ringkasan Eksekusi FT-0: Peran Reseller, Izin, dan Skema (Green)
+- **Status Akhir**: Selesai dan Lolos Semua Gerbang FT-0.
+- **Rincian Implementasi**:
+  1. Peran `RESELLER` ditambahkan sebagai peran ke-6 pada Prisma schema, middleware proxy, dan `lib/permissions.ts`.
+  2. Matriks RBAC diperluas mencakup 6 peran + publik/unauthenticated (total 217 pengujian otomatis di `tests/rbac/matrix.test.ts`, 100% PASS).
+  3. Skema dev diperbarui: penambahan relasi `resellerPromos`, enum `PromoKind`, field COD (`codHandedOverAt/By`, `codCashConfirmedAt/By`, `codNote`), field isolasi `createdByUserId`, `createdByRole`, model `WaOutbox`, `ReportSubscription`, `SheetConnection`.
+  4. API Endpoint Kelola Reseller (`POST/GET/PUT /api/admin/resellers`) dan Penautan Promo (`POST /api/admin/promos/assign-reseller`) selesai dilengkapi audit log dan proteksi isolasi A2 (Admin Pusat dilarang menyentuh Owner/Developer/Admin Pusat lain).
+  5. Helper penyamaran data pelanggan (`maskCustomerData` dan `maskOrderForReseller`) ditambahkan untuk privasi Reseller (F4).
+  6. Tes integrasi `tests/integration/reseller-isolation.test.ts` (12/12 PASS).
+  7. `tsc --noEmit` (0 error), `npm run lint` (0 error), `npm run build` (59 rute berhasil dikompilasi).
 
 ---
 

@@ -82,53 +82,62 @@ Agent harus mengikuti asumsi ini **kecuali** Wann mengubahnya. Tandai dengan jel
 
 ---
 
-## 4. Peran dan hak akses (final)
+## 4. Peran dan hak akses (final - 6 Peran)
 
-Keterangan: **Bisa** = melakukan sendiri · **Kelola** = lihat dan ubah · **Lihat** = hanya lihat · **—** = tidak ada akses. "(wilayahnya)" = dibatasi ke data wilayah akun itu.
+Keterangan: **Bisa** = melakukan sendiri · **Kelola** = lihat dan ubah · **Lihat** = hanya lihat · **—** = tidak ada akses. "(wilayahnya)" = dibatasi ke data wilayah akun itu; "(miliknya)" = dibatasi ke data akun/kode promo miliknya.
 
 ### Belanja dan pesanan
 
-| Fitur | Pembeli | Admin Pusat | Admin Wilayah | Owner | Developer |
-|---|---|---|---|---|---|
-| Lihat katalog, harga, stok sesuai lokasi | Bisa | Bisa | Bisa | Bisa | Bisa |
-| Baca nasihat | Bisa | Bisa | Bisa | Bisa | Bisa |
-| Pilih alamat, pesan, bayar | Bisa | — | — | — | — |
-| Lacak pesanan sendiri | Bisa | — | — | — | — |
-| Proses pesanan (cek bayar, status, resi) | — | Kelola (Pusat); Lihat (wilayah lain) | Kelola (wilayahnya) | Lihat (semua) | Lihat |
+| Fitur | Pembeli | Admin Pusat | Admin Wilayah | Owner | Developer | Reseller |
+|---|---|---|---|---|---|---|
+| Lihat katalog, harga, stok sesuai lokasi | Bisa | Bisa | Bisa | Bisa | Bisa | Bisa |
+| Baca nasihat | Bisa | Bisa | Bisa | Bisa | Bisa | Bisa |
+| Pilih alamat, pesan, bayar (checkout online) | Bisa | — | — | — | — | — |
+| Buat pesanan COD manual | — | Bisa | Bisa (wilayahnya) | Bisa | — | Bisa (wilayahnya) |
+| Lacak pesanan sendiri | Bisa | — | — | — | — | — |
+| Proses pesanan (cek bayar, status, resi) | — | Kelola (Pusat); Lihat (wilayah lain) | Kelola (wilayahnya) | Lihat (semua) | Lihat | — |
+| Serah terima COD (tandai diserahkan) | — | Kelola | Kelola (wilayahnya) | — | — | Bisa (pesanannya) |
+| Konfirmasi kas COD (uang diterima & selesai) | — | Kelola | Kelola (wilayahnya) | — | — | — |
+| Lihat pesanan berkode sendiri (data disamarkan) | — | — | — | — | — | Bisa (miliknya) |
 
 ### Katalog, stok, harga
 
-| Fitur | Pembeli | Admin Pusat | Admin Wilayah | Owner | Developer |
-|---|---|---|---|---|---|
-| Atur katalog produk (nama, foto, varian) | — | Kelola | — | Lihat | Lihat |
-| Atur harga jual (seragam) | — | Kelola | Lihat | Kelola | Lihat |
-| Harga modal | — | — | — | Kelola | Lihat |
-| Atur stok | — | Kelola (Pusat) | Kelola (wilayahnya) | Lihat (semua) | Lihat |
+| Fitur | Pembeli | Admin Pusat | Admin Wilayah | Owner | Developer | Reseller |
+|---|---|---|---|---|---|---|
+| Atur katalog produk (nama, foto, varian) | — | Kelola | — | Lihat | Lihat | — |
+| Atur harga jual (seragam) | — | Kelola | Lihat | Kelola | Lihat | — |
+| Harga modal (HPP) | — | — | — | Kelola | Lihat | — |
+| Atur stok | — | Kelola (Pusat) | Kelola (wilayahnya) | Lihat (semua) | Lihat | — |
+| Lihat kuota stok per gudang | — | Bisa | Bisa (wilayahnya) | Bisa | Bisa | — |
 
 ### Konten, wilayah, promo
 
-| Fitur | Pembeli | Admin Pusat | Admin Wilayah | Owner | Developer |
-|---|---|---|---|---|---|
-| Nasihat (tulis, ubah, hapus) | — | Kelola (semua) | Kelola (miliknya) | Lihat | Lihat |
-| Lokasi, profil, kontak toko | — | Kelola (semua wilayah) | Kelola (wilayahnya) | Lihat | Lihat |
-| Cakupan wilayah layanan | — | Kelola | — | Kelola | Lihat |
-| Promo reseller (nasional) | — | Kelola | Lihat | Kelola | Lihat |
-| Promo kustom wilayah | — | Kelola | Kelola (wilayahnya) | Kelola | Lihat |
-| Rekap pemakaian promo | — | Lihat | Lihat (wilayahnya) | Lihat | Lihat |
+| Fitur | Pembeli | Admin Pusat | Admin Wilayah | Owner | Developer | Reseller |
+|---|---|---|---|---|---|---|
+| Nasihat (tulis, ubah, hapus) | — | Kelola (semua) | Kelola (miliknya) | Lihat | Lihat | — |
+| Lokasi, profil, kontak toko | — | Kelola (semua wilayah) | Kelola (wilayahnya) | Lihat | Lihat | — |
+| Cakupan wilayah layanan | — | Kelola | — | Kelola | Lihat | — |
+| Promo reseller (nasional) & penautan | — | Kelola | Lihat | Kelola | Lihat | — |
+| Promo kustom wilayah | — | Kelola | Kelola (wilayahnya) | Kelola | Lihat | — |
+| Promo uji coba (kind=TESTING) | — | — | — | Kelola | — | — |
+| Rekap pemakaian promo | — | Lihat | Lihat (wilayahnya) | Lihat | Lihat | Lihat (kodenya) |
 
 ### Pengguna, laporan, sistem
 
-| Fitur | Pembeli | Admin Pusat | Admin Wilayah | Owner | Developer |
-|---|---|---|---|---|---|
-| Kelola akun admin | — | Kelola (hanya Admin Wilayah) | — | Kelola (semua admin) | — |
-| Profil dan sandi sendiri | — | Kelola | Kelola | Kelola | Kelola |
-| Metode bayar dan rekening transfer | — | Lihat | — | Kelola | Lihat |
-| Pengaturan (PPN, daftar kurir, batas promo) | — | — | — | Kelola | Lihat |
-| Dashboard traffic, penjualan, stok, rekap | — | — | — | Lihat | Lihat |
-| Cetak/unduh laporan (PDF, Excel) | — | — | — | Bisa | — |
-| Riwayat perubahan (audit log) | — | — | — | Lihat | Lihat |
-| Cek kesehatan modul dan database | — | — | — | — | Kelola |
-| Catatan error sistem | — | — | — | — | Lihat |
+| Fitur | Pembeli | Admin Pusat | Admin Wilayah | Owner | Developer | Reseller |
+|---|---|---|---|---|---|---|
+| Kelola akun admin (Wilayah & Reseller) | — | Kelola (Admin Wilayah & Reseller) | — | Kelola (semua admin & reseller) | — | — |
+| Profil dan sandi sendiri | — | Kelola | Kelola | Kelola | Kelola | Kelola |
+| Integrasi Google Sheets | — | Milik sendiri | Milik wilayah | Global | Lihat | Milik sendiri |
+| Notifikasi & Pengaturan WhatsApp | — | — | — | Kelola | Monitoring | — |
+| Berlangganan Laporan WhatsApp | — | Wilayahnya | Wilayahnya | Global | — | Miliknya |
+| Metode bayar dan rekening transfer | — | Lihat | — | Kelola | Lihat | — |
+| Pengaturan (PPN, daftar kurir, batas promo) | — | — | — | Kelola | Lihat | — |
+| Dashboard traffic, penjualan, stok, rekap | — | — | — | Lihat | Lihat | Miliknya |
+| Cetak/unduh laporan (PDF, Excel, Preview) | — | — | — | Bisa (semua) | — | Bisa (miliknya) |
+| Riwayat perubahan (audit log) | — | — | — | Lihat | Lihat | — |
+| Cek kesehatan modul dan database | — | — | — | — | Kelola | — |
+| Catatan error sistem | — | — | — | — | Lihat | — |
 
 **Aturan lintas peran (wajib ditegakkan di server):**
 - Admin Wilayah **hanya** melihat dan mengubah data wilayahnya. Pembatasan dilakukan di query (`where regionId = ...`), bukan hanya di tampilan.

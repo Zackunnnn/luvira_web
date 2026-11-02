@@ -22,6 +22,7 @@ enum Role {
   ADMIN_WILAYAH
   OWNER
   DEVELOPER
+  RESELLER
 }
 
 enum RegionType {
@@ -50,6 +51,8 @@ enum OrderStatus {
 enum PaymentMethod {
   MANUAL_TRANSFER
   MIDTRANS_SNAP
+  COD
+  TEST_SIMULATION
 }
 
 enum PaymentVerificationStatus {
@@ -66,6 +69,30 @@ enum PromoType {
 enum DiscountType {
   PERCENTAGE
   FIXED
+}
+
+enum PromoKind {
+  REGULAR
+  TESTING
+}
+
+enum WaOutboxStatus {
+  PENDING
+  SENDING
+  SENT
+  FAILED
+}
+
+enum ReportType {
+  RINGKAS_HARIAN
+  MINGGUAN
+  BULANAN
+}
+
+enum SheetScopeType {
+  GLOBAL
+  REGION
+  RESELLER
 }
 
 // ----------------------------------------------------------------------------
@@ -138,6 +165,9 @@ model User {
   updatedAt           DateTime  @updatedAt
 
   advices             Advice[]
+  resellerPromos      PromoCode[]          @relation("ResellerPromoCodes")
+  reportSubscriptions ReportSubscription[]
+  sheetConnections    SheetConnection[]
 
   @@index([role])
   @@index([regionId])
@@ -268,6 +298,16 @@ model Order {
   paidAt             DateTime?
   cancelledAt        DateTime?
   cancellationReason String?
+  isTest             Boolean          @default(false)
+  isManual           Boolean          @default(false)
+  createdByUserId    String?
+  createdByRole      Role?
+  codHandedOverAt    DateTime?
+  codHandedOverBy    String?
+  codCashConfirmedAt DateTime?
+  codCashConfirmedBy String?
+  codNote            String?
+  waConsent          Boolean          @default(false)
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 
@@ -361,8 +401,11 @@ model PromoCode {
   id                String       @id @default(cuid())
   code              String       @unique
   type              PromoType    @default(RESELLER)
+  kind              PromoKind    @default(REGULAR)
   regionId          String?
   region            Region?      @relation(fields: [regionId], references: [id])
+  resellerId        String?
+  reseller          User?        @relation("ResellerPromoCodes", fields: [resellerId], references: [id], onDelete: SetNull)
   discountType      DiscountType
   discountValue     Int
   maxDiscountAmount Int?
@@ -527,3 +570,68 @@ model ChangeLog {
   createdAt  DateTime @default(now())
 }
 
+
+
+// ----------------------------------------------------------------------------
+// 8. WHATSAPP OUTBOX, REPORT SUBSCRIPTION, DAN SPREADSHEET (FT-0 S/D FT-6)
+// ----------------------------------------------------------------------------
+
+model WaOutbox {
+  id                String         @id @default(cuid())
+  target            String         // 62...
+  message           String         @db.Text
+  fileUrl           String?        @db.Text
+  filename          String?
+  status            WaOutboxStatus @default(PENDING)
+  attempts          Int            @default(0)
+  lastError         String?        @db.Text
+  providerMessageId String?
+  idempotencyKey    String?        @unique
+  scheduledAt       DateTime?
+  relatedType       String?
+  relatedId         String?
+  createdAt         DateTime       @default(now())
+  sentAt            DateTime?
+
+  @@index([status, scheduledAt])
+  @@index([relatedType, relatedId])
+  @@index([createdAt])
+}
+
+model ReportSubscription {
+  id                String     @id @default(cuid())
+  userId            String
+  user              User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reportType        ReportType
+  sendTime          String     @default("08:00") // Format "HH:mm" WIB
+  dayOfWeek         Int?       // 0-6 (Minggu-Sabtu)
+  dayOfMonth        Int?       // 1-31
+  includeSheetLink  Boolean    @default(false)
+  includeFile       Boolean    @default(false)
+  isActive          Boolean    @default(true)
+  lastSentPeriodKey String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+
+  @@index([userId, isActive])
+}
+
+model SheetConnection {
+  id             String         @id @default(cuid())
+  scopeType      SheetScopeType
+  scopeId        String?        // regionId jika REGION, userId jika RESELLER, null jika GLOBAL
+  spreadsheetId  String
+  spreadsheetUrl String         @db.Text
+  label          String
+  autoSync       Boolean        @default(false)
+  frequency      String         @default("HARIAN")
+  lastSyncAt     DateTime?
+  lastStatus     String?
+  lastError      String?        @db.Text
+  createdBy      String
+  createdByUser  User           @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  @@index([scopeType, scopeId])
+}

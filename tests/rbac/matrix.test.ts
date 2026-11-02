@@ -1,8 +1,8 @@
 // tests/rbac/matrix.test.ts
 // ============================================================================
-// Automated RBAC Matrix Tests
-// Menguji setiap kombinasi endpoint x peran (termasuk unauthenticated)
-// Memastikan izin dan penolakan 100% konsisten dengan Bagian 4 plan
+// Automated RBAC Matrix Tests - 6 Peran + Unauthenticated
+// Menguji setiap kombinasi endpoint x peran (7 subjek)
+// Sesuai docs/LUVIRA_2_PLAN.md Bagian 4 & FT-0
 // ============================================================================
 
 import { describe, it, expect } from 'vitest';
@@ -122,7 +122,7 @@ const ENDPOINT_POLICIES: EndpointPolicy[] = [
     endpoint: '/api/owner/users',
     method: 'POST',
     permission: 'users:manage_all_admins',
-    description: 'Owner kelola seluruh admin',
+    description: 'Owner kelola seluruh admin & reseller',
   },
   {
     endpoint: '/api/owner/settings',
@@ -156,6 +156,80 @@ const ENDPOINT_POLICIES: EndpointPolicy[] = [
     permission: 'system:error_view',
     description: 'Developer lihat error log',
   },
+
+  // 8. Fitur Tambahan FT-0 s/d FT-6: COD, Reseller, Promo Uji, Sheets, WA
+  {
+    endpoint: '/api/orders/manual (COD wilayah sendiri)',
+    method: 'POST',
+    permission: 'order:create_cod',
+    getResourceContext: (user) => ({ regionId: user?.regionId || 'region-pusat' }),
+    description: 'Buat pesanan COD manual wilayah pemenuhan',
+  },
+  {
+    endpoint: '/api/orders/manual (COD wilayah lain)',
+    method: 'POST',
+    permission: 'order:create_cod',
+    getResourceContext: () => ({ regionId: 'region-berbeda' }),
+    description: 'Buat pesanan COD wilayah lain (harus ditolak untuk Admin Wilayah)',
+  },
+  {
+    endpoint: '/api/admin/resellers',
+    method: 'POST',
+    permission: 'reseller:manage',
+    getResourceContext: () => ({ targetRole: Role.RESELLER }),
+    description: 'Kelola akun reseller',
+  },
+  {
+    endpoint: '/api/reseller/orders',
+    method: 'GET',
+    permission: 'reseller:view_own_orders',
+    getResourceContext: (user) => ({ userId: user?.id }),
+    description: 'Reseller lihat pesanan berkode miliknya',
+  },
+  {
+    endpoint: '/api/admin/promos/assign-reseller',
+    method: 'POST',
+    permission: 'promo:assign_reseller',
+    description: 'Tautkan kode promo ke reseller',
+  },
+  {
+    endpoint: '/api/owner/promos/test',
+    method: 'POST',
+    permission: 'promo:test_manage',
+    description: 'Owner kelola kode promo uji',
+  },
+  {
+    endpoint: '/api/owner/test-orders/reset',
+    method: 'POST',
+    permission: 'test_orders:reset',
+    description: 'Owner reset data pesanan uji',
+  },
+  {
+    endpoint: '/api/sheets/connection',
+    method: 'PUT',
+    permission: 'sheet:manage_own',
+    getResourceContext: (user) => ({ userId: user?.id }),
+    description: 'Kelola spreadsheet milik sendiri / wilayah',
+  },
+  {
+    endpoint: '/api/owner/sheets/global',
+    method: 'POST',
+    permission: 'sheet:manage_global',
+    description: 'Owner kelola spreadsheet global',
+  },
+  {
+    endpoint: '/api/owner/settings/wa',
+    method: 'PUT',
+    permission: 'wa:settings',
+    description: 'Owner kelola pengaturan WhatsApp gateway',
+  },
+  {
+    endpoint: '/api/reports/subscribe',
+    method: 'POST',
+    permission: 'report:subscribe',
+    getResourceContext: (user) => ({ userId: user?.id }),
+    description: 'Atur langganan laporan WhatsApp',
+  },
 ];
 
 const ROLES: (AuthUser | null)[] = [
@@ -165,9 +239,10 @@ const ROLES: (AuthUser | null)[] = [
   { id: 'u-jogja', role: Role.ADMIN_WILAYAH, regionId: 'region-jogja' },
   { id: 'u-owner', role: Role.OWNER, regionId: null },
   { id: 'u-dev', role: Role.DEVELOPER, regionId: null },
+  { id: 'u-reseller', role: Role.RESELLER, regionId: 'region-pusat' },
 ];
 
-describe('Matriks RBAC Otomatis (Endpoint x Peran)', () => {
+describe('Matriks RBAC Otomatis (6 Peran + Unauthenticated)', () => {
   ENDPOINT_POLICIES.forEach((policy) => {
     describe(`${policy.method} ${policy.endpoint} — ${policy.description}`, () => {
       ROLES.forEach((user) => {
@@ -176,47 +251,73 @@ describe('Matriks RBAC Otomatis (Endpoint x Peran)', () => {
           const context = policy.getResourceContext ? policy.getResourceContext(user) : undefined;
           const allowed = can(user, policy.permission, context);
 
-          // Assertions berdasarkan wewenang yang ditetapkan di Bagian 4 plan:
+          // 1. Publik / BUYER / Unauthenticated
           if (!user || user.role === 'BUYER') {
             const isPublicEndpoint = ['catalog:view', 'order:create', 'order:track', 'advice:read'].includes(policy.permission);
             expect(allowed).toBe(isPublicEndpoint);
-          } else if (user.role === Role.ADMIN_PUSAT) {
+          }
+          // 2. ADMIN_PUSAT
+          else if (user.role === Role.ADMIN_PUSAT) {
             if (policy.permission === 'cost_price:view' || policy.permission === 'cost_price:manage') {
-              expect(allowed).toBe(false); // Admin tidak pernah boleh melihat HPP!
-            } else if (policy.permission === 'settings:manage' || policy.permission === 'reports:export') {
+              expect(allowed).toBe(false); // Admin dilarang intip HPP
+            } else if (['settings:manage', 'reports:export', 'promo:test_manage', 'test_orders:reset', 'sheet:manage_global', 'wa:settings'].includes(policy.permission)) {
               expect(allowed).toBe(false); // Khusus Owner
             } else if (policy.endpoint.includes('(wilayah lain)')) {
-              expect(allowed).toBe(false); // Tidak boleh mengelola pesanan wilayah lain
+              expect(allowed).toBe(false); // Dilarang kelola pesanan wilayah lain
             } else if (policy.permission.startsWith('system:')) {
               expect(allowed).toBe(false); // Khusus Developer
+            } else if (policy.permission === 'reseller:view_own_orders') {
+              expect(allowed).toBe(false); // Khusus Reseller
+            } else if (['catalog:view', 'advice:read', 'order:view', 'order:manage', 'order:create_cod', 'catalog:manage', 'price:manage', 'stock:manage', 'stock:view', 'promo_reseller:manage', 'promo_region:manage', 'users:manage_regional_admin', 'reseller:manage', 'promo:assign_reseller', 'sheet:manage_own', 'report:subscribe'].includes(policy.permission)) {
+              expect(allowed).toBe(true);
             }
-          } else if (user.role === Role.ADMIN_WILAYAH) {
-            if (policy.permission === 'catalog:manage' || policy.permission === 'price:manage') {
-              expect(allowed).toBe(false); // Admin Wilayah dilarang ubah katalog/harga
-            } else if (policy.permission === 'cost_price:view' || policy.permission === 'cost_price:manage') {
-              expect(allowed).toBe(false); // Dilarang lihat HPP
-            } else if (policy.endpoint.includes('(wilayah lain)')) {
-              expect(allowed).toBe(false); // Dilarang kelola wilayah lain
-            } else if (policy.permission === 'promo_reseller:manage' || policy.permission.startsWith('users:')) {
+          }
+          // 3. ADMIN_WILAYAH
+          else if (user.role === Role.ADMIN_WILAYAH) {
+            if (['catalog:manage', 'price:manage', 'cost_price:view', 'cost_price:manage', 'promo_reseller:manage', 'users:manage_regional_admin', 'users:manage_all_admins', 'reseller:manage', 'promo:assign_reseller', 'promo:test_manage', 'test_orders:reset', 'sheet:manage_global', 'wa:settings', 'reseller:view_own_orders'].includes(policy.permission)) {
               expect(allowed).toBe(false);
+            } else if (policy.endpoint.includes('wilayah lain')) {
+              expect(allowed).toBe(false); // Dilarang di wilayah lain
+            } else if (policy.permission.startsWith('system:')) {
+              expect(allowed).toBe(false);
+            } else if (['order:manage', 'stock:manage', 'order:create_cod', 'promo_region:manage', 'sheet:manage_own', 'report:subscribe'].includes(policy.permission) && !policy.endpoint.includes('wilayah lain')) {
+              expect(allowed).toBe(true);
             }
-          } else if (user.role === Role.OWNER) {
+          }
+          // 4. OWNER
+          else if (user.role === Role.OWNER) {
             if (policy.permission === 'order:manage') {
-              expect(allowed).toBe(false); // Owner tidak mengelola status pesanan langsung
+              expect(allowed).toBe(false); // Owner tidak mengelola status pesanan operasional
             } else if (policy.permission.startsWith('system:')) {
               expect(allowed).toBe(false); // Developer
-            } else {
-              // Owner boleh melihat dan mengelola sebagian besar modul bisnis
-              if (['cost_price:view', 'cost_price:manage', 'price:manage', 'settings:manage', 'reports:export'].includes(policy.permission)) {
-                expect(allowed).toBe(true);
-              }
+            } else if (policy.permission === 'reseller:view_own_orders') {
+              expect(allowed).toBe(false); // Khusus Reseller
+            } else if (['cost_price:view', 'cost_price:manage', 'price:manage', 'settings:manage', 'reports:export', 'reseller:manage', 'order:create_cod', 'promo:assign_reseller', 'promo:test_manage', 'test_orders:reset', 'sheet:manage_global', 'sheet:manage_own', 'wa:settings', 'report:subscribe', 'users:manage_all_admins'].includes(policy.permission)) {
+              expect(allowed).toBe(true);
             }
-          } else if (user.role === Role.DEVELOPER) {
+          }
+          // 5. DEVELOPER
+          else if (user.role === Role.DEVELOPER) {
             if (['system:health_manage', 'system:error_view', 'cost_price:view', 'audit:view'].includes(policy.permission)) {
               expect(allowed).toBe(true);
-            } else if (policy.permission.includes(':manage') || policy.permission === 'order:create') {
-              expect(allowed).toBe(false); // Developer DILARANG menulis data bisnis
+            } else if (policy.permission.includes(':manage') || policy.permission === 'order:create' || policy.permission === 'order:create_cod' || policy.permission === 'test_orders:reset') {
+              expect(allowed).toBe(false); // Developer dilarang menulis data bisnis
             }
+          }
+          // 6. RESELLER
+          else if (user.role === Role.RESELLER) {
+            const resellerAllowed = [
+              'catalog:view',
+              'advice:read',
+              'profile:manage_own',
+              'order:create_cod',
+              'reseller:view_own_orders',
+              'promo:view',
+              'sheet:manage_own',
+              'report:subscribe',
+            ].includes(policy.permission);
+
+            expect(allowed).toBe(resellerAllowed);
           }
         });
       });

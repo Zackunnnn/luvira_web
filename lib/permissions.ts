@@ -54,7 +54,19 @@ export type Permission =
   | 'reports:export'
   | 'audit:view'
   | 'system:health_manage'
-  | 'system:error_view';
+  | 'system:error_view'
+
+  // Fitur Tambahan (FT-0 s/d FT-6): Reseller, COD, Promo Uji, Sheets, WA
+  | 'reseller:view_own_orders'
+  | 'reseller:manage'
+  | 'order:create_cod'
+  | 'promo:assign_reseller'
+  | 'promo:test_manage'
+  | 'test_orders:reset'
+  | 'sheet:manage_own'
+  | 'sheet:manage_global'
+  | 'wa:settings'
+  | 'report:subscribe';
 
 export interface ResourceContext {
   regionId?: string | null;
@@ -77,6 +89,7 @@ const BASE_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'advice:read',
     'order:view',
     'order:manage', // Mengelola pesanan Pusat, melihat wilayah lain
+    'order:create_cod',
     'catalog:manage',
     'price:manage',
     'stock:manage', // Stok Pusat
@@ -87,9 +100,13 @@ const BASE_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'promo_reseller:manage',
     'promo_region:manage',
     'promo:view',
-    'users:manage_regional_admin', // Hanya Admin Wilayah
+    'promo:assign_reseller',
+    'reseller:manage',
+    'users:manage_regional_admin', // Hanya Admin Wilayah & Reseller
     'profile:manage_own',
     'payment_accounts:view',
+    'sheet:manage_own',
+    'report:subscribe',
   ],
 
   ADMIN_WILAYAH: [
@@ -97,6 +114,7 @@ const BASE_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'advice:read',
     'order:manage', // Hanya wilayahnya
     'order:view',
+    'order:create_cod', // COD di wilayahnya
     'stock:manage', // Hanya wilayahnya
     'stock:view',
     'advice:manage', // Hanya miliknya
@@ -104,12 +122,15 @@ const BASE_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'promo_region:manage', // Hanya wilayahnya
     'promo:view',
     'profile:manage_own',
+    'sheet:manage_own',
+    'report:subscribe',
   ],
 
   OWNER: [
     'catalog:view',
     'advice:read',
     'order:view', // Hanya melihat semua pesanan
+    'order:create_cod',
     'stock:view',
     'price:manage', // Mengatur harga jual seragam
     'cost_price:manage', // Mengatur harga modal
@@ -120,7 +141,11 @@ const BASE_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'promo_reseller:manage',
     'promo_region:manage',
     'promo:view',
-    'users:manage_all_admins', // Semua admin
+    'promo:assign_reseller',
+    'promo:test_manage',
+    'test_orders:reset',
+    'reseller:manage',
+    'users:manage_all_admins', // Semua admin & reseller
     'profile:manage_own',
     'payment_accounts:manage',
     'payment_accounts:view',
@@ -129,6 +154,10 @@ const BASE_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'reports:view_dashboard',
     'reports:export',
     'audit:view',
+    'sheet:manage_global',
+    'sheet:manage_own',
+    'wa:settings',
+    'report:subscribe',
   ],
 
   DEVELOPER: [
@@ -145,6 +174,17 @@ const BASE_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'audit:view',
     'system:health_manage',
     'system:error_view',
+  ],
+
+  RESELLER: [
+    'catalog:view',
+    'advice:read',
+    'profile:manage_own',
+    'reseller:view_own_orders',
+    'order:create_cod',
+    'promo:view',
+    'sheet:manage_own',
+    'report:subscribe',
   ],
 };
 
@@ -200,9 +240,15 @@ export function can(
       }
     }
 
-    // Mengelola akun admin: Admin Pusat HANYA boleh mengelola Admin Wilayah (bukan sesama Admin Pusat, Owner, atau Developer)
+    // Mengelola akun: Admin Pusat HANYA boleh mengelola Admin Wilayah dan Reseller (A2 tetap berlaku)
     if (permission === 'users:manage_regional_admin' && resource?.targetRole) {
-      if (resource.targetRole !== Role.ADMIN_WILAYAH) {
+      if (resource.targetRole !== Role.ADMIN_WILAYAH && resource.targetRole !== Role.RESELLER) {
+        return false;
+      }
+    }
+
+    if (permission === 'reseller:manage' && resource?.targetRole) {
+      if (resource.targetRole !== Role.RESELLER) {
         return false;
       }
     }
@@ -212,6 +258,7 @@ export function can(
   if (role === Role.DEVELOPER) {
     const writeBusinessPermissions: Permission[] = [
       'order:manage',
+      'order:create_cod',
       'catalog:manage',
       'price:manage',
       'cost_price:manage',
@@ -221,10 +268,18 @@ export function can(
       'coverage:manage',
       'promo_reseller:manage',
       'promo_region:manage',
+      'promo:assign_reseller',
+      'promo:test_manage',
+      'test_orders:reset',
+      'reseller:manage',
       'users:manage_regional_admin',
       'users:manage_all_admins',
       'payment_accounts:manage',
       'settings:manage',
+      'sheet:manage_own',
+      'sheet:manage_global',
+      'wa:settings',
+      'report:subscribe',
     ];
     if (writeBusinessPermissions.includes(permission)) {
       return false;
@@ -234,6 +289,19 @@ export function can(
   // 4. Owner: Hanya melihat pesanan (tidak mengelola langsung di alur admin)
   if (role === Role.OWNER && permission === 'order:manage') {
     return false;
+  }
+
+  // 5. Reseller: Hanya untuk sumber daya miliknya sendiri
+  if (role === Role.RESELLER) {
+    if (permission === 'sheet:manage_own' && resource?.userId) {
+      if (resource.userId !== user.id) return false;
+    }
+    if (permission === 'report:subscribe' && resource?.userId) {
+      if (resource.userId !== user.id) return false;
+    }
+    if (permission === 'reseller:view_own_orders' && resource?.userId) {
+      if (resource.userId !== user.id) return false;
+    }
   }
 
   return true;
@@ -284,4 +352,46 @@ export function maskProductCost<T extends Record<string, any>>(
   }
 
   return clone;
+}
+
+
+/**
+ * Helper Masking Data Pelanggan untuk Reseller (Asumsi F4):
+ * Menyamarkan nama, nomor telepon/WhatsApp, email, dan alamat detail.
+ */
+export function maskCustomerData<T extends Record<string, any>>(data: T): T {
+  const clone: any = { ...data };
+
+  if (typeof clone.customerName === 'string' && clone.customerName.trim().length > 0) {
+    const parts = clone.customerName.trim().split(/\s+/);
+    clone.customerName = parts.map((p: string) => (p.length > 1 ? p[0] + '*'.repeat(p.length - 1) : p + '*')).join(' ');
+  }
+
+  if (typeof clone.customerPhone === 'string' && clone.customerPhone.length > 4) {
+    const p = clone.customerPhone;
+    const start = p.slice(0, 4);
+    const end = p.slice(-3);
+    clone.customerPhone = `${start}${'*'.repeat(Math.max(3, p.length - 7))}${end}`;
+  }
+
+  if (typeof clone.customerEmail === 'string' && clone.customerEmail.includes('@')) {
+    const [userPart, domain] = clone.customerEmail.split('@');
+    clone.customerEmail = `${userPart[0]}***@${domain}`;
+  }
+
+  if (typeof clone.customerAddress === 'string') {
+    clone.customerAddress = '[Alamat disamarkan untuk privasi]';
+  }
+
+  return clone;
+}
+
+export function maskOrderForReseller<T extends Record<string, any>>(
+  user: AuthUser | null | undefined,
+  order: T
+): T {
+  if (user?.role !== Role.RESELLER) {
+    return order;
+  }
+  return maskCustomerData(order);
 }

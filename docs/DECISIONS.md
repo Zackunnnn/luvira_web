@@ -65,3 +65,16 @@ Dokumen ini mencatat keputusan-keputusan teknis, penyelarasan antar dokumen, ser
 - **Keputusan**: Developer hanya diberikan wewenang `system:health_manage`, `system:error_view`, `audit:view`, dan `settings:view`. Developer dilarang keras mengubah status pesanan (`order:manage`), mengubah stok (`stock:manage`), atau mengubah harga modal/jual (`cost_price:manage`, `price:manage`). Setiap percobaan mutasi bisnis oleh Developer ditolak HTTP 403 Forbidden.
 - **Alasan**: Menjaga integritas data bisnis dan pemisahan tugas (*Separation of Concerns*) sesuai Bagian 4 dan 11 Plan.
 
+
+---
+
+## D-08: Paket Fitur Tambahan (F1 - F9)
+- **F1**: COD hanya lewat pesanan manual buatan Admin/Reseller, tidak tampil di checkout publik; ongkir dipaksa 0 oleh server.
+- **F2**: Pendapatan COD dihitung saat status selesai (`SELESAI`).
+- **F3**: Reseller menandai "diserahkan"; Admin wilayah penangan menandai "uang diterima" dan menyelesaikan.
+- **F4**: Reseller melihat data pelanggan yang disamarkan; tidak melihat HPP/stok/kode promo orang lain.
+- **F5**: Kode promo uji hanya dibuat Owner, nonaktif di produksi secara bawaan, pesanan uji dikeluarkan dari semua laporan.
+- **F6**: Spreadsheet = cermin satu arah (sinkronisasi menimpa lembar sheet).
+- **F7**: Wilayah pemenuhan COD reseller = wilayah pada akun reseller (bawaan Pusat).
+- **F8**: Owner dan Admin Pusat boleh membuat akun Reseller dan menautkan kode promo; tanpa komisi.
+- **F9**: Lampiran laporan lewat tautan file bertoken berumur singkat (15 menit); bawaan teks ringkas + tautan.
