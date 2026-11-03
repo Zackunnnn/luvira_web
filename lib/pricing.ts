@@ -6,6 +6,7 @@
 // Seluruh total belanja, PPN 11%, diskon promo, dan ongkir WAJIB dihitung ulang
 // secara mutlak di sisi server menggunakan data resmi dari Database.
 // Nilai totalPrice dari payload client TIDAK BOLEH dipercaya secara mentah.
+// Mendukung dual-promo: Promo 1 (Reseller/Umum) + Promo 2 (Diskon Tambahan/Voucher).
 // ============================================================================
 
 import { PrismaClient } from '@prisma/client';
@@ -18,6 +19,16 @@ export interface PricingItemInput {
   quantity: number;
 }
 
+export interface PromoAppliedSummary {
+  id: string;
+  code: string;
+  discountType: string;
+  discountValue: number;
+  discountAmount?: number;
+  isFreeShipping: boolean;
+  isFreeTax: boolean;
+}
+
 export interface ServerPricingResult {
   subtotal: number;
   discountAmount: number;
@@ -25,14 +36,9 @@ export interface ServerPricingResult {
   ppnAmount: number;
   shippingCost: number;
   totalPrice: number;
-  promoApplied: {
-    id: string;
-    code: string;
-    discountType: string;
-    discountValue: number;
-    isFreeShipping: boolean;
-    isFreeTax: boolean;
-  } | null;
+  promoApplied: PromoAppliedSummary | null;
+  secondPromoApplied?: PromoAppliedSummary | null;
+  promosApplied?: PromoAppliedSummary[];
   itemsBreakdown: {
     productId: string;
     variantId: string;
@@ -82,20 +88,27 @@ export const DEFAULT_SHIPPING_COST = 6000;
 
 /**
  * Fungsi kalkulasi murni (Pure Function) untuk kalkulasi harga server & unit testing
+ * Mendukung slot promo tunggal maupun ganda (dual-promo: promo & secondPromo, atau array promos)
  */
 export function calculatePricingPure({
   items,
   productsMap,
-  promo,
+  promo = null,
+  secondPromo = null,
+  promos = null,
   shippingCourier,
   shippingCost: customShippingCost,
+  maxDiscountPercentSetting,
   now = new Date(),
 }: {
   items: PricingItemInput[];
   productsMap: Map<string, ProductDataForCalculation>;
-  promo: PromoDataForCalculation | null;
+  promo?: PromoDataForCalculation | null;
+  secondPromo?: PromoDataForCalculation | null;
+  promos?: PromoDataForCalculation[] | null;
   shippingCourier?: string | null;
   shippingCost?: number | null;
+  maxDiscountPercentSetting?: number | null;
   now?: Date;
 }): ServerPricingResult {
   // 1. Hitung Subtotal berdasarkan harga database resmi
@@ -120,48 +133,77 @@ export function calculatePricingPure({
     };
   });
 
-  // 2. Validasi Kode Promo
+  // 2. Validasi & Kalkulasi Kode Promo (Mendukung Slot 1 & Slot 2)
   let discountAmount = 0;
-  let promoApplied: ServerPricingResult['promoApplied'] = null;
-
-  if (promo) {
-    const isNotExpired = !promo.expiresAt || new Date(promo.expiresAt).getTime() > now.getTime();
-    const hasQuota = promo.quota <= 0 || promo.usedCount < promo.quota;
-
-    if (promo.isActive && isNotExpired && hasQuota) {
-      const dType = (promo.discountType || '').toLowerCase();
-      if (dType === 'percentage' || dType === 'persen') {
-        discountAmount = Math.round((subtotal * promo.discountValue) / 100);
-        if (promo.maxDiscountAmount && promo.maxDiscountAmount > 0 && discountAmount > promo.maxDiscountAmount) {
-          discountAmount = promo.maxDiscountAmount;
-        }
-      } else {
-        discountAmount = promo.discountValue;
+  const promoList: PromoDataForCalculation[] = [];
+  if (Array.isArray(promos)) {
+    for (const p of promos) {
+      if (p && !promoList.some((existing) => existing.id === p.id || existing.code === p.code)) {
+        promoList.push(p);
       }
-
-      // Diskon tidak boleh melebihi subtotal
-      discountAmount = Math.min(discountAmount, subtotal);
-
-      promoApplied = {
-        id: promo.id,
-        code: promo.code,
-        discountType: promo.discountType,
-        discountValue: promo.discountValue,
-        isFreeShipping: promo.isFreeShipping,
-        isFreeTax: promo.isFreeTax,
-      };
+    }
+  } else {
+    if (promo) promoList.push(promo);
+    if (secondPromo && (!promo || (secondPromo.id !== promo.id && secondPromo.code.toUpperCase() !== promo.code.toUpperCase()))) {
+      promoList.push(secondPromo);
     }
   }
+
+  const appliedPromos: PromoAppliedSummary[] = [];
+  let isFreeShipping = false;
+  let isFreeTax = false;
+
+  for (const p of promoList) {
+    const isNotExpired = !p.expiresAt || new Date(p.expiresAt).getTime() > now.getTime();
+    const hasQuota = p.quota <= 0 || p.usedCount < p.quota;
+
+    if (p.isActive && isNotExpired && hasQuota) {
+      let promoDisc = 0;
+      const dType = (p.discountType || '').toLowerCase();
+      if (dType === 'percentage' || dType === 'persen') {
+        promoDisc = Math.round((subtotal * p.discountValue) / 100);
+        if (p.maxDiscountAmount && p.maxDiscountAmount > 0 && promoDisc > p.maxDiscountAmount) {
+          promoDisc = p.maxDiscountAmount;
+        }
+      } else {
+        promoDisc = p.discountValue;
+      }
+
+      discountAmount += promoDisc;
+      if (p.isFreeShipping) isFreeShipping = true;
+      if (p.isFreeTax) isFreeTax = true;
+
+      appliedPromos.push({
+        id: p.id,
+        code: p.code,
+        discountType: p.discountType,
+        discountValue: p.discountValue,
+        discountAmount: promoDisc,
+        isFreeShipping: p.isFreeShipping,
+        isFreeTax: p.isFreeTax,
+      });
+    }
+  }
+
+  // Cap maksimum diskon persentase dari setting sistem jika diatur
+  if (typeof maxDiscountPercentSetting === 'number' && maxDiscountPercentSetting > 0) {
+    const maxAllowedDiscount = Math.round((subtotal * maxDiscountPercentSetting) / 100);
+    discountAmount = Math.min(discountAmount, maxAllowedDiscount);
+  }
+
+  // Diskon akumulasi tidak boleh melebihi subtotal
+  discountAmount = Math.min(discountAmount, subtotal);
+
+  const promoApplied = appliedPromos[0] || null;
+  const secondPromoApplied = appliedPromos[1] || null;
 
   // 3. Hitung Net Price
   const netPrice = Math.max(0, subtotal - discountAmount);
 
   // 4. Hitung PPN 11% dari Net
-  const isFreeTax = promoApplied?.isFreeTax || false;
   const ppnAmount = isFreeTax ? 0 : Math.round((netPrice * PPN_PERCENTAGE) / 100);
 
   // 5. Hitung Ongkir
-  const isFreeShipping = promoApplied?.isFreeShipping || false;
   let shippingCost = 0;
   if (!isFreeShipping) {
     if (typeof customShippingCost === 'number' && customShippingCost >= 0) {
@@ -182,18 +224,22 @@ export function calculatePricingPure({
     shippingCost,
     totalPrice,
     promoApplied,
+    secondPromoApplied,
+    promosApplied: appliedPromos,
     itemsBreakdown,
   };
 }
 
 /**
  * Menghitung harga pesanan resmi di server dengan membaca database
+ * Mendukung dual promo (promoCodeId dan secondPromoCodeId)
  */
 export async function calculateOrderPricing(
   prisma: PrismaClient,
   items: PricingItemInput[],
   promoCodeId?: string | null,
-  shippingCourier?: string | null
+  shippingCourier?: string | null,
+  secondPromoCodeId?: string | null
 ): Promise<ServerPricingResult> {
   if (!items || items.length === 0) {
     throw new Error('Keranjang belanja kosong.');
@@ -215,7 +261,7 @@ export async function calculateOrderPricing(
     });
   });
 
-  // 2. Fetch promo jika ada
+  // 2. Fetch promo 1 jika ada
   let promoData: PromoDataForCalculation | null = null;
   if (promoCodeId) {
     const dbPromo = await prisma.promoCode.findUnique({
@@ -238,10 +284,34 @@ export async function calculateOrderPricing(
     }
   }
 
+  // 3. Fetch promo 2 jika ada
+  let secondPromoData: PromoDataForCalculation | null = null;
+  if (secondPromoCodeId && secondPromoCodeId !== promoCodeId) {
+    const dbSecondPromo = await prisma.promoCode.findUnique({
+      where: { id: secondPromoCodeId },
+    });
+    if (dbSecondPromo) {
+      secondPromoData = {
+        id: dbSecondPromo.id,
+        code: dbSecondPromo.code,
+        discountType: dbSecondPromo.discountType,
+        discountValue: dbSecondPromo.discountValue,
+        maxDiscountAmount: dbSecondPromo.maxDiscountAmount,
+        quota: dbSecondPromo.quota,
+        usedCount: dbSecondPromo.usedCount,
+        expiresAt: dbSecondPromo.expiresAt,
+        isActive: dbSecondPromo.isActive,
+        isFreeShipping: dbSecondPromo.isFreeShipping,
+        isFreeTax: dbSecondPromo.isFreeTax,
+      };
+    }
+  }
+
   return calculatePricingPure({
     items,
     productsMap,
     promo: promoData,
+    secondPromo: secondPromoData,
     shippingCourier,
   });
 }

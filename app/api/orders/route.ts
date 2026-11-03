@@ -56,6 +56,7 @@ export async function POST(request: NextRequest) {
     const shippingCourier = body.shippingCourier || body.shipping?.courier;
     const shippingCost = body.shippingCost !== undefined ? body.shippingCost : (body.shipping?.cost ?? 0);
     let promoCodeId = body.promoCodeId || body.promoCode || body.code;
+    const secondPromoCodeId = body.secondPromoCodeId || body.secondPromoCode || body.secondaryPromoCode;
 
     // Validasi penolakan COD di checkout publik (Asumsi F1)
     if (paymentMethod === 'COD' || paymentMethod === PaymentMethod.COD) {
@@ -139,6 +140,7 @@ export async function POST(request: NextRequest) {
       })),
       paymentMethod: resolvedPaymentMethod,
       promoCodeId,
+      secondPromoCodeId,
       shippingCourier,
       shippingCost,
       isTest: isTestPromo,

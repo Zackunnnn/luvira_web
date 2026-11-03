@@ -266,3 +266,4 @@ export function LocationsTab({ user }: { user: any }) {
     </div>
   );
 }
+

@@ -25,6 +25,8 @@ export async function POST(request: NextRequest) {
       customerAddress,
       items,
       promoCode,
+      secondPromoCode,
+      secondaryPromoCode,
       note,
       notes,
       regionId,
@@ -45,6 +47,7 @@ export async function POST(request: NextRequest) {
       handoverLocation: handoverLocation || customerAddress,
       items: normalizedItems,
       promoCode,
+      secondPromoCode: secondPromoCode || secondaryPromoCode,
       note: note || notes,
       targetRegionId: regionId,
     });

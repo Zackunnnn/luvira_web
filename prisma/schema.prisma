@@ -292,7 +292,9 @@ model Order {
   courierService     String?          // "REG", "OKE", "YES"
   trackingNumber     String?          // Nomor resi pengiriman
   promoCodeId        String?
-  promoCode          PromoCode?       @relation(fields: [promoCodeId], references: [id])
+  promoCode          PromoCode?       @relation("OrderPrimaryPromoCode", fields: [promoCodeId], references: [id])
+  secondPromoCodeId  String?
+  secondPromoCode    PromoCode?       @relation("OrderSecondaryPromoCode", fields: [secondPromoCodeId], references: [id])
   midtransOrderId    String?
   midtransToken      String?          @db.Text
   expiresAt          DateTime
@@ -321,6 +323,8 @@ model Order {
   @@index([customerPhone])
   @@index([code])
   @@index([createdAt])
+  @@index([promoCodeId])
+  @@index([secondPromoCodeId])
 }
 
 model OrderItem {
@@ -427,7 +431,8 @@ model PromoCode {
   createdAt         DateTime     @default(now())
   updatedAt         DateTime     @updatedAt
 
-  orders            Order[]
+  orders            Order[]          @relation("OrderPrimaryPromoCode")
+  secondaryOrders   Order[]          @relation("OrderSecondaryPromoCode")
 
   @@index([code])
   @@index([regionId])

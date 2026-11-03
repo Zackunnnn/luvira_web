@@ -55,6 +55,7 @@ export async function GET(request: NextRequest) {
         items: true,
         region: { select: { id: true, name: true, code: true } },
         promoCode: { select: { code: true } },
+        secondPromoCode: { select: { code: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -74,6 +75,8 @@ export async function GET(request: NextRequest) {
       shippingCost: o.shippingCost,
       totalPrice: o.totalPrice,
       promoCode: o.promoCode?.code || null,
+      secondPromoCode: o.secondPromoCode?.code || null,
+      promoCodesCombined: [o.promoCode?.code, o.secondPromoCode?.code].filter(Boolean).join(' + ') || null,
       items: o.items.map((i) => ({
         productName: i.productName,
         variantName: i.variantName,

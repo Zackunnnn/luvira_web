@@ -208,6 +208,7 @@ export interface CreateOrderParams {
   }>;
   paymentMethod: PaymentMethod;
   promoCodeId?: string;
+  secondPromoCodeId?: string;
   shippingCourier?: string;
   shippingCost?: number;
   waConsent?: boolean;
@@ -258,7 +259,7 @@ export async function createOrderWithAtomicReservation(params: CreateOrderParams
     }
   }
 
-  // C. Validasi promo di server jika ada
+  // C. Validasi promo di server jika ada (Slot 1 & Slot 2)
   let promoData: PromoDataForCalculation | null = null;
   if (params.promoCodeId) {
     const promo = await prisma.promoCode.findUnique({
@@ -285,6 +286,31 @@ export async function createOrderWithAtomicReservation(params: CreateOrderParams
     }
   }
 
+  let secondPromoData: PromoDataForCalculation | null = null;
+  if (params.secondPromoCodeId && params.secondPromoCodeId !== params.promoCodeId) {
+    const secondPromo = await prisma.promoCode.findUnique({
+      where: { id: params.secondPromoCodeId },
+    });
+    if (secondPromo) {
+      if (secondPromo.type === 'WILAYAH' && secondPromo.regionId && secondPromo.regionId !== handlingRegion.id) {
+        throw new Error('Kode promo tambahan wilayah ini tidak berlaku untuk pengiriman wilayah Anda.');
+      }
+      secondPromoData = {
+        id: secondPromo.id,
+        code: secondPromo.code,
+        discountType: secondPromo.discountType,
+        discountValue: secondPromo.discountValue,
+        maxDiscountAmount: secondPromo.maxDiscountAmount,
+        quota: secondPromo.quota,
+        usedCount: secondPromo.usedCount,
+        expiresAt: secondPromo.expiresAt,
+        isActive: secondPromo.isActive,
+        isFreeShipping: secondPromo.isFreeShipping,
+        isFreeTax: secondPromo.isFreeTax,
+      };
+    }
+  }
+
   // D. Hitung harga resmi server
   const pricingInputItems = params.items.map((item) => ({
     product: { id: item.productId },
@@ -296,6 +322,7 @@ export async function createOrderWithAtomicReservation(params: CreateOrderParams
     items: pricingInputItems,
     productsMap,
     promo: promoData,
+    secondPromo: secondPromoData,
     shippingCourier: params.shippingCourier,
     shippingCost: params.shippingCost,
   });
@@ -374,8 +401,15 @@ export async function createOrderWithAtomicReservation(params: CreateOrderParams
       });
     }
 
-    // 2. Potong kuota promo jika promo dipakai
-    if (pricing.promoApplied) {
+    // 2. Potong kuota promo jika promo dipakai (Slot 1 & Slot 2)
+    if (pricing.promosApplied && pricing.promosApplied.length > 0) {
+      for (const applied of pricing.promosApplied) {
+        await tx.promoCode.update({
+          where: { id: applied.id },
+          data: { usedCount: { increment: 1 } },
+        });
+      }
+    } else if (pricing.promoApplied) {
       await tx.promoCode.update({
         where: { id: pricing.promoApplied.id },
         data: { usedCount: { increment: 1 } },
@@ -406,6 +440,7 @@ export async function createOrderWithAtomicReservation(params: CreateOrderParams
         createdByUserId: params.createdByUserId || null,
         createdByRole: (params.createdByRole as any) || null,
         promoCodeId: pricing.promoApplied?.id || null,
+        secondPromoCodeId: pricing.secondPromoApplied?.id || null,
         expiresAt,
         items: {
           create: params.items.map((item) => {

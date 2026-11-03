@@ -232,10 +232,16 @@ export async function PUT(
             }
           }
 
-          // Kembalikan kuota promo jika ada
+          // Kembalikan kuota promo jika ada (Slot 1 & Slot 2)
           if (order.promoCodeId) {
             await tx.promoCode.update({
               where: { id: order.promoCodeId },
+              data: { usedCount: { decrement: 1 } },
+            });
+          }
+          if (order.secondPromoCodeId) {
+            await tx.promoCode.update({
+              where: { id: order.secondPromoCodeId },
               data: { usedCount: { decrement: 1 } },
             });
           }

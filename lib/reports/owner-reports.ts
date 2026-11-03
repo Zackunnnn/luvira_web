@@ -29,6 +29,8 @@ export interface OrderFinancialRecord {
   shippingCost: number;
   totalPrice: number;
   promoCode?: string | null;
+  secondPromoCode?: string | null;
+  promoCodesCombined?: string | null;
   items: OrderItemSnapshot[];
 }
 
@@ -221,12 +223,21 @@ export function calculatePromoUsage(orders: OrderFinancialRecord[]): PromoUsageS
   const promoMap: Record<string, { count: number; totalDiscount: number }> = {};
 
   for (const order of settledOrders) {
-    if (order.promoCode && order.discountAmount > 0) {
-      if (!promoMap[order.promoCode]) {
-        promoMap[order.promoCode] = { count: 0, totalDiscount: 0 };
+    if (order.discountAmount > 0) {
+      const activePromos = [order.promoCode, order.secondPromoCode].filter(Boolean) as string[];
+      if (activePromos.length === 1) {
+        const code = activePromos[0];
+        if (!promoMap[code]) promoMap[code] = { count: 0, totalDiscount: 0 };
+        promoMap[code].count += 1;
+        promoMap[code].totalDiscount += order.discountAmount;
+      } else if (activePromos.length > 1) {
+        const splitDiscount = Math.round(order.discountAmount / activePromos.length);
+        for (const code of activePromos) {
+          if (!promoMap[code]) promoMap[code] = { count: 0, totalDiscount: 0 };
+          promoMap[code].count += 1;
+          promoMap[code].totalDiscount += splitDiscount;
+        }
       }
-      promoMap[order.promoCode].count += 1;
-      promoMap[order.promoCode].totalDiscount += order.discountAmount;
     }
   }
 

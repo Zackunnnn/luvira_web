@@ -37,11 +37,17 @@ export default function CreateManualOrderForm({ backUrl = '/dashboard/admin' }: 
     { productId: '', variantId: '', quantity: 1 },
   ]);
 
-  // Promo State
+  // Promo State - Slot 1 (Utama / Reseller)
   const [promoCodeInput, setPromoCodeInput] = useState('');
   const [appliedPromo, setAppliedPromo] = useState<any>(null);
   const [validatingPromo, setValidatingPromo] = useState(false);
   const [promoError, setPromoError] = useState<string | null>(null);
+
+  // Promo State - Slot 2 (Tambahan / Diskon Ekstra)
+  const [secondPromoInput, setSecondPromoInput] = useState('');
+  const [secondAppliedPromo, setSecondAppliedPromo] = useState<any>(null);
+  const [validatingSecondPromo, setValidatingSecondPromo] = useState(false);
+  const [secondPromoError, setSecondPromoError] = useState<string | null>(null);
 
   // Submission State
   const [submitting, setSubmitting] = useState(false);
@@ -80,27 +86,42 @@ export default function CreateManualOrderForm({ backUrl = '/dashboard/admin' }: 
     return acc + (p?.price || 0) * (row.quantity || 1);
   }, 0);
 
-  // Hitung Diskon
+  // Hitung Diskon Slot 1 & Slot 2
   let discountAmount = 0;
-  if (appliedPromo) {
-    const dType = (appliedPromo.discountType || '').toLowerCase();
+  let isFreeTax = false;
+
+  const calculateSingleDiscount = (promo: any, currentSubtotal: number) => {
+    if (!promo) return 0;
+    const dType = (promo.discountType || '').toLowerCase();
+    let d = 0;
     if (dType === 'percentage' || dType === 'persen') {
-      discountAmount = Math.round((baseSubtotal * appliedPromo.discountValue) / 100);
-      const maxD = appliedPromo.maxDiscount || appliedPromo.maxDiscountAmount;
-      if (maxD && discountAmount > maxD) {
-        discountAmount = maxD;
+      d = Math.round((currentSubtotal * promo.discountValue) / 100);
+      const maxD = promo.maxDiscount || promo.maxDiscountAmount;
+      if (maxD && d > maxD) {
+        d = maxD;
       }
     } else {
-      discountAmount = Math.min(baseSubtotal, appliedPromo.discountValue);
+      d = promo.discountValue;
     }
+    return d;
+  };
+
+  if (appliedPromo) {
+    discountAmount += calculateSingleDiscount(appliedPromo, baseSubtotal);
+    if (appliedPromo.isFreeTax) isFreeTax = true;
   }
+  if (secondAppliedPromo) {
+    discountAmount += calculateSingleDiscount(secondAppliedPromo, baseSubtotal);
+    if (secondAppliedPromo.isFreeTax) isFreeTax = true;
+  }
+  discountAmount = Math.min(baseSubtotal, discountAmount);
 
   const netPrice = Math.max(0, baseSubtotal - discountAmount);
-  const ppnAmount = appliedPromo?.isFreeTax ? 0 : Math.round(netPrice * 0.11);
+  const ppnAmount = isFreeTax ? 0 : Math.round(netPrice * 0.11);
   const shippingCost = 0; // Forced Rp 0 COD
   const totalPrice = netPrice + ppnAmount + shippingCost;
 
-  // Handler Terapkan Promo
+  // Handler Terapkan Promo Slot 1
   const handleApplyPromo = async () => {
     if (!promoCodeInput.trim()) return;
     setValidatingPromo(true);
@@ -125,6 +146,38 @@ export default function CreateManualOrderForm({ backUrl = '/dashboard/admin' }: 
       setPromoError('Gagal memvalidasi kode promo.');
     } finally {
       setValidatingPromo(false);
+    }
+  };
+
+  // Handler Terapkan Promo Slot 2 (Tambahan / Diskon Ekstra)
+  const handleApplySecondPromo = async () => {
+    if (!secondPromoInput.trim()) return;
+    if (appliedPromo && appliedPromo.code.toUpperCase() === secondPromoInput.trim().toUpperCase()) {
+      setSecondPromoError('Kode promo slot 2 tidak boleh sama dengan kode promo slot 1.');
+      return;
+    }
+    setValidatingSecondPromo(true);
+    setSecondPromoError(null);
+    try {
+      const res = await fetch('/api/promos/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: secondPromoInput.trim(),
+          subtotal: baseSubtotal,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setSecondAppliedPromo(data.data);
+      } else {
+        setSecondPromoError(data.error || 'Kode promo tambahan tidak valid.');
+        setSecondAppliedPromo(null);
+      }
+    } catch {
+      setSecondPromoError('Gagal memvalidasi kode promo tambahan.');
+    } finally {
+      setValidatingSecondPromo(false);
     }
   };
 
@@ -186,6 +239,7 @@ export default function CreateManualOrderForm({ backUrl = '/dashboard/admin' }: 
           handoverLocation: handoverLocation.trim() || undefined,
           note: note.trim() || undefined,
           promoCode: appliedPromo?.code || undefined,
+          secondPromoCode: secondAppliedPromo?.code || undefined,
           items: items.map((i) => ({
             productId: i.productId,
             variantId: i.variantId,
@@ -485,52 +539,111 @@ export default function CreateManualOrderForm({ backUrl = '/dashboard/admin' }: 
 
         {/* Kolom Kanan: Kupon Promo, Ringkasan, & Tombol Submit */}
         <div className="lg:col-span-5 space-y-5">
-          {/* Kupon Promo */}
-          <div className="p-5 bg-white rounded-3xl border border-stone-200 shadow-xs space-y-3">
-            <h2 className="text-sm font-bold text-stone-900 flex items-center gap-2">
-              <Tag className="w-4 h-4 text-[#14532d]" />
-              Kode Promo (Opsional)
-            </h2>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                id="input-manual-promo"
-                placeholder="Masukkan kode promo"
-                value={promoCodeInput}
-                onChange={(e) => {
-                  setPromoCodeInput(e.target.value.toUpperCase());
-                  setPromoError(null);
-                }}
-                className="flex-1 px-3.5 py-2 rounded-xl border border-stone-200 text-xs uppercase font-mono font-bold outline-none"
-              />
-              <button
-                type="button"
-                id="btn-apply-manual-promo"
-                disabled={validatingPromo || !promoCodeInput.trim()}
-                onClick={handleApplyPromo}
-                className="px-3.5 py-2 bg-stone-800 hover:bg-stone-900 text-white rounded-xl text-xs font-bold disabled:opacity-50 transition-colors"
-              >
-                {validatingPromo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Terapkan'}
-              </button>
+          {/* Kupon Promo: Slot 1 (Utama/Reseller) & Slot 2 (Tambahan/Diskon) */}
+          <div className="p-5 bg-white rounded-3xl border border-stone-200 shadow-xs space-y-4">
+            {/* Slot 1 */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5 text-[#14532d]" />
+                  Slot 1: Kode Promo Utama (Reseller / COD)
+                </h2>
+                {appliedPromo && (
+                  <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
+                    Aktif
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  id="input-manual-promo"
+                  placeholder="Kode promo utama (cth: COD-RESELLER)"
+                  value={promoCodeInput}
+                  disabled={Boolean(appliedPromo)}
+                  onChange={(e) => {
+                    setPromoCodeInput(e.target.value.toUpperCase());
+                    setPromoError(null);
+                  }}
+                  className="flex-1 px-3 py-2 rounded-xl border border-stone-200 text-xs uppercase font-mono font-bold outline-none disabled:bg-stone-50"
+                />
+                {appliedPromo ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setAppliedPromo(null);
+                      setPromoCodeInput('');
+                    }}
+                    className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition-colors"
+                  >
+                    Hapus
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    id="btn-apply-manual-promo"
+                    disabled={validatingPromo || !promoCodeInput.trim()}
+                    onClick={handleApplyPromo}
+                    className="px-3.5 py-2 bg-stone-800 hover:bg-stone-900 text-white rounded-xl text-xs font-bold disabled:opacity-50 transition-colors"
+                  >
+                    {validatingPromo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Terapkan'}
+                  </button>
+                )}
+              </div>
+              {promoError && <p className="text-xs text-rose-600 font-medium">{promoError}</p>}
             </div>
 
-            {promoError && <p className="text-xs text-rose-600 font-medium">{promoError}</p>}
-
-            {appliedPromo && (
-              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs text-emerald-800 flex items-center justify-between">
-                <span className="font-bold">Kode {appliedPromo.code} aktif!</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setAppliedPromo(null);
-                    setPromoCodeInput('');
-                  }}
-                  className="text-stone-500 hover:text-stone-800 underline text-[11px]"
-                >
-                  Hapus
-                </button>
+            <div className="border-t border-stone-100 pt-3 space-y-2">
+              {/* Slot 2 */}
+              <div className="flex items-center justify-between">
+                <h2 className="text-xs font-bold text-stone-900 flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5 text-teal-700" />
+                  Slot 2: Kode Promo Tambahan / Voucher Diskon
+                </h2>
+                {secondAppliedPromo && (
+                  <span className="text-[10px] bg-teal-100 text-teal-800 font-bold px-2 py-0.5 rounded-full">
+                    Aktif
+                  </span>
+                )}
               </div>
-            )}
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  id="input-manual-promo-2"
+                  placeholder="Kode diskon tambahan (opsional)"
+                  value={secondPromoInput}
+                  disabled={Boolean(secondAppliedPromo)}
+                  onChange={(e) => {
+                    setSecondPromoInput(e.target.value.toUpperCase());
+                    setSecondPromoError(null);
+                  }}
+                  className="flex-1 px-3 py-2 rounded-xl border border-stone-200 text-xs uppercase font-mono font-bold outline-none disabled:bg-stone-50"
+                />
+                {secondAppliedPromo ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSecondAppliedPromo(null);
+                      setSecondPromoInput('');
+                    }}
+                    className="px-3 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-bold transition-colors"
+                  >
+                    Hapus
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    id="btn-apply-manual-promo-2"
+                    disabled={validatingSecondPromo || !secondPromoInput.trim()}
+                    onClick={handleApplySecondPromo}
+                    className="px-3.5 py-2 bg-stone-800 hover:bg-stone-900 text-white rounded-xl text-xs font-bold disabled:opacity-50 transition-colors"
+                  >
+                    {validatingSecondPromo ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : 'Terapkan'}
+                  </button>
+                )}
+              </div>
+              {secondPromoError && <p className="text-xs text-rose-600 font-medium">{secondPromoError}</p>}
+            </div>
           </div>
 
           {/* Ringkasan Biaya COD */}

@@ -74,10 +74,16 @@ async function handleExpireOrders(request: NextRequest) {
           }
         }
 
-        // B. Kembalikan kuota promo
+        // B. Kembalikan kuota promo (Slot 1 & Slot 2)
         if (order.promoCodeId) {
           await tx.promoCode.update({
             where: { id: order.promoCodeId },
+            data: { usedCount: { decrement: 1 } },
+          });
+        }
+        if (order.secondPromoCodeId) {
+          await tx.promoCode.update({
+            where: { id: order.secondPromoCodeId },
             data: { usedCount: { decrement: 1 } },
           });
         }

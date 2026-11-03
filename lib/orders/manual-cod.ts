@@ -26,12 +26,13 @@ export interface CreateManualCodOrderInput {
     quantity: number;
   }>;
   promoCode?: string;
+  secondPromoCode?: string;
   note?: string;
   targetRegionId?: string;
 }
 
 export async function createManualCodOrder(params: CreateManualCodOrderInput) {
-  const { creator, customerName, customerPhone, handoverLocation, items, promoCode, note, targetRegionId } = params;
+  const { creator, customerName, customerPhone, handoverLocation, items, promoCode, secondPromoCode, note, targetRegionId } = params;
 
   // 1. Validasi Input Dasar
   if (!customerName?.trim() || !customerPhone?.trim()) {
@@ -143,8 +144,12 @@ export async function createManualCodOrder(params: CreateManualCodOrderInput) {
     }
   }
 
-  // 5. Validasi Kode Promo (Bila Ada)
+  // 5. Validasi Kode Promo (Mendukung Slot 1 & Slot 2)
   let promoData: PromoDataForCalculation | null = null;
+  let secondPromoData: PromoDataForCalculation | null = null;
+  const now = new Date();
+
+  // Validasi Promo 1
   if (promoCode && promoCode.trim().length > 0) {
     const dbPromo = await prisma.promoCode.findUnique({
       where: { code: promoCode.trim().toUpperCase() },
@@ -153,25 +158,18 @@ export async function createManualCodOrder(params: CreateManualCodOrderInput) {
     if (!dbPromo) {
       throw new Error(`Kode promo "${promoCode}" tidak ditemukan.`);
     }
-
     if (!dbPromo.isActive) {
       throw new Error('Kode promo sudah tidak aktif.');
     }
-
-    const now = new Date();
     if (dbPromo.expiresAt && dbPromo.expiresAt < now) {
       throw new Error('Kode promo sudah kedaluwarsa.');
     }
-
     if (dbPromo.quota > 0 && dbPromo.usedCount >= dbPromo.quota) {
       throw new Error('Kuota kode promo sudah habis.');
     }
-
     if (dbPromo.type === 'WILAYAH' && dbPromo.regionId && dbPromo.regionId !== fulfillmentRegionId) {
       throw new Error('Kode promo wilayah ini tidak berlaku untuk wilayah pemenuhan pesanan ini.');
     }
-
-    // F4: Reseller hanya boleh memakai kode promo miliknya atau promo umum
     if (creator.role === Role.RESELLER && dbPromo.resellerId && dbPromo.resellerId !== creator.id) {
       throw new Error('Reseller tidak dapat menggunakan kode promo milik reseller lain.');
     }
@@ -191,6 +189,51 @@ export async function createManualCodOrder(params: CreateManualCodOrderInput) {
     };
   }
 
+  // Validasi Promo 2 (Diskon Tambahan / Voucher)
+  if (secondPromoCode && secondPromoCode.trim().length > 0) {
+    const cleanSecondCode = secondPromoCode.trim().toUpperCase();
+    if (promoData && promoData.code === cleanSecondCode) {
+      throw new Error('Kode promo slot 2 tidak boleh sama dengan kode promo slot 1.');
+    }
+
+    const dbSecond = await prisma.promoCode.findUnique({
+      where: { code: cleanSecondCode },
+    });
+
+    if (!dbSecond) {
+      throw new Error(`Kode promo tambahan "${secondPromoCode}" tidak ditemukan.`);
+    }
+    if (!dbSecond.isActive) {
+      throw new Error('Kode promo tambahan sudah tidak aktif.');
+    }
+    if (dbSecond.expiresAt && dbSecond.expiresAt < now) {
+      throw new Error('Kode promo tambahan sudah kedaluwarsa.');
+    }
+    if (dbSecond.quota > 0 && dbSecond.usedCount >= dbSecond.quota) {
+      throw new Error('Kuota kode promo tambahan sudah habis.');
+    }
+    if (dbSecond.type === 'WILAYAH' && dbSecond.regionId && dbSecond.regionId !== fulfillmentRegionId) {
+      throw new Error('Kode promo tambahan wilayah ini tidak berlaku untuk wilayah pemenuhan pesanan ini.');
+    }
+    if (creator.role === Role.RESELLER && dbSecond.resellerId && dbSecond.resellerId !== creator.id) {
+      throw new Error('Reseller tidak dapat menggunakan kode promo milik reseller lain.');
+    }
+
+    secondPromoData = {
+      id: dbSecond.id,
+      code: dbSecond.code,
+      discountType: dbSecond.discountType,
+      discountValue: dbSecond.discountValue,
+      maxDiscountAmount: dbSecond.maxDiscountAmount,
+      quota: dbSecond.quota,
+      usedCount: dbSecond.usedCount,
+      expiresAt: dbSecond.expiresAt,
+      isActive: dbSecond.isActive,
+      isFreeShipping: dbSecond.isFreeShipping,
+      isFreeTax: dbSecond.isFreeTax,
+    };
+  }
+
   // 6. Kalkulasi Harga Server Resmi (Ongkir DIPAKSA 0 secara mutlak)
   const pricingInputItems = items.map((i) => {
     const vInfo = variantsMap.get(i.variantId);
@@ -205,6 +248,7 @@ export async function createManualCodOrder(params: CreateManualCodOrderInput) {
     items: pricingInputItems,
     productsMap,
     promo: promoData,
+    secondPromo: secondPromoData,
     shippingCourier: 'COD_LANGSUNG',
     shippingCost: 0, // Server-forced 0 (F1)
   });
@@ -238,7 +282,6 @@ export async function createManualCodOrder(params: CreateManualCodOrderInput) {
   const normalizedPhone = cleanPhone.startsWith('0') ? `62${cleanPhone.slice(1)}` : cleanPhone;
 
   // Batas kedaluwarsa COD bawaan 7 hari (bukan 24 jam)
-  const now = new Date();
   const expiresAt = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
 
   // 8. Eksekusi Transaksi Database Atomik (Reservasi Stok & Pembuatan Order)
@@ -278,8 +321,15 @@ export async function createManualCodOrder(params: CreateManualCodOrderInput) {
         });
       }
 
-      // B. Catat pemakaian promo jika ada
-      if (pricing.promoApplied) {
+      // B. Catat pemakaian promo jika ada (Slot 1 & Slot 2)
+      if (pricing.promosApplied && pricing.promosApplied.length > 0) {
+        for (const applied of pricing.promosApplied) {
+          await tx.promoCode.update({
+            where: { id: applied.id },
+            data: { usedCount: { increment: 1 } },
+          });
+        }
+      } else if (pricing.promoApplied) {
         await tx.promoCode.update({
           where: { id: pricing.promoApplied.id },
           data: { usedCount: { increment: 1 } },
@@ -316,6 +366,8 @@ export async function createManualCodOrder(params: CreateManualCodOrderInput) {
           createdByUserId: creator.id,
           createdByRole: creator.role as any,
           codNote: note || null,
+          promoCodeId: pricing.promoApplied?.id || null,
+          secondPromoCodeId: pricing.secondPromoApplied?.id || null,
           expiresAt,
           items: {
             create: items.map((item) => {

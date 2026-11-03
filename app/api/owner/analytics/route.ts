@@ -67,6 +67,7 @@ export async function GET(request: NextRequest) {
         items: true,
         region: { select: { id: true, name: true, code: true } },
         promoCode: { select: { code: true } },
+        secondPromoCode: { select: { code: true } },
       },
       orderBy: { createdAt: 'desc' },
     });
