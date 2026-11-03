@@ -13,9 +13,71 @@
 | **FT-1: Fonnte WhatsApp** | Gateway WhatsApp Fonnte, Antrean WaOutbox, Cron Dispatch, Consent Checkout, Template | **GREEN** | `ft-1-green` | Unit adapter (15/15), Queue (8/8), E2E Buyer | tsc, lint, build hijau (61 rute) |
 | **FT-2: COD Admin/Reseller** | Pesanan Manual COD (Ongkir 0 dipaksa), Alur Serah Terima -> Kas Diterima, Laporan Pendapatan | **GREEN** | `ft-2-green` | Pricing unit (3/3), COD integration (11/11), E2E Admin/Reseller (5/5) | Asumsi F1-F3, F7 terpenuhi |
 | **FT-3: Promo Uji & Kurir Wilayah** | Kontrol Kurir per Wilayah (Admin Pusat), Promo kind=TESTING (Owner only), Bypass Midtrans, QR Simulasi & Bayar Cepat, Reset Data Uji | **GREEN** | `ft-3-green` | `test-promos` (8/8), `region-couriers` (7/7), E2E Screenshot (4/4) | Asumsi F5 |
-| **FT-4: Dashboard Reseller** | /dashboard/reseller mobile-first, Ringkasan, Pesanan Disamarkan (F4), Promo Saya, Buat COD | **PENDING** | - | Reseller E2E, Masking verification | Asumsi F4, F7 |
+| **FT-4: Dashboard Reseller** | /dashboard/reseller mobile-first, 4 State, Pesanan Disamarkan (F4), Promo Saya, Buat COD, Dual Promo Slots | **GREEN** | `ft-4-green` | Unit masking (10/10), Dual promo integration (6/6), Reseller isolation (20/20), E2E Reseller (3/3) | Asumsi F4, F7 terpenuhi |
 | **FT-5: Google Sheets** | Ekspor & Cermin 1-Arah Google Sheets, Scope Global/Region/Reseller, Tombol Sync & UI | **PENDING** | - | Sheets adapter mock/google, Sync integration | Asumsi F6 |
 | **FT-6: Laporan WhatsApp** | Berlangganan Laporan WA, Cron Digest Harian/Mingguan, Tokenized Short-Lived Link (15m) | **PENDING** | - | Cron report unit, Subscription integration | Asumsi F9 |
+
+---
+
+
+## Ringkasan Eksekusi Dual Promo Slots & FT-4: Dashboard Reseller (Green)
+- **Status Akhir**: Selesai dan Lolos Semua Gerbang FT-4 & Dual Promo Slots.
+- **Rincian Implementasi Dual Promo Code Slots (Slot 1 & Slot 2)**:
+  1. **Skema Database & Prisma**:
+     - Kolom baru pada model `Order`: `secondPromoCodeId String?` dan relasi bernama `secondPromoCode PromoCode? @relation("OrderSecondaryPromoCode")`, indeks `@@index([secondPromoCodeId])`.
+     - Relasi `PromoCode`: relasi ganda `orders Order[] @relation("OrderPrimaryPromoCode")` dan `secondaryOrders Order[] @relation("OrderSecondaryPromoCode")`.
+     - Sinkronisasi dev DB via `prisma db push` aman tanpa menyentuh database produksi.
+  2. **Engine Kalkulasi Harga Server (Server-Side Pricing Engine)**:
+     - `lib/pricing.ts`: Fungsi murni `calculatePricingPure` dan `calculateOrderPricing` kini menerima `promo` (Slot 1: Reseller / Utama) dan `secondPromo` (Slot 2: Voucher Tambahan).
+     - Menghitung diskon gabungan (`discountAmount = promo1 + promo2`), batas cap maksimum tidak boleh melebihi subtotal produk, dan menggabungkan fasilitas `isFreeShipping` serta `isFreeTax` jika salah satu atau kedua promo menyediakannya.
+     - Anti-duplikasi di level server: kode promo yang identik di kedua slot otomatis disaring dan ditolak.
+  3. **Alur Pembuatan Pesanan & Tracking Kuota**:
+     - `lib/orders/order-routing.ts` & `lib/orders/manual-cod.ts`: Menerima `secondPromoCode`, memvalidasi tanggal kedaluwarsa, kuota, dan izin wilayah masing-masing slot.
+     - Transaksi database atomik menambah `usedCount` (+1) untuk kedua kode promo yang diterapkan.
+     - Jika pesanan dibatalkan atau kedaluwarsa (`app/api/admin/orders/[id]/status`, `app/api/cron/expire-orders`, `app/api/midtrans/notification`), kuota (`usedCount`) kedua kode promo dikembalikan (-1) secara otomatis.
+  4. **Formulir Pesanan Manual COD**:
+     - `CreateManualOrderForm.tsx` dilengkapi input Slot 1 ("Kode Promo Utama / Reseller") dan Slot 2 ("Kode Promo Tambahan / Voucher Diskon").
+     - Validasi real-time dan kalkulasi gabungan instan sebelum submit.
+  5. **Laporan & Analitik Owner**:
+     - `lib/reports/owner-reports.ts`, `app/api/owner/reports`, `app/api/owner/analytics`: Menyertakan `secondPromoCode` dan menampilkan kode gabungan (cth: `PROMO-A + PROMO-B`).
+     - Fungsi `calculatePromoUsage` menghitung pemakaian kedua promo secara proporsional.
+
+- **Rincian Implementasi FT-4: Dashboard Reseller (`/dashboard/reseller`)**:
+  1. **Engine Privasi & Data Masking (Asumsi F4)** (`lib/reseller/masking.ts`):
+     - Nama pelanggan disamarkan menjadi format `B*** S***` (`maskCustomerName`).
+     - Nomor WhatsApp hanya menampilkan 4 digit terakhir diawali peluru `••••1234` (`maskPhoneNumber`).
+     - Sanitasi mendalam (`sanitizeOrderForReseller`): menghapus street address, RT/RW, dan postal code (hanya menyisakan kota/provinsi).
+     - Penghapusan mutlak data HPP (`costPrice`, `costEach`, `packingEach`, dan relasi modal varian) sehingga tidak ada kebocoran rahasia bisnis ke reseller.
+  2. **API Endpoint Reseller**:
+     - `GET /api/reseller/analytics`: Filter periode (Hari Ini, 7 Hari, 30 Hari, Bulan Ini, Kustom), omzet kotor, omzet bersih, total diskon yang dihasilkan kodenya, dan tren penjualan harian. Pesanan uji (`isTest: true`) mutlak dikeluarkan (Asumsi F5).
+     - `GET /api/reseller/orders`: Daftar pesanan yang menggunakan kode promo reseller tersebut atau pesanan manual COD buatannya sendiri, dengan masking privasi penuh dan tanpa HPP.
+     - `GET /api/reseller/promos`: Daftar kode promo yang ditautkan ke reseller (hanya-baca) beserta sisa kuota dan status aktif.
+     - `GET / PUT /api/reseller/profile`: Menampilkan profil, memperbarui nomor WhatsApp dengan normalisasi `62...`, serta tombol kirim pesan uji coba WhatsApp verifikasi (`enqueueWhatsAppNotification`).
+     - `POST /api/auth/change-password`: Penggantian kata sandi mandiri secara aman.
+  3. **Otorisasi Server Ketat**:
+     - Reseller mencoba mengakses pesanan reseller lain -> HTTP 403 Forbidden.
+     - Reseller mencoba memanggil `/api/admin/stock` -> HTTP 403 Forbidden.
+     - Reseller mencoba memanggil `/api/owner/cost-prices` -> HTTP 403 Forbidden.
+  4. **Notifikasi Otomatis**:
+     - Saat pesanan dengan kode promo reseller berstatus `SELESAI`, notifikasi in-app otomatis dikirim ke reseller (`Notification`) dan pesan WhatsApp otomatis dikirim jika nomor HP reseller terdaftar.
+  5. **Antarmuka Mobile-First (`components/reseller/ResellerDashboardClient.tsx`)**:
+     - 4 State UI: Loading, Error (dengan tombol muat ulang), Empty (dengan CTA buat COD), dan Populated data.
+     - Filter periode interaktif dan kartu ringkasan kinerjanya.
+     - Grafik batang tren harian responsif.
+     - Daftar "Kode Promo Saya" dengan visual progress bar pemakaian kuota.
+     - Tabel / card "Pesanan Saya" dengan badge status dan nama pelanggan tersamar.
+     - Tombol Aksi Cepat: Buat COD (`/dashboard/reseller/orders/manual`), Unduh Data (FT-5 placeholder), Laporan WA (FT-6 placeholder), dan Profil & Sandi.
+
+- **Hasil Pengujian & Verifikasi**:
+  - Unit Masking: `tests/unit/reseller-masking.test.ts` (10/10 PASS).
+  - Integrasi Dual Promo: `tests/integration/dual-promos.test.ts` (6/6 PASS).
+  - Integrasi Isolasi & Otorisasi Reseller: `tests/integration/reseller-dashboard.test.ts` (8/8 PASS) & `reseller-isolation.test.ts` (12/12 PASS).
+  - Playwright E2E Visual: `tests/e2e/reseller/e2e-reseller-dashboard.spec.ts` (3/3 PASS).
+  - Bukti Visual Screenshot Tersimpan:
+    1. `screenshot_reseller_dashboard_desktop.png`
+    2. `screenshot_reseller_dashboard_mobile.png`
+    3. `screenshot_reseller_manual_cod_dual_promo.png`
+  - Pemeriksaan Kode: `tsc --noEmit` (0 error), `npm run lint` (0 error), `npm run build` (18 halaman statis & 45 dynamic API routes hijau).
 
 ---
 

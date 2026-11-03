@@ -162,7 +162,8 @@ export default function OwnerDashboardClient() {
       const grossSubtotal = tx.subtotal || ((tx.netPrice || 0) + (tx.discountAmount || 0));
       const netSubtotal = tx.netPrice !== undefined && tx.netPrice !== null ? tx.netPrice : (grossSubtotal - (tx.discountAmount || 0));
       const payMethodLabel = tx.paymentMethod === 'MIDTRANS_SNAP' || tx.paymentMethod === 'midtrans' ? 'Midtrans' : (tx.paymentMethod === 'COD' ? 'COD' : 'Transfer Manual');
-      const promoCodeLabel = tx.promoCode?.code || '-';
+      const promoCodes = [tx.promoCode?.code, tx.secondPromoCode?.code].filter(Boolean);
+      const promoCodeLabel = promoCodes.length > 0 ? promoCodes.join(' + ') : '-';
 
       return [
         tx.code || tx.invoiceNumber || '-',
@@ -597,10 +598,19 @@ export default function OwnerDashboardClient() {
                                   </span>
                                 </td>
                                 <td className="py-3 px-4">
-                                  {tx.promoCode?.code ? (
-                                    <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
-                                      {tx.promoCode.code}
-                                    </span>
+                                  {tx.promoCode?.code || tx.secondPromoCode?.code ? (
+                                    <div className="flex flex-wrap gap-1">
+                                      {tx.promoCode?.code && (
+                                        <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                                          {tx.promoCode.code}
+                                        </span>
+                                      )}
+                                      {tx.secondPromoCode?.code && (
+                                        <span className="px-2 py-0.5 text-[10px] font-bold rounded-full bg-teal-50 text-teal-700 border border-teal-200">
+                                          +{tx.secondPromoCode.code}
+                                        </span>
+                                      )}
+                                    </div>
                                   ) : (
                                     <span className="text-[10px] text-stone-400">-</span>
                                   )}

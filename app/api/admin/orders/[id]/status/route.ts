@@ -15,6 +15,7 @@ import { getAuthUser } from '@/lib/auth';
 import { can } from '@/lib/permissions';
 import { audit } from '@/lib/audit';
 import { notifyOrderShipped } from '@/lib/notify/order-events';
+import { enqueueWhatsAppNotification } from '@/lib/notify/queue';
 import { OrderStatus, PaymentMethod, Role, StockMovementType } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
@@ -336,6 +337,55 @@ export async function PUT(
       notifyOrderShipped(updated, body.courierCode || order.courierCode || 'Kurir', body.trackingNumber || order.trackingNumber || '-').catch((err) =>
         console.error('[Notification Order Shipped Error]', err)
       );
+    }
+
+    // FT-4: Notifikasi in-app dan WA ke Reseller saat pesanan dengan kode promonya selesai
+    if (toStatus === OrderStatus.SELESAI) {
+      try {
+        const fullOrder = await prisma.order.findUnique({
+          where: { id: order.id },
+          include: {
+            promoCode: true,
+            secondPromoCode: true,
+          },
+        });
+
+        const resellerIds = new Set<string>();
+        if (fullOrder?.promoCode?.resellerId) resellerIds.add(fullOrder.promoCode.resellerId);
+        if (fullOrder?.secondPromoCode?.resellerId) resellerIds.add(fullOrder.secondPromoCode.resellerId);
+        if (fullOrder?.createdByRole === Role.RESELLER && fullOrder?.createdByUserId) {
+          resellerIds.add(fullOrder.createdByUserId);
+        }
+
+        for (const resId of resellerIds) {
+          const resellerUser = await prisma.user.findUnique({ where: { id: resId } });
+          if (resellerUser) {
+            // Notifikasi In-App
+            await prisma.notification.create({
+              data: {
+                userId: resellerUser.id,
+                targetRole: Role.RESELLER,
+                title: `Pesanan Selesai #${order.code}`,
+                message: `Pesanan #${order.code} senilai Rp ${order.totalPrice.toLocaleString('id-ID')} telah berhasil diselesaikan.`,
+                linkUrl: '/dashboard/reseller',
+              },
+            });
+
+            // Notifikasi WA bila reseller memiliki nomor HP
+            if (resellerUser.phone) {
+              await enqueueWhatsAppNotification({
+                target: resellerUser.phone,
+                message: `🎉 *PESANAN SELESAI!*\n\nHalo *${resellerUser.name}*,\nPesanan *${order.code}* senilai *Rp ${order.totalPrice.toLocaleString('id-ID')}* yang menggunakan kode promo atau pesanan Anda telah *SELESAI*.\n\nLihat rincian di dashboard: https://luvira.id/dashboard/reseller`,
+                idempotencyKey: `wa:reseller_completed:${order.id}:${resellerUser.id}`,
+                relatedType: 'Order',
+                relatedId: order.id,
+              });
+            }
+          }
+        }
+      } catch (notifErr) {
+        console.error('[Reseller Order Complete Notification Error]', notifErr);
+      }
     }
 
     return NextResponse.json({
