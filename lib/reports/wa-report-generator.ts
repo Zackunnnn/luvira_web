@@ -238,9 +238,13 @@ export async function generateWaReport(options: GenerateWaReportOptions): Promis
     let pendingPaymentOrders = 0;
     let pendingCodOrders = 0;
     let pendingCodRevenue = 0;
+    let netSales = 0;
+    let totalDiscount = 0;
     for (const o of orders) {
       if (o.status !== OrderStatus.DIBATALKAN) {
         totalOrders++;
+        netSales += o.netPrice;
+        totalDiscount += o.discountAmount;
 
         if (o.paymentMethod === 'COD' && o.status !== OrderStatus.SELESAI) {
           pendingCodOrders++;

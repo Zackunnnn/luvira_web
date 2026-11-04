@@ -126,3 +126,92 @@ Dokumen ini disusun dalam bahasa bisnis untuk memandu jalannya presentasi demo *
 3. Sistem secara otomatis mendeteksi:
    - *"Stok di gudang Yogyakarta habis -> otomatis dialihkan ke gudang Pusat (Depok) agar pesanan tetap dapat diproses."*
 4. Pesanan berhasil dibuat tanpa error, dan pengiriman ditangani oleh gudang Pusat.
+
+
+---
+
+## Skenario 5: Reseller Mitra (Dashboard Mobile-First, Dual Promo, & COD)
+
+**Nilai Bisnis**: Mitra reseller Luvira dapat memantau efektivitas penjualan dari kode promonya secara mandiri dari smartphone, membuat pesanan COD langsung di depan pelanggan dengan ongkir Rp 0, dan memanfaatkan 2 slot kode promo sekaligus tanpa bisa membocorkan HPP bisnis.
+
+### Alur Demonstrasi:
+1. **Login Akun Reseller**:
+   - Buka `http://localhost:3000/login`.
+   - Masukkan Email: `reseller.demo@luvira.id` dan kata sandi dari terminal `npm run demo:seed`.
+   - Sistem langsung mengarahkan ke dashboard khusus: `http://localhost:3000/dashboard/reseller`.
+2. **Pemantauan Kinerja & Privasi Pelanggan**:
+   - Perhatikan 4 kartu ringkasan: Total Pesanan Masuk, Omzet Penjualan Bersih, Total Diskon Diberikan, dan Kode Promo Aktif.
+   - Pada tabel pesanan: nama pelanggan disamarkan menjadi `H*** S***` dan nomor WhatsApp `••••0011`. Reseller **sama sekali tidak melihat modal HPP Luvira**.
+3. **Pembuatan Pesanan COD Manual dengan Dual Promo Slots**:
+   - Klik tombol **"Buat Pesanan COD"**.
+   - Masukkan Nama Pelanggan: `Dewi Lestari` dan No. WhatsApp: `081298765432`.
+   - Pilih Produk & Varian (cth: 2 pasang Kaos Kaki).
+   - Masukkan **Slot 1 (Kode Reseller)**: `RESELLER2026` (diskon 10%).
+   - Masukkan **Slot 2 (Kode Tambahan)**: Promo diskon ekstra.
+   - Ringkasan kalkulasi server otomatis menampilkan diskon gabungan dan **Ongkir: Rp 0 (COD Serah Langsung)**.
+   - Klik **"Simpan & Buat Pesanan COD"**.
+4. **Tandai Barang Diserahkan**:
+   - Pada baris pesanan COD baru, klik tombol **"Tandai Diserahkan"**.
+   - Status pesanan berpindah menjadi diserahkan, siap dikonfirmasi uang kasnya oleh Admin Wilayah.
+
+---
+
+## Skenario 6: Admin Wilayah & Kontrol Kurir Ekspedisi
+
+**Nilai Bisnis**: Admin Cabang dapat mengontrol kurir ekspedisi apa saja yang aktif di dekat titik gudangnya (mis. hanya mengaktifkan J&T bila gudang dekat agen J&T), serta menyelesaikan pembayaran tunai COD.
+
+### Alur Demonstrasi:
+1. **Login Admin Wilayah**:
+   - Buka `http://localhost:3000/dashboard/admin`.
+2. **Menyelesaikan Kas Pesanan COD**:
+   - Buka tab pesanan COD yang menunggu penyelesaian kas.
+   - Admin melihat nama reseller pembuat dan catatan serah terima.
+   - Klik tombol hijau **"Konfirmasi Uang Diterima & Selesai"**.
+   - Pendapatan COD resmi tercatat masuk ke omzet Luvira (Asumsi F2).
+3. **Kontrol Kurir Ekspedisi (Admin Pusat)**:
+   - Login sebagai `admin.pusat@luvira.id`.
+   - Buka tab Wilayah Layanan -> pilih Wilayah Yogyakarta.
+   - Matikan saklar kurir SiCepat / TIKI, sisakan hanya JNE & J&T.
+   - Saat pembeli checkout ke alamat Yogyakarta, hanya kurir aktif yang tampil di daftar pilihan!
+
+---
+
+## Skenario 7: Owner Simulasi Promo Uji Coba (Bypass Midtrans)
+
+**Nilai Bisnis**: Owner dan tim pengembang dapat menguji seluruh alur checkout, cetak invoice, dan routing gudang secara realistis di website tanpa memanggil gateway Midtrans dan tanpa perlu mentransfer uang sungguhan.
+
+### Alur Demonstrasi:
+1. **Login Akun Owner**:
+   - Masuk sebagai `owner@luvira.id`.
+   - Buka menu Kode Promo -> Promo Uji Sistem (`kind=TESTING`).
+   - Kode promo `TESTPROMO` aktif dengan batas kuota 20 kali pemakaian.
+2. **Belanja dengan Kode Uji**:
+   - Buka katalog toko sebagai pembeli, pilih produk, dan buka checkout.
+   - Masukkan kode promo: `TESTPROMO`.
+   - Sistem menampilkan banner indikator: *"Mode Simulasi Uji Coba Aktif"*.
+   - Tombol bayar langsung mengarahkan ke halaman QR Simulasi & Bayar Cepat Coba tanpa token Midtrans live.
+   - Klik **"Simulasikan Pembayaran Berhasil"** -> Pesanan langsung berstatus diproses!
+3. **Isolasi Laporan & Reset Data Uji**:
+   - Buka Dashboard Owner: pesanan berlabel `[UJI]` **mutlak tidak masuk ke omzet resmi atau laba kotor**.
+   - Tersedia tombol **"Reset Data Uji"** di dashboard Owner untuk membersihkan seluruh transaksi testing dengan 1-klik.
+
+---
+
+## Skenario 8: Preview Laporan Penjualan Resmi, Google Sheets & WhatsApp
+
+**Nilai Bisnis**: Owner memiliki pratinjau laporan cetak bergaya elegan dengan palet warna hijau tua resmi Luvira sebelum diunduh, cermin spreadsheet satu arah yang selalu mutakhir, dan laporan otomatis yang mendarat di WhatsApp setiap pagi.
+
+### Alur Demonstrasi:
+1. **Preview Laporan Penjualan Harian (Hijau Tua)**:
+   - Di Dashboard Owner (`/dashboard/owner`), klik tombol **"Preview Laporan Harian"**.
+   - Modal dokumen resmi Luvira terbuka dengan tabel kolom lengkap:
+     - No, Tanggal, No. Invoice, Produk, Qty, Harga Satuan, Diskon, Total, Metode Bayar.
+     - Baris **TOTAL** tebal dengan warna hijau tua Luvira (`#14532d`).
+   - Tersedia tombol **"Cetak / PDF"** yang siap cetak ramah kertas serta tombol **"Unduh CSV"**.
+2. **Integrasi Cermin Satu Arah Google Sheets (FT-5)**:
+   - Di kartu Google Sheets, salin email Service Account Luvira ke Google Spreadsheet tujuan dengan akses Editor.
+   - Tempel URL spreadsheet lalu klik **"Hubungkan Lembar Kerja"**.
+   - Klik tombol **"Sinkronkan Sekarang"**: Sistem membuat 6 tab terstruktur (Ringkasan Bisnis, Daftar Pesanan, dsb.) lengkap dengan timestamp kesegaran data WIB.
+3. **Laporan Terjadwal ke WhatsApp (FT-6)**:
+   - Di kartu Berlangganan Laporan WhatsApp, atur frekuensi (Harian/Mingguan), jam WIB (cth: 08:00), dan nomor WhatsApp.
+   - Klik tombol **"Kirim Sekarang"**: Ringkasan omzet, laba kotor, dan tautan unduh CSV instan (token 15 menit) langsung masuk ke antrean WhatsApp!

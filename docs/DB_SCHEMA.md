@@ -24,10 +24,13 @@ erDiagram
     Order ||--|{ OrderItem : "memuat item produk"
     Order ||--o{ OrderStatusLog : "mencatat riwayat status"
     Order ||--o{ Payment : "pembayaran & bukti"
-    Order }o--o| PromoCode : "memakai promo"
+    Order }o--o| PromoCode : "memakai promo utama (slot 1)"
+    Order }o--o| PromoCode : "memakai promo tambahan (slot 2)"
+    User ||--o{ PromoCode : "memiliki kode reseller"
+    User ||--o{ ReportSubscription : "berlangganan laporan WA"
+    User ||--o{ SheetConnection : "memiliki cermin spreadsheet"
 
     PaymentAccount ||--o{ Payment : "rekening tujuan transfer manual"
-
     User ||--o{ Advice : "menulis artikel nasihat"
 ```
 
@@ -36,12 +39,13 @@ erDiagram
 ## 2. Rincian Entitas Utama
 
 ### A. Wilayah & Cakupan (`Region`, `RegionCoverage`)
-- **`Region`**: Menampung data gudang fisik Luvira. Tipe `PUSAT` (Kota Depok) dan `WILAYAH` (Yogyakarta). Menyimpan `originId` RajaOngkir untuk titik penentu ongkos kirim.
+- **`Region`**: Menampung data gudang fisik Luvira. Tipe `PUSAT` (Kota Depok) dan `WILAYAH` (Yogyakarta). Menyimpan `originId` RajaOngkir untuk titik penentu ongkos kirim. Dilengkapi `activeCouriers` (JSON array, cth: `["jne", "jnt"]`) yang dikontrol mandiri oleh Admin Pusat per wilayah.
 - **`RegionCoverage`**: Memetakan provinsi/kabupaten ke wilayah yang melayani (mis. DI Yogyakarta diarahkan ke Yogyakarta; lainnya diarahkan ke Pusat via fallback default).
 
 ### B. Pengguna & Otorisasi (`User`)
-- Memiliki 4 peran sistem: `ADMIN_PUSAT`, `ADMIN_WILAYAH`, `OWNER`, `DEVELOPER`.
-- `regionId`: Terisi untuk `ADMIN_WILAYAH` untuk menegakkan isolasi wilayah secara ketat di level query Prisma. `null` untuk Owner, Developer, dan Admin Pusat.
+- Memiliki 6 peran sistem (5 terdaftar + pembeli tanpa login): `ADMIN_PUSAT`, `ADMIN_WILAYAH`, `OWNER`, `DEVELOPER`, `RESELLER`.
+- `regionId`: Terisi untuk `ADMIN_WILAYAH` dan `RESELLER` untuk batas gudang/wilayah operasional. `null` untuk Owner, Developer, dan Admin Pusat.
+- `phone`: Nomor telepon format internasional Indonesia (`62...`) untuk notifikasi WhatsApp dan langganan laporan.
 - Mendukung penguncian akun (`failedLoginAttempts`, `lockedUntil`) dan status `isActive`.
 
 ### C. Katalog, Stok, dan Proteksi HPP (`Product`, `ProductVariant`, `ProductCost`, `Stock`, `StockMovement`)
@@ -58,8 +62,11 @@ erDiagram
 - **`Payment`**: Menyimpan verifikasi pembayaran, tautan bukti transfer ImageKit, atau detail transaksi Midtrans.
 - **`PaymentAccount`**: Rekening bank resmi yang dikelola Owner (Bank Jago Syariah & BSI).
 
-### E. Promo & Nasihat (`PromoCode`, `Advice`)
-- **`PromoCode`**: Mendukung promo reseller nasional (`type = RESELLER`) dan promo wilayah (`type = WILAYAH`). Validasi kuota, minimal belanja, dan batas maksimum diskon.
+### E. Promo & Dual Promo Slots (`PromoCode`, `Advice`)
+- **`PromoCode`**: Mendukung promo reseller nasional (`type = RESELLER`), promo wilayah (`type = WILAYAH`), dan promo global.
+  - `kind`: Enum `PromoKind` (`REGULAR` | `TESTING`). Promo `TESTING` hanya dapat dibuat Owner untuk simulasi pembayaran tanpa Midtrans.
+  - `resellerId`: Tautan ke akun `User` reseller mitra pemilik kode.
+- **Dual Promo Code Slots (FT-4)**: Model `Order` mendukung 2 slot kode promo bersamaan (`promoCodeId` Slot 1 dan `secondPromoCodeId` Slot 2) untuk kombinasi voucher reseller dan potongan harga promosi.
 - **`Advice`**: Artikel nasihat/edukasi untuk pembeli.
 
 ### F. Observabilitas & Sistem (`Setting`, `Notification`, `AuditLog`, `ErrorLog`, `DailyTraffic`, `ShippingCache`)
@@ -69,3 +76,21 @@ erDiagram
 - **`ErrorLog`**: Pencatatan exception server & client boundaries dengan pembatasan retensi.
 - **`DailyTraffic`**: Agregasi jumlah pengunjung harian per rute.
 - **`ShippingCache`**: Cache kalkulasi ongkir dan destinasi RajaOngkir dengan TTL.
+
+
+### G. Model Fitur Tambahan (FT-0 sampai FT-6)
+- **`Order` (Penambahan Atribut COD & Testing)**:
+  - `isTest` (`Boolean`, default `false`): Menandai pesanan simulasi testing agar mutlak dikecualikan dari seluruh rekap analitik dan laporan keuangan (Asumsi F5).
+  - `isManual` (`Boolean`, default `false`): Menandai pesanan manual kasir/COD yang dibuat oleh Admin atau Reseller.
+  - `createdByUserId`, `createdByRole`: Pelacakan pembuat pesanan manual untuk akuntabilitas.
+  - `codHandedOverAt`, `codHandedOverBy`: Timestamp dan identitas saat barang diserahkan ke pelanggan oleh Reseller/Admin.
+  - `codCashConfirmedAt`, `codCashConfirmedBy`: Timestamp dan identitas konfirmasi penerimaan uang tunai oleh Admin Wilayah penangan.
+  - `PaymentMethod`: Mendukung nilai baru `COD` dan `TEST_SIMULATION`.
+- **`WaOutbox` (Antrean Notifikasi WhatsApp Fonnte - FT-1)**:
+  - Antrean pesan asinkron dengan kontrol `status` (`PENDING`, `SENDING`, `SENT`, `FAILED`), jeda pengiriman (`FONNTE_MIN_INTERVAL_MS`), batas kuota harian (`FONNTE_DAILY_CAP`), `idempotencyKey`, percobaan ulang (*backoff retry* hingga 3 kali), dan pencatatan galat permanen vs sementara.
+- **`SheetConnection` (Integrasi Cermin 1-Arah Google Sheets - FT-5)**:
+  - Menghubungkan Google Sheets per cakupan (`scopeType`: `GLOBAL`, `REGION`, `RESELLER`).
+  - Menyimpan `spreadsheetId`, `spreadsheetUrl`, saklar `autoSync`, serta timestamp dan status sinkronisasi terakhir.
+- **`ReportSubscription` (Langganan Laporan WhatsApp - FT-6)**:
+  - Menyimpan preferensi laporan otomatis pengguna: `frequency` (`RINGKAS_HARIAN`, `MINGGUAN`, `BULANAN`), jam kirim WIB (`timeOfDay`), hari dalam minggu (`dayOfWeek`), dan tanggal dalam bulan (`dayOfMonth`).
+  - Dilengkapi `lastSentPeriodKey` untuk penegakan idempotensi harian/mingguan/bulanan.

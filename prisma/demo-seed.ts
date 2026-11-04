@@ -6,7 +6,7 @@
 // Sesuai Instruksi Fase 3 SEBELUM Fase 4
 // ============================================================================
 
-import { PrismaClient, Role, RegionType, OrderStatus, PaymentMethod, PaymentVerificationStatus, PromoType, DiscountType } from '@prisma/client';
+import { PrismaClient, Role, RegionType, OrderStatus, PaymentMethod, PaymentVerificationStatus, PromoType, DiscountType, PromoKind } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { assertDatabaseSafety } from '../lib/db-guard';
@@ -73,6 +73,7 @@ async function main() {
     { email: 'admin.jogja@luvira.id', name: 'Admin Wilayah (Aisyah DIY)', role: Role.ADMIN_WILAYAH, regionId: jogja.id },
     { email: 'owner@luvira.id', name: 'Owner (Pak Dimas / Wann)', role: Role.OWNER, regionId: null },
     { email: 'developer@luvira.id', name: 'Lead Developer', role: Role.DEVELOPER, regionId: null },
+    { email: 'reseller.demo@luvira.id', name: 'Reseller Mitra (Budi Santoso)', role: Role.RESELLER, regionId: pusat.id, phone: '6281234567899' },
   ];
 
   const credentials: { role: string; email: string; name: string; password: string }[] = [];
@@ -88,6 +89,7 @@ async function main() {
         name: acc.name,
         role: acc.role,
         regionId: acc.regionId,
+        phone: (acc as any).phone || null,
         isActive: true,
       },
       create: {
@@ -96,6 +98,7 @@ async function main() {
         passwordHash,
         role: acc.role,
         regionId: acc.regionId,
+        phone: (acc as any).phone || null,
         isActive: true,
       },
     });
@@ -133,21 +136,66 @@ async function main() {
     });
   }
 
-  // 4. Promo Demo
-  await prisma.promoCode.upsert({
+  // 4. Promo Demo (Termasuk Tautan Reseller & Promo Uji Owner FT-3)
+  const resellerUser = await prisma.user.findUnique({ where: { email: 'reseller.demo@luvira.id' } });
+
+  const resellerPromo = await prisma.promoCode.upsert({
     where: { code: 'RESELLER2026' },
-    update: {},
+    update: {
+      resellerId: resellerUser?.id,
+      kind: PromoKind.REGULAR,
+    },
     create: {
       code: 'RESELLER2026',
       type: PromoType.RESELLER,
+      kind: PromoKind.REGULAR,
       discountType: DiscountType.PERCENTAGE,
       discountValue: 10,
       minOrderAmount: 50000,
       quota: 500,
+      usedCount: 15,
       isActive: true,
-      resellerName: 'Kemitraan Reseller Nasional',
+      resellerId: resellerUser?.id,
+      resellerName: 'Reseller Mitra (Budi Santoso)',
       resellerWaNumber: '6281234567899',
     },
+  });
+
+  await prisma.promoCode.upsert({
+    where: { code: 'TESTPROMO' },
+    update: {
+      kind: PromoKind.TESTING,
+      isActive: true,
+    },
+    create: {
+      code: 'TESTPROMO',
+      type: PromoType.WILAYAH,
+      kind: PromoKind.TESTING,
+      discountType: DiscountType.FIXED,
+      discountValue: 10000,
+      minOrderAmount: 30000,
+      quota: 20,
+      usedCount: 3,
+      isActive: true,
+      expiresAt: new Date(Date.now() + 7 * 86400000),
+    },
+  });
+
+  // Settings Demo (FT-1, FT-3)
+  await prisma.setting.upsert({
+    where: { key: 'testPromoEnabled' },
+    update: { value: true },
+    create: { key: 'testPromoEnabled', value: true, description: 'Aktifkan promo simulasi testing' },
+  });
+  await prisma.setting.upsert({
+    where: { key: 'waMode' },
+    update: { value: 'mock' },
+    create: { key: 'waMode', value: 'mock', description: 'Mode WhatsApp Fonnte' },
+  });
+  await prisma.setting.upsert({
+    where: { key: 'waDailyCap' },
+    update: { value: 200 },
+    create: { key: 'waDailyCap', value: 200, description: 'Batas kuota harian WhatsApp Fonnte' },
   });
 
   await prisma.promoCode.upsert({
@@ -257,9 +305,86 @@ async function main() {
       shippingCost: 9000,
       totalPrice: 44000,
     },
+    {
+      code: `LVR-DEMO-COD-PEND-${Date.now().toString().slice(-4)}`,
+      regionId: pusat.id,
+      status: OrderStatus.MENUNGGU_PEMBAYARAN,
+      paymentMethod: PaymentMethod.COD,
+      isManual: true,
+      createdByUserId: resellerUser?.id || null,
+      createdByRole: Role.RESELLER,
+      customerName: 'Hendra Setiawan',
+      customerPhone: '6281788990011',
+      customerEmail: 'hendra@example.com',
+      shippingAddress: {
+        provinceName: 'Jawa Barat',
+        cityName: 'Kota Depok',
+        district: 'Beji',
+        street: 'Jl. Margonda Raya No. 45',
+        postalCode: '16424',
+      },
+      subtotal: 50000,
+      discountAmount: 5000,
+      netPrice: 45000,
+      shippingCost: 0,
+      totalPrice: 45000,
+      promoCodeId: resellerPromo.id,
+      codHandedOverAt: new Date(),
+    },
+    {
+      code: `LVR-DEMO-COD-DONE-${Date.now().toString().slice(-4)}`,
+      regionId: pusat.id,
+      status: OrderStatus.SELESAI,
+      paymentMethod: PaymentMethod.COD,
+      isManual: true,
+      createdByUserId: resellerUser?.id || null,
+      createdByRole: Role.RESELLER,
+      customerName: 'Siti Aminah',
+      customerPhone: '6281233445566',
+      customerEmail: 'siti@example.com',
+      shippingAddress: {
+        provinceName: 'Jawa Barat',
+        cityName: 'Kota Depok',
+        district: 'Pancoran Mas',
+        street: 'Jl. Pemuda No. 12',
+        postalCode: '16431',
+      },
+      subtotal: 70000,
+      discountAmount: 7000,
+      netPrice: 63000,
+      shippingCost: 0,
+      totalPrice: 63000,
+      promoCodeId: resellerPromo.id,
+      codHandedOverAt: new Date(Date.now() - 3600000),
+      codCashConfirmedAt: new Date(),
+      paidAt: new Date(),
+    },
+    {
+      code: `LVR-DEMO-TEST-SIM-${Date.now().toString().slice(-4)}`,
+      regionId: pusat.id,
+      status: OrderStatus.SELESAI,
+      paymentMethod: PaymentMethod.TEST_SIMULATION,
+      isTest: true,
+      customerName: 'Penguji Owner (Uji Sistem)',
+      customerPhone: '6281900112233',
+      customerEmail: 'tester@luvira.id',
+      shippingAddress: {
+        provinceName: 'Jawa Barat',
+        cityName: 'Kota Depok',
+        district: 'Cinere',
+        street: 'Jl. Cinere Raya No. 8',
+        postalCode: '16514',
+      },
+      subtotal: 35000,
+      discountAmount: 10000,
+      netPrice: 25000,
+      shippingCost: 9000,
+      totalPrice: 34000,
+      paidAt: new Date(),
+    },
   ];
 
-  for (const o of demoOrders) {
+  for (const o of (demoOrders as any[])) {
     const existing = await prisma.order.findUnique({ where: { code: o.code } });
     if (!existing) {
       const createdOrder = await prisma.order.create({
@@ -276,6 +401,14 @@ async function main() {
           netPrice: o.netPrice,
           shippingCost: o.shippingCost,
           totalPrice: o.totalPrice,
+          discountAmount: o.discountAmount || 0,
+          promoCodeId: o.promoCodeId || null,
+          isManual: o.isManual || false,
+          isTest: o.isTest || false,
+          createdByUserId: o.createdByUserId || null,
+          createdByRole: o.createdByRole || null,
+          codHandedOverAt: o.codHandedOverAt || null,
+          codCashConfirmedAt: o.codCashConfirmedAt || null,
           courierCode: o.courierCode || null,
           courierService: o.courierService || null,
           trackingNumber: o.trackingNumber || null,

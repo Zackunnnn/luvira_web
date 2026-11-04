@@ -389,3 +389,51 @@ Dashboard Developer menampilkan, dalam satu layar:
 | Salah nomor rekening di situs | Rekening dari tabel yang diatur Owner, ditampilkan konsisten, diperiksa sebelum peluncuran |
 | Cakupan wilayah salah (pesanan ke admin yang keliru) | Tabel cakupan bisa diubah Owner/Admin Pusat, tes E2E-04/05, laporan pesanan per wilayah |
 | Perubahan requirement di tengah jalan | Semua keputusan di dokumen ini; ubah dokumen dulu, baru kode |
+| Batas Kuota & Risiko Blokir WhatsApp (Fonnte) | Antrean terpusat `WaOutbox`, jeda wajib `FONNTE_MIN_INTERVAL_MS` (default 4 detik), cap harian `FONNTE_DAILY_CAP`, pemisahan pesan transaksional vs digest, dan hanya kirim ke pembeli yang memberi persetujuan opt-in (checkbox). |
+| Kuota Google Sheets API & Bentrokan Timpa Tab | Cermin satu arah (`values.clear` lalu batch update), sinkronisasi terjadwal berjarak (bukan real-time per detik), mode mock di dev/test. |
+| Kebocoran Data Pelanggan & HPP ke Reseller | Masking privasi server-side (`B*** S***`, `••••1234`), sanitasi alamat tanpa jalan/RT/RW, penghapusan mutlak objek modal/HPP dari query reseller. |
+| Polusi Data Uji di Laporan Keuangan | Flag `isTest: true` yang mutlak disaring (`where: { isTest: false }`) dari seluruh generator analitik, laporan, spreadsheet, dan bot WA. |
+
+
+---
+
+## 16. Paket Fitur Tambahan (FT-0 sampai FT-6) & Asumsi F1-F9
+
+### A. Asumsi Arsitektur Terverifikasi (F1 - F9)
+- **F1**: COD hanya lewat pesanan manual buatan Admin/Reseller, tidak tampil di checkout publik; ongkir dipaksa 0 oleh server.
+- **F2**: Pendapatan COD dihitung saat status selesai (`SELESAI`).
+- **F3**: Reseller menandai "diserahkan"; Admin wilayah penangan menandai "uang diterima" dan menyelesaikan transaksi kas.
+- **F4**: Reseller melihat data pelanggan yang disamarkan (`B*** S***`, `••••1234`); mutlak tidak melihat HPP, stok gudang, atau kode promo reseller lain.
+- **F5**: Kode promo uji hanya dibuat Owner, nonaktif di produksi secara bawaan (`TEST_PROMO_DEFAULT_ENABLED=false`), pesanan uji (`isTest: true`) dikeluarkan dari semua laporan keuangan dan spreadsheet.
+- **F6**: Google Spreadsheet beroperasi sebagai cermin satu arah (`values.clear` lalu `values.batchUpdate`).
+- **F7**: Wilayah pemenuhan COD reseller terikat pada wilayah akun reseller (bawaan Pusat).
+- **F8**: Owner dan Admin Pusat boleh membuat/menonaktifkan akun Reseller dan menautkan kode promo; tanpa sistem komisi.
+- **F9**: Lampiran laporan keuangan via WhatsApp disajikan melalui tautan file bertoken berumur singkat (15 menit, single-use); bawaan pesan teks ringkas + tautan unduh streaming.
+
+### B. Rangkuman Kapabilitas FT-0 sampai FT-6
+1. **FT-0 (Peran Reseller & Izin RBAC)**:
+   - Penambahan peran ke-6 (`RESELLER`) pada enum Prisma dan `lib/permissions.ts`.
+   - Matriks RBAC 217 endpoint API terverifikasi aman terhadap 6 peran sistem.
+2. **FT-1 (Integrasi WhatsApp Fonnte & WaOutbox)**:
+   - Gateway Fonnte adapter dengan mode `mock`, `log`, dan `fonnte`.
+   - Antrean terisolasi `WaOutbox` diproses cron `/api/cron/wa-dispatch` dengan jeda 4 detik, batas harian, dan retry backoff.
+   - Kotak centang persetujuan WhatsApp pembeli saat checkout.
+3. **FT-2 (Pesanan Manual COD Admin & Reseller - Ongkir 0)**:
+   - Form pembuatan pesanan manual untuk Admin Wilayah dan Reseller.
+   - Server memaksakan `shippingCost = 0`, mengabaikan kurir ekspedisi.
+   - Alur status dua tahap: Menunggu Serah Terima -> Diserahkan (Reseller/Admin) -> Selesai / Kas Diterima (Admin Wilayah penangan).
+4. **FT-3 (Promo Uji Coba Bypass Midtrans & Kontrol Kurir Wilayah)**:
+   - Promo `kind = TESTING` khusus Owner untuk verifikasi alur pemesanan tanpa Midtrans.
+   - Halaman QR Simulasi & Bayar Cepat Uji Coba.
+   - Kontrol ekspedisi dinamis per wilayah (`Region.activeCouriers`) dikelola Admin Pusat.
+5. **FT-4 (Dashboard Reseller Mobile-First & Dual Promo Slots)**:
+   - Dashboard `/dashboard/reseller` dengan 4 state: Ringkasan Analitik, Pesanan Saya (Disamarkan), Kode Promo Saya, dan Modal Buat COD.
+   - Fitur **Dual Promo Slots**: Mendukung input 2 slot kode promo sekaligus pada pesanan (`promoCodeId` Slot 1 + `secondPromoCodeId` Slot 2).
+6. **FT-5 (Hubungan ke Spreadsheet Google Sheets)**:
+   - Adapter Google Sheets API v4 Service Account dengan cermin satu arah dan batch update.
+   - Tiga cakupan data terisolasi: Global (Owner - 6 tab dengan HPP/laba), Region (Admin - 2 tab tanpa HPP), Reseller (2 tab dengan masking dan tanpa HPP).
+7. **FT-6 (Laporan Terjadwal ke WhatsApp)**:
+   - Model `ReportSubscription` mendukung frekuensi Harian, Mingguan, Bulanan pada jam WIB tertentu.
+   - Cron dispatcher `/api/cron/reports` dengan kunci idempotensi harian/mingguan/bulanan.
+   - Token unduh file streaming CSV 15 menit via `/api/reports/dl/[token]` (Asumsi F9).
+   - Modal Pratinjau Laporan Penjualan Harian bergaya resmi Luvira dengan palet warna hijau tua (`#14532d`).
