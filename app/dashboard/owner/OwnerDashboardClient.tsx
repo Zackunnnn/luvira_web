@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import SalesReportModal from '@/components/owner/SalesReportModal';
 import GoogleSheetsCard from '@/components/reports/GoogleSheetsCard';
+import WaReportSubscriptionCard from '@/components/reports/WaReportSubscriptionCard';
 
 export default function OwnerDashboardClient() {
   const [activeTab, setActiveTab] = useState<'finances' | 'accounts' | 'settings' | 'audit' | 'users'>('finances');
@@ -682,9 +683,10 @@ export default function OwnerDashboardClient() {
                   </div>
                 </div>
 
-                {/* INTEGRASI GOOGLE SPREADSHEET (FT-5) */}
-                <div className="pt-2">
+                {/* INTEGRASI GOOGLE SPREADSHEET (FT-5) & LAPORAN WA (FT-6) */}
+                <div className="pt-2 space-y-6">
                   <GoogleSheetsCard scopeLabel="GLOBAL (Seluruh Bisnis)" />
+                  <WaReportSubscriptionCard scopeLabel="GLOBAL (Owner)" />
                 </div>
               </>
             ) : null}

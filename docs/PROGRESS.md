@@ -15,10 +15,45 @@
 | **FT-3: Promo Uji & Kurir Wilayah** | Kontrol Kurir per Wilayah (Admin Pusat), Promo kind=TESTING (Owner only), Bypass Midtrans, QR Simulasi & Bayar Cepat, Reset Data Uji | **GREEN** | `ft-3-green` | `test-promos` (8/8), `region-couriers` (7/7), E2E Screenshot (4/4) | Asumsi F5 |
 | **FT-4: Dashboard Reseller** | /dashboard/reseller mobile-first, 4 State, Pesanan Disamarkan (F4), Promo Saya, Buat COD, Dual Promo Slots | **GREEN** | `ft-4-green` | Unit masking (10/10), Dual promo integration (6/6), Reseller isolation (20/20), E2E Reseller (3/3) | Asumsi F4, F7 terpenuhi |
 | **FT-5: Google Sheets** | Ekspor & Cermin 1-Arah Google Sheets, Scope Global/Region/Reseller, Tombol Sync & UI | **GREEN** | `ft-5-green` | `test:unit` (11/11), `test:integration` (5/5), E2E UI (2/2) | Asumsi F6 |
-| **FT-6: Laporan WhatsApp** | Berlangganan Laporan WA, Cron Digest Harian/Mingguan, Tokenized Short-Lived Link (15m) | **PENDING** | - | Cron report unit, Subscription integration | Asumsi F9 |
+| **FT-6: Laporan WhatsApp** | Berlangganan Laporan WA, Cron Digest Harian/Mingguan, Tokenized Short-Lived Link (15m) | **GREEN** | `ft-6-green` | `test:unit` (10/10), `test:integration` (4/4), `test:e2e` (2/2) | Asumsi F4, F5, F9 |
 
 ---
 
+
+## Ringkasan Eksekusi FT-6: Laporan Terjadwal ke WhatsApp (Green)
+- **Status Akhir**: Selesai dan Lolos Semua Gerbang FT-6.
+- **Rincian Implementasi**:
+  1. **Model Langganan Laporan (`ReportSubscription`)**:
+     - Pengaturan frekuensi (`RINGKAS_HARIAN`, `MINGGUAN`, `BULANAN`), jam pengiriman WIB (`timeOfDay`), hari dalam seminggu (`dayOfWeek`), dan hari dalam sebulan (`dayOfMonth`).
+     - Normalisasi nomor target WhatsApp otomatis dengan awalan `62...`.
+  2. **Isolasi Data Ketat di Tingkat Server (`lib/reports/wa-report-generator.ts`)**:
+     - **Asumsi F5**: Pesanan uji (`isTest: true`) mutlak dikeluarkan dari seluruh laporan keuangan, pesanan, dan rekap produk.
+     - **Owner**: Ringkasan omzet kotor, omzet bersih, HPP total, laba kotor, rincian pesanan per metode bayar (termasuk COD selesai vs COD pending kas), top 3 produk terlaris, dan kuota Fonnte harian.
+     - **Admin Wilayah**: Ringkasan operasional wilayah (selesai, diproses, dikirim, pending bayar, pending COD kas, stok menipis), **MUTLAK TANPA HPP & LABA KOTOR**.
+     - **Reseller (Asumsi F4)**: Ringkasan pemakaian kode promo dan pesanan COD buatannya sendiri, **MUTLAK TANPA HPP, TANPA STOK GUDANG, DAN IDENTITAS PELANGGAN DISAMARKAN (`B*** S***`, `••••1234`)**.
+  3. **Penanganan Lampiran Bertoken Singkat 15 Menit (Asumsi F9)**:
+     - Token kriptografis berumur 15 menit (`lib/reports/report-token.ts`) disajikan streaming via `/api/reports/dl/[token]`.
+     - Tautan otomatis invalid/hangus setelah satu kali unduh atau setelah 15 menit berlalu.
+  4. **Mesin Penjadwalan & Idempotensi Cron (`lib/reports/report-scheduler.ts` & `/api/cron/reports`)**:
+     - Route `/api/cron/reports` dilindungi `CRON_SECRET`, dipanggil berkala (hPanel Cron Jobs tiap 10 menit).
+     - Menghitung waktu jatuh tempo di zona waktu WIB (`Asia/Jakarta`).
+     - Kunci idempoten harian/mingguan/bulanan (`SUB_<id>_<periodKey>`) memastikan tidak ada pengiriman ganda pada periode yang sama.
+  5. **Antarmuka Pengguna (`components/reports/WaReportSubscriptionCard.tsx`)**:
+     - Tampilan kartu elegan bertema hijau tua Luvira (`#14532d`) terintegrasi pada:
+       - Dashboard Owner (`/dashboard/owner` Tab Finansial & HPP).
+       - Dashboard Admin (`/dashboard/admin` Tab Google Spreadsheet & Laporan).
+       - Dashboard Reseller (`/dashboard/reseller` Modal Laporan WhatsApp Pribadi).
+     - Tombol "Kirim Sekarang" untuk pengujian instan ke nomor WhatsApp pengguna.
+- **Hasil Pengujian & Verifikasi**:
+  - Unit Tests: `tests/unit/wa-reports-scheduler.test.ts` (10/10 PASS).
+  - Integration Tests: `tests/integration/wa-reports-integration.test.ts` (4/4 PASS).
+  - Playwright E2E: `tests/e2e/reports/e2e-wa-reports.spec.ts` (2/2 PASS).
+  - Bukti Visual Screenshot Tersimpan:
+    1. `screenshot_wa_report_subscription_owner.png`
+    2. `screenshot_wa_report_reseller_modal.png`
+  - Pemeriksaan Kode: `tsc --noEmit` (0 error), `npm run lint` (0 error).
+
+---
 
 ## Ringkasan Eksekusi FT-5: Integrasi Cermin Satu Arah Google Sheets (Green)
 - **Status Akhir**: Selesai dan Lolos Semua Gerbang FT-5.

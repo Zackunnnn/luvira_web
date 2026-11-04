@@ -27,6 +27,7 @@ import {
   X,
 } from 'lucide-react';
 import GoogleSheetsCard from '@/components/reports/GoogleSheetsCard';
+import WaReportSubscriptionCard from '@/components/reports/WaReportSubscriptionCard';
 
 interface ResellerSummary {
   totalOrders: number;
@@ -850,24 +851,25 @@ export default function ResellerDashboardClient() {
         </div>
       )}
 
-      {/* MODAL: FT-6 PLACEHOLDER (LAPORAN WHATSAPP SAYA) */}
+      {/* MODAL: FT-6 WA REPORT SUBSCRIPTION */}
       {ft6ModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white max-w-sm w-full rounded-3xl p-6 border border-stone-200 shadow-xl space-y-4 text-center">
-            <div className="w-12 h-12 bg-teal-50 text-teal-800 rounded-full flex items-center justify-center mx-auto">
-              <MessageSquare className="w-6 h-6" />
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="max-w-2xl w-full my-8">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setFt6ModalOpen(false)}
+                className="absolute top-4 right-4 z-10 p-2 text-stone-400 hover:text-stone-700 bg-white/80 hover:bg-stone-100 rounded-xl transition cursor-pointer"
+                title="Tutup"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <WaReportSubscriptionCard
+                title="Langganan Laporan WhatsApp Reseller"
+                description="Dapatkan ringkasan penjualan dan kode promo Anda langsung di WhatsApp secara terjadwal."
+                scopeLabel="RESELLER (Pesanan Saya)"
+              />
             </div>
-            <h3 className="text-sm font-bold text-stone-900 font-serif">Langganan Laporan WhatsApp (FT-6)</h3>
-            <p className="text-xs text-stone-500">
-              Fitur langganan ringkasan harian dan mingguan otomatis langsung ke nomor WhatsApp reseller Anda (FT-6) sedang dipersiapkan di tahap berikutnya.
-            </p>
-            <button
-              type="button"
-              onClick={() => setFt6ModalOpen(false)}
-              className="w-full py-2.5 bg-stone-900 text-white rounded-xl text-xs font-bold"
-            >
-              Mengerti
-            </button>
           </div>
         </div>
       )}

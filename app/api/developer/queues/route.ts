@@ -209,7 +209,23 @@ export async function GET(req: NextRequest) {
   });
 
   const waHasBacklog = waPendingCount > 10 || waConsecutiveFailures >= 3;
+
+  // 6. Indikator Langganan Laporan Gagal Beruntun (FT-6)
+  const recentReportDispatches = await prisma.waOutbox.findMany({
+    where: { relatedType: 'REPORT_SUBSCRIPTION' },
+    orderBy: { createdAt: 'desc' },
+    take: 10,
+    select: { id: true, status: true, lastError: true, target: true, createdAt: true },
+  });
+
+  let reportSubscriptionFailures = 0;
+  for (const r of recentReportDispatches) {
+    if (r.status === WaOutboxStatus.FAILED) reportSubscriptionFailures++;
+    else break;
+  }
+
   const hasIssues = waHasBacklog ||
+    reportSubscriptionFailures >= 3 ||
     overdueCodOrders.length > 0 ||
     stuckVerificationOrders.length > 0 ||
     stuckProcessingOrders.length > 0 ||
@@ -226,6 +242,7 @@ export async function GET(req: NextRequest) {
       waPendingCount,
       waConsecutiveFailures,
       waLastSuccessAt: lastSuccessfulWa?.sentAt || null,
+      reportSubscriptionFailures,
     },
     queues: {
       overdueCodOrders,

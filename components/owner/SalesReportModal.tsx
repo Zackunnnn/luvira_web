@@ -74,12 +74,14 @@ export default function SalesReportModal({
 
       // Payment filter
       const isMidtrans = tx.paymentMethod === 'MIDTRANS_SNAP' || tx.paymentMethod === 'midtrans';
+      const isCod = tx.paymentMethod === 'COD' || tx.paymentMethod === 'cod';
+      const isSim = tx.paymentMethod === 'TEST_SIMULATION';
       if (paymentFilter === 'midtrans' && !isMidtrans) return [];
-      if (paymentFilter === 'manual' && isMidtrans) return [];
+      if (paymentFilter === 'manual' && (isMidtrans || isCod || isSim)) return [];
+      if (paymentFilter === 'cod' && !isCod) return [];
 
       // Determine payment label
-      const isCod = tx.paymentMethod === 'COD' || tx.paymentMethod === 'cod';
-      const paymentLabel = isCod ? 'COD (Serah Langsung)' : isMidtrans ? 'QRIS / Midtrans' : 'Transfer Bank';
+      const paymentLabel = isCod ? 'COD (Serah Langsung)' : isSim ? 'Simulasi Uji' : isMidtrans ? 'QRIS / Midtrans' : 'Transfer Bank';
 
       // Expand items per order
       if (Array.isArray(tx.items) && tx.items.length > 0) {
@@ -321,6 +323,7 @@ export default function SalesReportModal({
               <option value="ALL">Semua Metode</option>
               <option value="midtrans">QRIS & Midtrans</option>
               <option value="manual">Transfer Bank Manual</option>
+              <option value="cod">COD (Serah Langsung)</option>
             </select>
           </div>
 

@@ -24,6 +24,7 @@ import { CopywritingTab } from '@/components/admin/CopywritingTab';
 import { LocationsTab } from '@/components/admin/LocationsTab';
 import { Truck, FileSpreadsheet } from 'lucide-react';
 import GoogleSheetsCard from '@/components/reports/GoogleSheetsCard';
+import WaReportSubscriptionCard from '@/components/reports/WaReportSubscriptionCard';
 
 function AdminDashboardContent() {
   const router = useRouter();
@@ -285,6 +286,11 @@ function AdminDashboardContent() {
             <GoogleSheetsCard
               title={`Cermin Google Spreadsheet ${user?.region?.name ? `(${user.region.name})` : 'Pusat'}`}
               description="Sinkronisasi data pesanan dan stok khusus wilayah Anda secara otomatis ke Google Sheets."
+              scopeLabel={user?.region?.name ? `REGION: ${user.region.name}` : 'PUSAT'}
+            />
+            <WaReportSubscriptionCard
+              title={`Langganan Laporan WhatsApp ${user?.region?.name ? `(${user.region.name})` : 'Pusat'}`}
+              description="Dapatkan ringkasan berkala performa pesanan dan stok wilayah Anda langsung di WhatsApp."
               scopeLabel={user?.region?.name ? `REGION: ${user.region.name}` : 'PUSAT'}
             />
           </div>
