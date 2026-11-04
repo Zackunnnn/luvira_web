@@ -14,8 +14,53 @@
 | **FT-2: COD Admin/Reseller** | Pesanan Manual COD (Ongkir 0 dipaksa), Alur Serah Terima -> Kas Diterima, Laporan Pendapatan | **GREEN** | `ft-2-green` | Pricing unit (3/3), COD integration (11/11), E2E Admin/Reseller (5/5) | Asumsi F1-F3, F7 terpenuhi |
 | **FT-3: Promo Uji & Kurir Wilayah** | Kontrol Kurir per Wilayah (Admin Pusat), Promo kind=TESTING (Owner only), Bypass Midtrans, QR Simulasi & Bayar Cepat, Reset Data Uji | **GREEN** | `ft-3-green` | `test-promos` (8/8), `region-couriers` (7/7), E2E Screenshot (4/4) | Asumsi F5 |
 | **FT-4: Dashboard Reseller** | /dashboard/reseller mobile-first, 4 State, Pesanan Disamarkan (F4), Promo Saya, Buat COD, Dual Promo Slots | **GREEN** | `ft-4-green` | Unit masking (10/10), Dual promo integration (6/6), Reseller isolation (20/20), E2E Reseller (3/3) | Asumsi F4, F7 terpenuhi |
-| **FT-5: Google Sheets** | Ekspor & Cermin 1-Arah Google Sheets, Scope Global/Region/Reseller, Tombol Sync & UI | **PENDING** | - | Sheets adapter mock/google, Sync integration | Asumsi F6 |
+| **FT-5: Google Sheets** | Ekspor & Cermin 1-Arah Google Sheets, Scope Global/Region/Reseller, Tombol Sync & UI | **GREEN** | `ft-5-green` | `test:unit` (11/11), `test:integration` (5/5), E2E UI (2/2) | Asumsi F6 |
 | **FT-6: Laporan WhatsApp** | Berlangganan Laporan WA, Cron Digest Harian/Mingguan, Tokenized Short-Lived Link (15m) | **PENDING** | - | Cron report unit, Subscription integration | Asumsi F9 |
+
+---
+
+
+## Ringkasan Eksekusi FT-5: Integrasi Cermin Satu Arah Google Sheets (Green)
+- **Status Akhir**: Selesai dan Lolos Semua Gerbang FT-5.
+- **Rincian Implementasi**:
+  1. **Adapter Google Sheets Resmi & Mock Store (`lib/integrations/sheets.ts`)**:
+     - Mode `SHEETS_MODE=mock|google` menggunakan pustaka `googleapis` v4 dengan JWT Service Account.
+     - Penanganan karakter `\n` pada `GOOGLE_PRIVATE_KEY` lingkungan server secara aman.
+     - Ekstraksi ID spreadsheet otomatis dari format tautan maupun ID mentah alfanumerik.
+     - Mode mock in-memory untuk memastikan tes berjalan 100% deterministik tanpa kredensial live.
+  2. **Pembangun Data Tab Terisolasi di SERVER (`lib/integrations/sheets-builder.ts`)**:
+     - **Asumsi F5**: Pesanan uji (`isTest: true`) mutlak dikeluarkan dari semua tab lembar kerja.
+     - **Format Waktu WIB**: Baris 1 seluruh tab memuat `Terakhir disinkronkan: <waktu WIB>` untuk kepastian kesegaran data.
+     - **Data Masking (Asumsi F4)**: Seluruh nama pelanggan disamarkan menjadi `B*** S***` dan nomor telepon menjadi `••••1234`.
+     - **Cakupan GLOBAL (Owner)**: 6 tab lengkap (`Ringkasan Bisnis`, `Daftar Pesanan`, `Penjualan Per Produk`, `Kontribusi Wilayah`, `Promo dan Reseller`, `Stok Gudang`) memuat data HPP, kemasan, dan laba kotor.
+     - **Cakupan REGION (Admin Wilayah)**: 2 tab (`Pesanan <Wilayah>`, `Stok <Wilayah>`), MUTLAK TANPA HPP/modal/laba kotor dan terisolasi pada wilayah gudangnya.
+     - **Cakupan RESELLER**: 2 tab (`Ringkasan Reseller`, `Pesanan Saya`), MUTLAK TANPA HPP, TANPA stok gudang, dan TANPA alamat detail pelanggan.
+  3. **Prinsip Cermin Satu Arah & Idempotensi (Asumsi F6)**:
+     - Proses sinkronisasi melakukan pembersihan rentang tab (`values.clear`) sebelum penulisan batch (`values.batchUpdate`), memastikan tidak ada duplikasi data atau baris ganda saat sinkronisasi ulang.
+  4. **API Endpoints & Cron Scheduler**:
+     - `GET /api/sheets/connection`: Mengambil status koneksi berdasarkan peran dan mengembalikan email Service Account.
+     - `POST /api/sheets/connect`: Memvalidasi tautan, menguji akses Editor Service Account, meng-upsert data koneksi di DB dev, dan menjalankan sinkronisasi perdana secara otomatis.
+     - `POST /api/sheets/sync`: Menjalankan sinkronisasi manual saat tombol diklik.
+     - `POST /api/sheets/disconnect`: Memutuskan sambungan lembar kerja dan mencatat audit trail.
+     - `GET / POST /api/cron/sheets-sync`: Dilindungi `CRON_SECRET`, memproses semua koneksi dengan status `autoSync: true` secara terjadwal.
+  5. **Antarmuka Pengguna (`components/reports/GoogleSheetsCard.tsx`)**:
+     - Kartu responsif bertema dark green `#14532d` yang menampilkan:
+       - Badge email Service Account dengan tombol salin 1-klik dan panduan pemberian izin Editor.
+       - Banner peringatan cermin satu arah (peringatan penimpaan tab).
+       - Input tautan Google Sheets & saklar sinkronisasi otomatis harian.
+       - Status badge `Terhubung & Sinkron`, timestamp sinkronisasi terakhir, tautan langsung lembar kerja, dan tombol "Sinkronkan Sekarang".
+     - Terintegrasi di:
+       - Dashboard Owner (`/dashboard/owner` Tab Finansial & HPP).
+       - Dashboard Admin (`/dashboard/admin` Tab Google Spreadsheet).
+       - Dashboard Reseller (`/dashboard/reseller` Modal Cermin Spreadsheet Pribadi).
+- **Hasil Pengujian & Verifikasi**:
+  - Unit Tests: `tests/unit/sheets-builder.test.ts` (11/11 PASS).
+  - Integration Tests: `tests/integration/sheets-integration.test.ts` (5/5 PASS).
+  - Playwright E2E: `tests/e2e/sheets/e2e-sheets-sync.spec.ts` (2/2 PASS).
+  - Bukti Visual Screenshot Tersimpan:
+    1. `screenshot_sheets_connection_owner.png`
+    2. `screenshot_sheets_connection_reseller.png`
+  - Pemeriksaan Kode: `tsc --noEmit` (0 error), `npm run lint` (0 error), `npm run build` (18 halaman statis & 50 dynamic API routes hijau).
 
 ---
 

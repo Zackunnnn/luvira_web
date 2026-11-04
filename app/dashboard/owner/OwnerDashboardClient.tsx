@@ -10,6 +10,7 @@ import {
   Layers, Package, Calendar, Eye, FileSpreadsheet, Printer, FlaskConical
 } from 'lucide-react';
 import SalesReportModal from '@/components/owner/SalesReportModal';
+import GoogleSheetsCard from '@/components/reports/GoogleSheetsCard';
 
 export default function OwnerDashboardClient() {
   const [activeTab, setActiveTab] = useState<'finances' | 'accounts' | 'settings' | 'audit' | 'users'>('finances');
@@ -679,6 +680,11 @@ export default function OwnerDashboardClient() {
                       )}
                     </div>
                   </div>
+                </div>
+
+                {/* INTEGRASI GOOGLE SPREADSHEET (FT-5) */}
+                <div className="pt-2">
+                  <GoogleSheetsCard scopeLabel="GLOBAL (Seluruh Bisnis)" />
                 </div>
               </>
             ) : null}

@@ -26,6 +26,7 @@ import {
   ArrowUpRight,
   X,
 } from 'lucide-react';
+import GoogleSheetsCard from '@/components/reports/GoogleSheetsCard';
 
 interface ResellerSummary {
   totalOrders: number;
@@ -826,24 +827,25 @@ export default function ResellerDashboardClient() {
         </div>
       )}
 
-      {/* MODAL: FT-5 PLACEHOLDER (UNDUH DATA / SPREADSHEET MIRROR) */}
+      {/* MODAL: FT-5 GOOGLE SHEETS MIRROR */}
       {ft5ModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white max-w-sm w-full rounded-3xl p-6 border border-stone-200 shadow-xl space-y-4 text-center">
-            <div className="w-12 h-12 bg-emerald-50 text-[#14532d] rounded-full flex items-center justify-center mx-auto">
-              <Download className="w-6 h-6" />
+        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="max-w-2xl w-full my-8">
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setFt5ModalOpen(false)}
+                className="absolute top-4 right-4 z-10 p-2 text-stone-400 hover:text-stone-700 bg-white/80 hover:bg-stone-100 rounded-xl transition cursor-pointer"
+                title="Tutup"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <GoogleSheetsCard
+                title="Cermin Spreadsheet Reseller"
+                description="Sinkronkan seluruh data pesanan dan kode promo Anda secara otomatis ke lembar kerja Google Sheets pribadi."
+                scopeLabel="RESELLER (Pesanan Saya)"
+              />
             </div>
-            <h3 className="text-sm font-bold text-stone-900 font-serif">Cermin Spreadsheet Saya (FT-5)</h3>
-            <p className="text-xs text-stone-500">
-              Fitur sinkronisasi otomatis satu arah ke Google Sheets reseller (FT-5) sedang disiapkan di tahap berikutnya. Anda akan dapat menautkan Google Sheet pribadi Anda di sini.
-            </p>
-            <button
-              type="button"
-              onClick={() => setFt5ModalOpen(false)}
-              className="w-full py-2.5 bg-stone-900 text-white rounded-xl text-xs font-bold"
-            >
-              Mengerti
-            </button>
           </div>
         </div>
       )}

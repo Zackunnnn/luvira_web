@@ -22,7 +22,8 @@ import { UsersTab } from '@/components/admin/UsersTab';
 import { AdviceTab } from '@/components/admin/AdviceTab';
 import { CopywritingTab } from '@/components/admin/CopywritingTab';
 import { LocationsTab } from '@/components/admin/LocationsTab';
-import { Truck } from 'lucide-react';
+import { Truck, FileSpreadsheet } from 'lucide-react';
+import GoogleSheetsCard from '@/components/reports/GoogleSheetsCard';
 
 function AdminDashboardContent() {
   const router = useRouter();
@@ -31,7 +32,7 @@ function AdminDashboardContent() {
 
   const [user, setUser] = useState<any | null>(null);
   const [loadingUser, setLoadingUser] = useState(true);
-  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'stock' | 'promos' | 'advice' | 'users' | 'copywriting' | 'locations'>('orders');
+  const [activeTab, setActiveTab] = useState<'orders' | 'products' | 'stock' | 'promos' | 'advice' | 'users' | 'copywriting' | 'locations' | 'sheets'>('orders');
 
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -224,6 +225,20 @@ function AdminDashboardContent() {
             <Truck className="w-4 h-4 text-stone-400" />
             <span>Wilayah & Kurir</span>
           </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('sheets')}
+            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-bold text-xs transition-all whitespace-nowrap cursor-pointer ${
+              activeTab === 'sheets'
+                ? 'bg-deep-forest text-warm-cream shadow-xs'
+                : 'text-stone-600 hover:bg-stone-100 hover:text-deep-forest'
+            }`}
+            id="tab-sheets"
+          >
+            <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+            <span>Google Spreadsheet</span>
+          </button>
         </div>
       </div>
 
@@ -263,6 +278,16 @@ function AdminDashboardContent() {
 
         {activeTab === 'locations' && (
           <LocationsTab user={user} />
+        )}
+
+        {activeTab === 'sheets' && (
+          <div className="space-y-6">
+            <GoogleSheetsCard
+              title={`Cermin Google Spreadsheet ${user?.region?.name ? `(${user.region.name})` : 'Pusat'}`}
+              description="Sinkronisasi data pesanan dan stok khusus wilayah Anda secara otomatis ke Google Sheets."
+              scopeLabel={user?.region?.name ? `REGION: ${user.region.name}` : 'PUSAT'}
+            />
+          </div>
         )}
       </main>
     </div>

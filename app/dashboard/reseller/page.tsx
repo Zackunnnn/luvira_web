@@ -14,3 +14,4 @@ export const metadata: Metadata = {
 export default function ResellerDashboardPage() {
   return <ResellerDashboardClient />;
 }
+
