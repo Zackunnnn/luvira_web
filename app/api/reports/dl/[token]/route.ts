@@ -60,3 +60,4 @@ export async function GET(
     return new NextResponse('Terjadi kesalahan sistem saat memproses berkas laporan.', { status: 500 });
   }
 }
+

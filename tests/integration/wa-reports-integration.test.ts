@@ -146,3 +146,4 @@ describe('FT-6 Integration Tests: WA Reports Generation & Role Isolation', () =>
     expect(tokenData2).toBeNull();
   });
 });
+
