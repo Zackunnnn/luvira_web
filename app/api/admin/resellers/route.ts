@@ -21,8 +21,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
     }
 
-    if (!can(user, 'reseller:manage', { targetRole: Role.RESELLER })) {
-      return NextResponse.json({ error: 'Akses ditolak: Hanya Owner dan Admin Pusat yang dapat mengelola reseller.' }, { status: 403 });
+    const canManage = can(user, 'reseller:manage', { targetRole: Role.RESELLER });
+    const canViewMasked = can(user, 'reseller:view_list_masked');
+    if (!canManage && !canViewMasked) {
+      return NextResponse.json({ error: 'Akses ditolak: Anda tidak memiliki izin melihat daftar reseller.' }, { status: 403 });
     }
 
     const resellers = await prisma.user.findMany({
@@ -53,7 +55,17 @@ export async function GET(request: NextRequest) {
       orderBy: { name: 'asc' },
     });
 
-    return NextResponse.json({ resellers, regions });
+    let outputResellers = resellers;
+    if (user.role === Role.LUVIBOT) {
+      outputResellers = resellers.map((r: any) => ({
+        ...r,
+        name: r.name ? `${r.name[0]}*** ${r.name.split(' ').slice(-1)[0]?.[0] || ''}***` : 'R***',
+        phone: r.phone ? `••••${r.phone.slice(-4)}` : '••••',
+        email: r.email ? `${r.email[0]}***@***` : '***@***',
+      }));
+    }
+
+    return NextResponse.json({ resellers: outputResellers, regions });
   } catch (error: any) {
     console.error('[API Admin Resellers GET Error]', error);
     return NextResponse.json({ error: error.message || 'Gagal memuat daftar reseller' }, { status: 500 });

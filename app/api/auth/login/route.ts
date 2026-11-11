@@ -36,6 +36,10 @@ export async function POST(request: NextRequest) {
       redirectUrl = '/dashboard/owner';
     } else if (authResult.user.role === Role.DEVELOPER) {
       redirectUrl = '/dashboard/developer';
+    } else if (authResult.user.role === Role.RESELLER) {
+      redirectUrl = '/dashboard/reseller';
+    } else if (authResult.user.role === Role.LUVIBOT) {
+      redirectUrl = '/dashboard/luvibot';
     }
 
     return NextResponse.json(

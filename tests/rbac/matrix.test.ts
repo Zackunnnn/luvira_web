@@ -240,9 +240,10 @@ const ROLES: (AuthUser | null)[] = [
   { id: 'u-owner', role: Role.OWNER, regionId: null },
   { id: 'u-dev', role: Role.DEVELOPER, regionId: null },
   { id: 'u-reseller', role: Role.RESELLER, regionId: 'region-pusat' },
+  { id: 'u-luvibot', role: Role.LUVIBOT, regionId: null },
 ];
 
-describe('Matriks RBAC Otomatis (6 Peran + Unauthenticated)', () => {
+describe('Matriks RBAC Otomatis (7 Peran + Unauthenticated)', () => {
   ENDPOINT_POLICIES.forEach((policy) => {
     describe(`${policy.method} ${policy.endpoint} — ${policy.description}`, () => {
       ROLES.forEach((user) => {
@@ -318,6 +319,24 @@ describe('Matriks RBAC Otomatis (6 Peran + Unauthenticated)', () => {
             ].includes(policy.permission);
 
             expect(allowed).toBe(resellerAllowed);
+          }
+          // 7. LUVIBOT (Sub-Admin Model A)
+          else if (user.role === Role.LUVIBOT) {
+            const luvibotAllowed = [
+              'catalog:view',
+              'advice:read',
+              'order:track',
+              'order:view',
+              'order:manage',
+              'catalog:manage',
+              'price:manage',
+              'stock:manage',
+              'promo_reseller:manage',
+              'promo_region:manage',
+              'reports:view_dashboard',
+            ].includes(policy.permission);
+
+            expect(allowed).toBe(luvibotAllowed);
           }
         });
       });

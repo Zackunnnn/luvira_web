@@ -14,6 +14,7 @@ import { prisma } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
 import { can } from '@/lib/permissions';
 import { audit } from '@/lib/audit';
+import { recordLuviChangeLog } from '@/lib/changelog';
 import { notifyOrderShipped } from '@/lib/notify/order-events';
 import { enqueueWhatsAppNotification } from '@/lib/notify/queue';
 import { OrderStatus, PaymentMethod, Role, StockMovementType } from '@prisma/client';
@@ -49,6 +50,19 @@ export async function PUT(
 
     if (!toStatus || !Object.values(OrderStatus).includes(toStatus)) {
       return NextResponse.json({ error: 'Status pesanan tujuan tidak valid' }, { status: 400 });
+    }
+
+    if (user.role === Role.LUVIBOT) {
+      if (!body.draftId) {
+        return NextResponse.json({
+          error: 'Akses ditolak Model A: Role LUVIBOT hanya boleh mengubah status pesanan setelah ada Draf lengkap dan persetujuan Awan (draftId wajib disertakan).'
+        }, { status: 400 });
+      }
+      if (toStatus === OrderStatus.DIBATALKAN) {
+        return NextResponse.json({
+          error: 'Akses ditolak: Role LUVIBOT dilarang keras membatalkan pesanan atau memproses refund.'
+        }, { status: 403 });
+      }
     }
 
     const order = await prisma.order.findFirst({
@@ -331,6 +345,25 @@ export async function PUT(
         trackingNumber: body.trackingNumber || order.trackingNumber,
       },
     });
+
+    if (user.role === Role.LUVIBOT) {
+      await recordLuviChangeLog({
+        draftId: body.draftId,
+        requestedBy: body.requestedBy || 'Awan',
+        approvedBy: body.approvedBy || 'Awan',
+        approvalTimeWib: body.approvalTimeWib || 'Disetujui di chat Muse',
+        executedBy: `${user.name || user.email} (Role: LUVIBOT)`,
+        targetType: 'ORDER',
+        targetId: order.id,
+        targetName: `Pesanan #${order.code}`,
+        fieldChanged: 'status',
+        oldValue: previousStatus,
+        newValue: toStatus,
+        verificationResult: 'LOLOS',
+        status: 'BERHASIL',
+        rollbackTo: previousStatus,
+      });
+    }
 
     // Notifikasi WA bila pengiriman non-COD
     if (!isCod && toStatus === OrderStatus.DIKIRIM) {

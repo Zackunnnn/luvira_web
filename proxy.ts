@@ -27,6 +27,9 @@ export async function proxy(request: NextRequest) {
       if (session.role === Role.RESELLER) {
         return NextResponse.redirect(new URL('/dashboard/reseller', request.url));
       }
+      if (session.role === Role.LUVIBOT) {
+        return NextResponse.redirect(new URL('/dashboard/luvibot', request.url));
+      }
       return NextResponse.redirect(new URL('/dashboard/admin', request.url));
     }
 
@@ -68,7 +71,7 @@ export async function proxy(request: NextRequest) {
       }
     }
 
-    // D. Dashboard Admin: Hanya ADMIN_PUSAT, ADMIN_WILAYAH, OWNER, DEVELOPER
+    // D. Dashboard Admin: Hanya ADMIN_PUSAT, ADMIN_WILAYAH, OWNER, DEVELOPER (LUVIBOT mutlak ditolak)
     if (pathname.startsWith('/dashboard/admin')) {
       const allowedAdminRoles: Role[] = [
         Role.ADMIN_PUSAT,
@@ -77,6 +80,13 @@ export async function proxy(request: NextRequest) {
         Role.DEVELOPER,
       ];
       if (!allowedAdminRoles.includes(session.role)) {
+        return NextResponse.redirect(new URL('/forbidden', request.url));
+      }
+    }
+
+    // E. Dashboard LuviBot: Hanya peran LUVIBOT (dan OWNER untuk supervisi)
+    if (pathname.startsWith('/dashboard/luvibot')) {
+      if (session.role !== Role.LUVIBOT && session.role !== Role.OWNER) {
         return NextResponse.redirect(new URL('/forbidden', request.url));
       }
     }

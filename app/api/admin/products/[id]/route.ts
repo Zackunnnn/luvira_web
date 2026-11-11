@@ -4,6 +4,8 @@ import { prisma } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth';
 import { can, maskProductCost } from '@/lib/permissions';
 import { audit } from '@/lib/audit';
+import { Role } from '@prisma/client';
+import { recordLuviChangeLog } from '@/lib/changelog';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,6 +60,13 @@ export async function PUT(
 
     const { id } = await params;
     const body = await request.json();
+
+    const isLuviBot = user.role === Role.LUVIBOT;
+    if (isLuviBot && !body?.draftId) {
+      return NextResponse.json({
+        error: 'Akses ditolak Model A: Role LUVIBOT hanya boleh mengubah produk setelah ada Draf lengkap dan persetujuan Awan (draftId wajib disertakan).'
+      }, { status: 400 });
+    }
 
     const existingProduct = await prisma.product.findUnique({
       where: { id },
@@ -149,10 +158,31 @@ export async function PUT(
       after: { name: updated.name, price: updated.price },
     });
 
+    let changeLog = null;
+    if (isLuviBot) {
+      changeLog = await recordLuviChangeLog({
+        draftId: String(body.draftId),
+        requestedBy: body.requestedBy || 'Awan',
+        approvedBy: body.approvedBy || 'Awan',
+        approvalTimeWib: body.approvalTimeWib,
+        executedBy: user.email || user.name || 'LuviBot',
+        targetType: 'PRODUCT',
+        targetId: id,
+        targetName: updated.name,
+        fieldChanged: 'update_product',
+        oldValue: `Nama: ${existingProduct.name}, Desc: ${existingProduct.description?.slice(0, 30)}...`,
+        newValue: `Nama: ${updated.name}, Desc: ${updated.description?.slice(0, 30)}...`,
+        verificationResult: 'LOLOS',
+        verificationProof: `Produk ${updated.name} berhasil diperbarui`,
+        status: 'BERHASIL',
+      });
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Produk berhasil diperbarui.',
       product: updated,
+      changeLog,
     });
   } catch (error: any) {
     console.error('[API Admin Product PUT Error]', error);
@@ -168,6 +198,10 @@ export async function DELETE(
     const user = await getAuthUser(request);
     if (!user) {
       return NextResponse.json({ error: 'Tidak terautentikasi' }, { status: 401 });
+    }
+
+    if (user.role === Role.LUVIBOT) {
+      return NextResponse.json({ error: 'Akses ditolak: Role LUVIBOT dilarang keras menghapus produk.' }, { status: 403 });
     }
 
     if (!can(user, 'catalog:manage')) {

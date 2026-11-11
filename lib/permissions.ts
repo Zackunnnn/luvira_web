@@ -66,7 +66,11 @@ export type Permission =
   | 'sheet:manage_own'
   | 'sheet:manage_global'
   | 'wa:settings'
-  | 'report:subscribe';
+  | 'report:subscribe'
+  // Role LuviBot Sub-Admin Model A
+  | 'reseller:view_list_masked'
+  | 'changelog:view'
+  | 'changelog:create';
 
 export interface ResourceContext {
   regionId?: string | null;
@@ -77,6 +81,28 @@ export interface ResourceContext {
 
 // Matriks Izin Dasar per Peran
 const BASE_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
+  LUVIBOT: [
+    'catalog:view',
+    'advice:read',
+    'order:view',
+    'order:manage',
+    'order:track',
+    'stock:view',
+    'stock:manage',
+    'catalog:manage',
+    'price:manage',
+    'promo_reseller:manage',
+    'promo_region:manage',
+    'promo:view',
+    'payment_accounts:view',
+    'settings:view',
+    'reports:view_dashboard',
+    'audit:view',
+    'reseller:view_list_masked',
+    'changelog:view',
+    'changelog:create',
+  ],
+
   BUYER: [
     'catalog:view',
     'advice:read',
@@ -107,6 +133,7 @@ const BASE_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'payment_accounts:view',
     'sheet:manage_own',
     'report:subscribe',
+    'changelog:view',
   ],
 
   ADMIN_WILAYAH: [
@@ -158,6 +185,7 @@ const BASE_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'sheet:manage_own',
     'wa:settings',
     'report:subscribe',
+    'changelog:view',
   ],
 
   DEVELOPER: [
@@ -174,6 +202,7 @@ const BASE_ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'audit:view',
     'system:health_manage',
     'system:error_view',
+    'changelog:view',
   ],
 
   RESELLER: [
@@ -289,6 +318,31 @@ export function can(
   // 4. Owner: Hanya melihat pesanan (tidak mengelola langsung di alur admin)
   if (role === Role.OWNER && permission === 'order:manage') {
     return false;
+  }
+
+  // 6. LuviBot Sub-Admin (Model A): Strict guard
+  if (role === Role.LUVIBOT) {
+    const forbiddenForLuviBot: Permission[] = [
+      'cost_price:view',
+      'cost_price:manage',
+      'reports:export',
+      'settings:manage',
+      'users:manage_regional_admin',
+      'users:manage_all_admins',
+      'system:health_manage',
+      'system:error_view',
+      'order:create_cod',
+      'promo:test_manage',
+      'test_orders:reset',
+      'sheet:manage_own',
+      'sheet:manage_global',
+      'wa:settings',
+      'report:subscribe',
+      'profile:manage_own',
+    ];
+    if (forbiddenForLuviBot.includes(permission)) {
+      return false;
+    }
   }
 
   // 5. Reseller: Hanya untuk sumber daya miliknya sendiri

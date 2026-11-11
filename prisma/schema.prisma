@@ -23,6 +23,7 @@ enum Role {
   OWNER
   DEVELOPER
   RESELLER
+  LUVIBOT
 }
 
 enum RegionType {
@@ -641,3 +642,31 @@ model SheetConnection {
 
   @@index([scopeType, scopeId])
 }
+
+model LuviChangeLog {
+  id                 String   @id @default(cuid())
+  logCode            String   @unique // e.g. LOG-20261111-01
+  draftId            String   // e.g. DRAF-20261111-01
+  executedAtWib      String   // Waktu eksekusi WIB
+  requestedBy        String   @default("Awan")
+  approvedBy         String   @default("Awan")
+  approvalTimeWib    String   // Jam approval WIB
+  executedBy         String   // Akun LuviBot (email/nama)
+  executorRole       String   @default("LUVIBOT")
+  targetType         String   // "PRODUCT" | "PROMO" | "STOCK" | "ORDER"
+  targetId           String
+  targetName         String
+  fieldChanged       String
+  oldValue           String
+  newValue           String
+  verificationResult String   @default("LOLOS") // "LOLOS" | "GAGAL"
+  verificationProof  String?  @db.Text
+  status             String   @default("BERHASIL") // "BERHASIL" | "GAGAL" | "DI-ROLLBACK"
+  rollbackTo         String?
+  createdAt          DateTime @default(now())
+
+  @@index([targetType, targetId])
+  @@index([draftId])
+  @@index([createdAt])
+}
+

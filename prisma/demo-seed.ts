@@ -74,6 +74,7 @@ async function main() {
     { email: 'owner@luvira.id', name: 'Owner (Pak Dimas / Wann)', role: Role.OWNER, regionId: null },
     { email: 'developer@luvira.id', name: 'Lead Developer', role: Role.DEVELOPER, regionId: null },
     { email: 'reseller.demo@luvira.id', name: 'Reseller Mitra (Budi Santoso)', role: Role.RESELLER, regionId: pusat.id, phone: '6281234567899' },
+    { email: 'luvibot.test@luvira.id', name: 'LuviBot Sub-Admin (Akun Uji)', role: Role.LUVIBOT, regionId: null },
   ];
 
   const credentials: { role: string; email: string; name: string; password: string }[] = [];

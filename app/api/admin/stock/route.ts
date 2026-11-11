@@ -10,6 +10,7 @@ import { getAuthUser } from '@/lib/auth';
 import { can } from '@/lib/permissions';
 import { audit } from '@/lib/audit';
 import { Role, StockMovementType } from '@prisma/client';
+import { recordLuviChangeLog } from '@/lib/changelog';
 
 export const dynamic = 'force-dynamic';
 
@@ -113,6 +114,13 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Akses ditolak: Anda tidak memiliki izin mengelola stok wilayah ini.' }, { status: 403 });
     }
 
+    const isLuviBot = user.role === Role.LUVIBOT;
+    if (isLuviBot && !body.draftId) {
+      return NextResponse.json({
+        error: 'Akses ditolak Model A: Role LUVIBOT hanya boleh mengubah stok setelah ada Draf lengkap dan persetujuan Awan (draftId wajib disertakan).'
+      }, { status: 400 });
+    }
+
     const newQty = Math.max(0, parseInt(qty, 10));
 
     // Cari atau buat record Stock jika belum ada
@@ -165,6 +173,25 @@ export async function PUT(request: NextRequest) {
       before: { qty: previousQty },
       after: { qty: newQty, reason },
     });
+
+    if (isLuviBot) {
+      await recordLuviChangeLog({
+        draftId: body.draftId,
+        requestedBy: body.requestedBy || 'Awan',
+        approvedBy: body.approvedBy || 'Awan',
+        approvalTimeWib: body.approvalTimeWib || 'Disetujui di chat Muse',
+        executedBy: `${user.name || user.email} (Role: LUVIBOT)`,
+        targetType: 'STOCK',
+        targetId: result.id,
+        targetName: `Stok Varian ${variantId}`,
+        fieldChanged: 'qty',
+        oldValue: `${previousQty} pasang`,
+        newValue: `${newQty} pasang`,
+        verificationResult: 'LOLOS',
+        status: 'BERHASIL',
+        rollbackTo: `${previousQty} pasang`,
+      });
+    }
 
     return NextResponse.json({
       success: true,

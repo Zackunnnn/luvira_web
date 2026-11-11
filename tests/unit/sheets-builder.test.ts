@@ -3,7 +3,7 @@
 // FT-5 Unit Tests: Google Sheets Adapter & Tab Builder (Asumsi F6)
 // ============================================================================
 
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, beforeAll, afterAll } from 'vitest';
 import {
   extractSpreadsheetId,
   writeSpreadsheetTabs,
@@ -20,6 +20,16 @@ import {
 import { prisma } from '@/lib/db';
 
 describe('FT-5 Unit Tests: Google Sheets Builder & Adapter', () => {
+  const origSheetsMode = process.env.SHEETS_MODE;
+
+  beforeAll(() => {
+    process.env.SHEETS_MODE = 'mock';
+  });
+
+  afterAll(() => {
+    process.env.SHEETS_MODE = origSheetsMode;
+  });
+
   beforeEach(() => {
     clearMockSheets();
   });

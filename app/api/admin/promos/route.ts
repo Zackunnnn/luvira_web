@@ -10,6 +10,7 @@ import { getAuthUser } from '@/lib/auth';
 import { can } from '@/lib/permissions';
 import { audit } from '@/lib/audit';
 import { PromoType, DiscountType, Role } from '@prisma/client';
+import { recordLuviChangeLog } from '@/lib/changelog';
 
 export const dynamic = 'force-dynamic';
 
@@ -133,6 +134,20 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const isLuviBot = user.role === Role.LUVIBOT;
+    if (isLuviBot) {
+      if (!body.draftId) {
+        return NextResponse.json({
+          error: 'Akses ditolak Model A: Role LUVIBOT hanya boleh membuat promo setelah ada Draf lengkap dan persetujuan Awan (draftId wajib disertakan).'
+        }, { status: 400 });
+      }
+      if (!expiresAt || effectiveQuota === undefined || minOrderAmount === undefined) {
+        return NextResponse.json({
+          error: 'Draf LuviBot Model A tidak lengkap: masa berlaku (expiresAt), kuota pemakaian (quota), dan minimum belanja (minOrderAmount) wajib diisi (tidak boleh ada field kosong).'
+        }, { status: 400 });
+      }
+    }
+
     if (!code?.trim() || !discountType || discountValue === undefined) {
       return NextResponse.json({ error: 'Kode, tipe diskon, dan nilai diskon wajib diisi.' }, { status: 400 });
     }
@@ -198,10 +213,31 @@ export async function POST(request: NextRequest) {
       after: { code: cleanCode, type: promoType, discountType, discountValue: val },
     });
 
+    let changeLog = null;
+    if (isLuviBot) {
+      changeLog = await recordLuviChangeLog({
+        draftId: String(body.draftId),
+        requestedBy: body.requestedBy || 'Awan',
+        approvedBy: body.approvedBy || 'Awan',
+        approvalTimeWib: body.approvalTimeWib,
+        executedBy: user.email || user.name || 'LuviBot',
+        targetType: 'PROMO',
+        targetId: newPromo.id,
+        targetName: `Promo ${cleanCode}`,
+        fieldChanged: 'create_promo',
+        oldValue: '-',
+        newValue: `Diskon ${discountType} ${val}, Min ${minOrderAmount}, Kuota ${effectiveQuota}`,
+        verificationResult: 'LOLOS',
+        verificationProof: `Promo ${cleanCode} berhasil dibuat dan aktif`,
+        status: 'BERHASIL',
+      });
+    }
+
     return NextResponse.json({
       success: true,
       message: `Kode promo "${cleanCode}" berhasil dibuat.`,
       promo: newPromo,
+      changeLog,
     }, { status: 201 });
   } catch (error: any) {
     console.error('[API Admin Promos POST Error]', error);
