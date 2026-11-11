@@ -67,9 +67,10 @@ export default function LuviBotDashboardClient() {
       const res = await fetch('/api/products');
       if (res.ok) {
         const data = await res.json();
-        setProducts(data.products || []);
-        if (data.products?.length > 0 && !selectedProductId) {
-          setSelectedProductId(data.products[0].id);
+        const list = Array.isArray(data) ? data : (data.data || data.products || []);
+        setProducts(list);
+        if (list.length > 0 && !selectedProductId) {
+          setSelectedProductId(list[0].id);
         }
       }
     } catch (e) {
