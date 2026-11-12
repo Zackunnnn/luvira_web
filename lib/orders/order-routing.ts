@@ -259,6 +259,17 @@ export async function createOrderWithAtomicReservation(params: CreateOrderParams
     }
   }
 
+  // Validasi keaktifan produk & varian
+  for (const item of params.items) {
+    const vData = variantsMap.get(item.variantId);
+    if (!vData) {
+      throw new Error(`Varian dengan ID ${item.variantId} tidak ditemukan.`);
+    }
+    if (vData.product.isActive === false || vData.variant.isActive === false) {
+      throw new Error(`Produk atau varian "${vData.product.name} - ${vData.variant.name}" sedang tidak aktif dan tidak dapat dipesan.`);
+    }
+  }
+
   // C. Validasi promo di server jika ada (Slot 1 & Slot 2)
   let promoData: PromoDataForCalculation | null = null;
   if (params.promoCodeId) {

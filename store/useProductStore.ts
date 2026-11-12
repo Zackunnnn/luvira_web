@@ -40,11 +40,15 @@ export const useProductStore = create<ProductState>()((set, get) => ({
   fetchProducts: async () => {
     set({ isLoading: true });
     try {
-      const res = await fetch('/api/products');
+      const res = await fetch('/api/products', { cache: 'no-store' });
       if (res.ok) {
         const json = await res.json();
-        if (json.data && Array.isArray(json.data) && json.data.length > 0) {
-          set({ products: json.data });
+        if (json.data && Array.isArray(json.data)) {
+          if (json.warning) {
+            set({ products: MOCK_PRODUCTS });
+          } else {
+            set({ products: json.data });
+          }
         } else {
           set({ products: MOCK_PRODUCTS });
         }

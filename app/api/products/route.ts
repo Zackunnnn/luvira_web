@@ -21,17 +21,8 @@ export async function GET() {
       return Response.json({ warning: 'Database belum dikonfigurasi', data: resolvedMock });
     }
 
-    const products = await prisma.product.findMany({
-      include: {
-        variants: {
-          include: {
-            stocks: true,
-          },
-        },
-      },
-    });
-
-    if (!products || products.length === 0) {
+    const totalCount = await prisma.product.count();
+    if (totalCount === 0) {
       const resolvedMock = MOCK_PRODUCTS.map((p) => ({
         ...p,
         variants: p.variants.map((v) => ({
@@ -41,6 +32,25 @@ export async function GET() {
       }));
       return Response.json({ data: resolvedMock });
     }
+
+    const products = await prisma.product.findMany({
+      where: {
+        isActive: true,
+      },
+      include: {
+        variants: {
+          where: {
+            isActive: true,
+          },
+          include: {
+            stocks: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+    });
     
     const ownerStatus = await isOwner();
 
@@ -69,7 +79,13 @@ export async function GET() {
       };
     });
     
-    return Response.json({ data: mappedProducts });
+    return new Response(JSON.stringify({ data: mappedProducts }), {
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      },
+    });
   } catch (error) {
     console.warn('[Products API] Fallback to MOCK_PRODUCTS:', error);
     const resolvedMock = MOCK_PRODUCTS.map((p) => ({
