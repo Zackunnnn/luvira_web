@@ -181,7 +181,7 @@ export const HeroSection: React.FC = () => {
               <div className="relative rounded-3xl bg-gradient-to-br from-white to-warm-cream p-4 sm:p-6 border border-deep-forest/15 shadow-xl mt-6 lg:mt-0">
                 {/* Floating "Best Seller" badge in top-right corner */}
                 <div className="absolute -top-3 right-4 sm:right-6 bg-dusty-rose text-white text-[11px] font-bold px-4 py-1.5 rounded-full shadow-md z-20">
-                  Best Seller Showcase
+                  {spotlightProduct.badge || 'Best Seller'}
                 </div>
 
                 {/* Product image — changes dynamically based on selected variant */}
@@ -202,9 +202,16 @@ export const HeroSection: React.FC = () => {
                     <h3 className="font-extrabold text-base text-deep-forest">
                       {spotlightProduct.name}
                     </h3>
-                    <span className="font-extrabold text-sm text-leaf-olive">
-                      Rp 35.000
-                    </span>
+                    <div className="text-right">
+                      {spotlightProduct.originalPrice && (
+                        <span className="block text-[11px] line-through text-muted-charcoal/50 leading-none mb-0.5">
+                          Rp {spotlightProduct.originalPrice.toLocaleString('id-ID')}
+                        </span>
+                      )}
+                      <span className="font-extrabold text-sm text-leaf-olive">
+                        Rp {spotlightProduct.price.toLocaleString('id-ID')}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Color variant swatches — clicking changes the product image above */}
