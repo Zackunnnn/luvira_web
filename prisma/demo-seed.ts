@@ -79,8 +79,17 @@ async function main() {
 
   const credentials: { role: string; email: string; name: string; password: string }[] = [];
 
+  const DEFAULT_PASSWORDS: Record<string, string> = {
+    'owner@luvira.id': 'LuviraOwner2026!',
+    'admin.pusat@luvira.id': 'LuviraPusat2026!',
+    'admin.jogja@luvira.id': 'LuviraJogja2026!',
+    'developer@luvira.id': 'LuviraDev2026!',
+    'reseller.demo@luvira.id': 'LuviraReseller2026!',
+    'luvibot.test@luvira.id': 'LuviraTest2026!',
+  };
+
   for (const acc of roles) {
-    const rawPassword = generateRandomPassword(12);
+    const rawPassword = DEFAULT_PASSWORDS[acc.email] || generateRandomPassword(12);
     const passwordHash = await bcrypt.hash(rawPassword, 10);
 
     await prisma.user.upsert({
