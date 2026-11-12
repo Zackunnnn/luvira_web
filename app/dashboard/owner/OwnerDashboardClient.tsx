@@ -89,7 +89,9 @@ export default function OwnerDashboardClient() {
         setPaymentAccounts(json.paymentAccounts || []);
         if (json.settings) {
           setSettingsForm({
-            ppnRate: json.settings.ppnRate ?? 11,
+            ppnRate: typeof json.settings.ppnRate === 'number'
+              ? json.settings.ppnRate
+              : (json.settings.ppnRate?.rate ?? 11),
             lowStockThreshold: json.settings.lowStockThreshold ?? 10,
             maxDiscountPercent: json.settings.maxDiscountPercent ?? 50,
             activeCouriers: Array.isArray(json.settings.activeCouriers) ? json.settings.activeCouriers : ['jne', 'sicepat', 'jnt'],
@@ -794,16 +796,31 @@ export default function OwnerDashboardClient() {
                 <label className="block text-xs font-bold text-stone-700 mb-1">
                   Tarif PPN Penjualan (%)
                 </label>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-3">
                   <input
                     type="number"
                     min="0"
                     max="30"
                     value={settingsForm.ppnRate}
-                    onChange={(e) => setSettingsForm({ ...settingsForm, ppnRate: parseInt(e.target.value) || 0 })}
-                    className="w-32 px-4 py-2.5 rounded-xl border border-stone-200 text-xs font-bold focus:ring-2 focus:ring-deep-forest/20 outline-none"
+                    onChange={(e) => setSettingsForm({ ...settingsForm, ppnRate: Math.max(0, parseInt(e.target.value) || 0) })}
+                    className="w-28 px-3.5 py-2 rounded-xl border border-stone-200 text-xs font-bold focus:ring-2 focus:ring-deep-forest/20 outline-none"
                   />
-                  <span className="text-xs text-stone-500">Standar perpajakan nasional (default 11%)</span>
+                  <button
+                    type="button"
+                    onClick={() => setSettingsForm({ ...settingsForm, ppnRate: settingsForm.ppnRate === 0 ? 11 : 0 })}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                      settingsForm.ppnRate === 0
+                        ? 'bg-amber-50 border-amber-300 text-amber-800 hover:bg-amber-100'
+                        : 'bg-stone-50 border-stone-200 text-stone-700 hover:bg-stone-100'
+                    }`}
+                  >
+                    {settingsForm.ppnRate === 0 ? '✓ PPN Sedang Dinonaktifkan (0%)' : '⚡ Klik untuk Nonaktifkan PPN (0%)'}
+                  </button>
+                  <span className="text-xs text-stone-500">
+                    {settingsForm.ppnRate === 0
+                      ? 'PPN dinonaktifkan: Checkout pembeli bebas PPN (Rp 0)'
+                      : 'Standar perpajakan nasional (default 11%)'}
+                  </span>
                 </div>
               </div>
 

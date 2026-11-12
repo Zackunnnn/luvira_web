@@ -322,7 +322,17 @@ export async function createOrderWithAtomicReservation(params: CreateOrderParams
     }
   }
 
-  // D. Hitung harga resmi server
+  // D. Hitung harga resmi server (termasuk tarif PPN dinamis dari pengaturan)
+  const settingPpn = await prisma.setting.findUnique({ where: { key: 'ppnRate' } });
+  let ppnRateSetting: number | null = null;
+  if (settingPpn && settingPpn.value !== undefined && settingPpn.value !== null) {
+    if (typeof settingPpn.value === 'number') {
+      ppnRateSetting = settingPpn.value;
+    } else if (typeof settingPpn.value === 'object') {
+      ppnRateSetting = (settingPpn.value as any).rate ?? (settingPpn.value as any).value ?? 11;
+    }
+  }
+
   const pricingInputItems = params.items.map((item) => ({
     product: { id: item.productId },
     selectedVariant: { id: item.variantId },
@@ -336,6 +346,7 @@ export async function createOrderWithAtomicReservation(params: CreateOrderParams
     secondPromo: secondPromoData,
     shippingCourier: params.shippingCourier,
     shippingCost: params.shippingCost,
+    ppnRateSetting,
   });
 
   // E. Bangkitkan Order Code unik: LVR-YYYYMMDD-XXXX (dengan pengecekan unik agar anti-tabrakan)

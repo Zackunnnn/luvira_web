@@ -37,7 +37,13 @@ export async function GET(request: NextRequest) {
     };
 
     for (const s of settingsList) {
-      settingsMap[s.key] = s.value;
+      if (s.key === 'ppnRate') {
+        settingsMap.ppnRate = typeof s.value === 'number'
+          ? s.value
+          : ((s.value as any)?.rate ?? (s.value as any)?.value ?? 11);
+      } else {
+        settingsMap[s.key] = s.value;
+      }
     }
 
     return NextResponse.json({

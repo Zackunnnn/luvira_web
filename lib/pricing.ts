@@ -99,6 +99,7 @@ export function calculatePricingPure({
   shippingCourier,
   shippingCost: customShippingCost,
   maxDiscountPercentSetting,
+  ppnRateSetting,
   now = new Date(),
 }: {
   items: PricingItemInput[];
@@ -109,6 +110,7 @@ export function calculatePricingPure({
   shippingCourier?: string | null;
   shippingCost?: number | null;
   maxDiscountPercentSetting?: number | null;
+  ppnRateSetting?: number | null;
   now?: Date;
 }): ServerPricingResult {
   // 1. Hitung Subtotal berdasarkan harga database resmi
@@ -200,8 +202,14 @@ export function calculatePricingPure({
   // 3. Hitung Net Price
   const netPrice = Math.max(0, subtotal - discountAmount);
 
-  // 4. Hitung PPN 11% dari Net
-  const ppnAmount = isFreeTax ? 0 : Math.round((netPrice * PPN_PERCENTAGE) / 100);
+  // 4. Hitung PPN dari Net (dinamis sesuai pengaturan ppnRateSetting, default 11%)
+  const activePpnPercentage = typeof ppnRateSetting === 'number' && ppnRateSetting >= 0
+    ? ppnRateSetting
+    : PPN_PERCENTAGE;
+
+  const ppnAmount = isFreeTax || activePpnPercentage <= 0
+    ? 0
+    : Math.round((netPrice * activePpnPercentage) / 100);
 
   // 5. Hitung Ongkir
   let shippingCost = 0;
@@ -307,11 +315,27 @@ export async function calculateOrderPricing(
     }
   }
 
+  // 4. Fetch PPN rate dari Setting jika ada
+  let ppnRateSetting: number | null = null;
+  try {
+    const settingPpn = await prisma.setting.findUnique({ where: { key: 'ppnRate' } });
+    if (settingPpn && settingPpn.value !== undefined && settingPpn.value !== null) {
+      if (typeof settingPpn.value === 'number') {
+        ppnRateSetting = settingPpn.value;
+      } else if (typeof settingPpn.value === 'object') {
+        ppnRateSetting = (settingPpn.value as any).rate ?? (settingPpn.value as any).value ?? 11;
+      }
+    }
+  } catch (e) {
+    // Fallback default
+  }
+
   return calculatePricingPure({
     items,
     productsMap,
     promo: promoData,
     secondPromo: secondPromoData,
     shippingCourier,
+    ppnRateSetting,
   });
 }

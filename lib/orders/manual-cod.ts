@@ -244,6 +244,16 @@ export async function createManualCodOrder(params: CreateManualCodOrderInput) {
     };
   });
 
+  const settingPpn = await prisma.setting.findUnique({ where: { key: 'ppnRate' } });
+  let ppnRateSetting: number | null = null;
+  if (settingPpn && settingPpn.value !== undefined && settingPpn.value !== null) {
+    if (typeof settingPpn.value === 'number') {
+      ppnRateSetting = settingPpn.value;
+    } else if (typeof settingPpn.value === 'object') {
+      ppnRateSetting = (settingPpn.value as any).rate ?? (settingPpn.value as any).value ?? 11;
+    }
+  }
+
   const pricing = calculatePricingPure({
     items: pricingInputItems,
     productsMap,
@@ -251,6 +261,7 @@ export async function createManualCodOrder(params: CreateManualCodOrderInput) {
     secondPromo: secondPromoData,
     shippingCourier: 'COD_LANGSUNG',
     shippingCost: 0, // Server-forced 0 (F1)
+    ppnRateSetting,
   });
 
   // Pastikan shippingCost mutlak 0

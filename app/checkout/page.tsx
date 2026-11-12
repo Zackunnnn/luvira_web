@@ -32,7 +32,7 @@ import {
 import { normalizeWhatsAppNumber } from '@/lib/whatsapp';
 import { resolveSockImage } from '@/lib/products/sock-images';
 
-const PPN_RATE = 0.11;
+const DEFAULT_PPN_RATE = 0.11;
 
 declare global {
   interface Window {
@@ -91,6 +91,9 @@ export default function CheckoutPage() {
   // Payment Method
   const [paymentMethod, setPaymentMethod] = useState<'MIDTRANS_SNAP' | 'MANUAL_TRANSFER'>('MIDTRANS_SNAP');
 
+  // Dynamic PPN Rate from System Settings
+  const [ppnRate, setPpnRate] = useState<number>(DEFAULT_PPN_RATE);
+
   // Submit Processing
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -139,7 +142,7 @@ export default function CheckoutPage() {
     loadSnapScript(!isProd, clientKey);
   }, []);
 
-  // Restore saved address from localStorage
+  // Restore saved address from localStorage & load active system settings (PPN Rate)
   useEffect(() => {
     try {
       const saved = localStorage.getItem('luvira_saved_address');
@@ -154,6 +157,21 @@ export default function CheckoutPage() {
     } catch {
       // Abaikan
     }
+
+    async function loadPublicSettings() {
+      try {
+        const res = await fetch('/api/settings', { cache: 'no-store' });
+        if (res.ok) {
+          const json = await res.json();
+          if (typeof json.ppnRate === 'number') {
+            setPpnRate(json.ppnRate / 100);
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to load public settings', err);
+      }
+    }
+    loadPublicSettings();
   }, []);
 
   const cartItems = mounted ? items : [];
@@ -271,8 +289,8 @@ export default function CheckoutPage() {
   }
 
   const netPrice = Math.max(0, baseSubtotal - discountAmount);
-  const isFreeTax = promoData?.isFreeTax === true;
-  const ppnAmount = isFreeTax ? 0 : Math.round(netPrice * PPN_RATE);
+  const isFreeTax = promoData?.isFreeTax === true || ppnRate <= 0;
+  const ppnAmount = isFreeTax ? 0 : Math.round(netPrice * ppnRate);
   const isFreeShipping = promoData?.isFreeShipping === true;
   const shippingCost = isFreeShipping ? 0 : selectedRate?.cost || 0;
   const totalPrice = netPrice + ppnAmount + shippingCost;
@@ -846,9 +864,15 @@ export default function CheckoutPage() {
                 )}
 
                 <div className="flex justify-between">
-                  <span>PPN (11%)</span>
+                  <span>
+                    PPN {ppnRate > 0 ? `(${Math.round(ppnRate * 100)}%)` : '(0%)'}
+                  </span>
                   <span className="font-medium text-stone-900">
-                    {isFreeTax ? 'Bebas PPN' : `Rp ${ppnAmount.toLocaleString('id-ID')}`}
+                    {isFreeTax || ppnRate <= 0 ? (
+                      <span className="text-emerald-700 font-semibold">Bebas PPN (0%)</span>
+                    ) : (
+                      `Rp ${ppnAmount.toLocaleString('id-ID')}`
+                    )}
                   </span>
                 </div>
 
