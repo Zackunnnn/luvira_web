@@ -5,7 +5,7 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -25,6 +25,7 @@ import {
   Check,
   BookmarkCheck,
   Search,
+  RefreshCw,
 } from 'lucide-react';
 import { OrderStatus, PaymentMethod } from '@prisma/client';
 
@@ -43,6 +44,38 @@ export default function OrderStatusClientView({
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
+  const [isCheckingPayment, setIsCheckingPayment] = useState(false);
+  const [paymentCheckMessage, setPaymentCheckMessage] = useState<string | null>(null);
+
+  const checkPaymentStatus = useCallback(async (silent = false) => {
+    if (order.status !== OrderStatus.MENUNGGU_PEMBAYARAN || order.paymentMethod !== PaymentMethod.MIDTRANS_SNAP) {
+      return;
+    }
+    if (!silent) setIsCheckingPayment(true);
+    setPaymentCheckMessage(null);
+    try {
+      const res = await fetch(`/api/midtrans/order-status/${encodeURIComponent(order.code)}`);
+      if (res.ok) {
+        const json = await res.json();
+        if (json.isPaid) {
+          router.refresh();
+        } else if (!silent) {
+          setPaymentCheckMessage(json.message || 'Pembayaran belum terdeteksi. Silakan selesaikan pembayaran.');
+        }
+      }
+    } catch {
+      if (!silent) setPaymentCheckMessage('Gagal memeriksa status ke Midtrans.');
+    } finally {
+      if (!silent) setIsCheckingPayment(false);
+    }
+  }, [order.code, order.status, order.paymentMethod, router]);
+
+  useEffect(() => {
+    // Auto-check sekali saat mount jika masih menunggu pembayaran
+    if (order.status === OrderStatus.MENUNGGU_PEMBAYARAN && order.paymentMethod === PaymentMethod.MIDTRANS_SNAP) {
+      checkPaymentStatus(true);
+    }
+  }, [checkPaymentStatus, order.status, order.paymentMethod]);
 
   const handleCopyCode = async () => {
     try {
@@ -283,7 +316,24 @@ export default function OrderStatusClientView({
               </button>
             </div>
           </div>
-          <div id="order-status-badge">{getStatusBadge(order.status)}</div>
+          <div className="flex flex-col items-start sm:items-end gap-2">
+            <div id="order-status-badge">{getStatusBadge(order.status)}</div>
+            {order.status === OrderStatus.MENUNGGU_PEMBAYARAN && order.paymentMethod === PaymentMethod.MIDTRANS_SNAP && (
+              <button
+                type="button"
+                id="btn-recheck-midtrans-payment"
+                onClick={() => checkPaymentStatus(false)}
+                disabled={isCheckingPayment}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-700 bg-white hover:bg-emerald-50 text-emerald-800 px-3 py-1.5 text-xs font-semibold shadow-2xs transition-all active:scale-95 disabled:opacity-60 cursor-pointer"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 text-emerald-700 ${isCheckingPayment ? 'animate-spin' : ''}`} />
+                <span>{isCheckingPayment ? 'Memeriksa Midtrans...' : 'Periksa Status Pembayaran'}</span>
+              </button>
+            )}
+            {paymentCheckMessage && (
+              <p className="text-[11px] text-amber-800 font-medium">{paymentCheckMessage}</p>
+            )}
+          </div>
         </div>
 
         {/* Ringkasan Singkat Pesanan */}

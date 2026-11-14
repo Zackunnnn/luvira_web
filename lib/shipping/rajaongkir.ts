@@ -506,6 +506,12 @@ export class RajaOngkirService {
         ...this.generateDeterministicMockRates(originId, destinationId, weightGram, 'anteraja'),
         ...this.generateDeterministicMockRates(originId, destinationId, weightGram, 'pos'),
         ...this.generateDeterministicMockRates(originId, destinationId, weightGram, 'tiki'),
+        ...this.generateDeterministicMockRates(originId, destinationId, weightGram, 'lion'),
+        ...this.generateDeterministicMockRates(originId, destinationId, weightGram, 'wahana'),
+        ...this.generateDeterministicMockRates(originId, destinationId, weightGram, 'ide'),
+        ...this.generateDeterministicMockRates(originId, destinationId, weightGram, 'sap'),
+        ...this.generateDeterministicMockRates(originId, destinationId, weightGram, 'ninja'),
+        ...this.generateDeterministicMockRates(originId, destinationId, weightGram, 'spx'),
       ];
       return allMock.sort((a, b) => a.cost - b.cost);
     }

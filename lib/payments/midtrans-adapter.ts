@@ -186,20 +186,28 @@ export class MidtransAdapter {
     }
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const midtransClient = require('midtrans-client');
-      const core = new midtransClient.CoreApi({
-        isProduction: this.mode === 'production',
-        serverKey: this.serverKey,
-        clientKey: this.clientKey,
+      const isTargetProd = this.mode === 'production';
+      const baseUrl = isTargetProd ? 'https://api.midtrans.com/v2' : 'https://api.sandbox.midtrans.com/v2';
+      const authHeader = 'Basic ' + Buffer.from(this.serverKey + ':').toString('base64');
+
+      const res = await fetch(`${baseUrl}/${encodeURIComponent(orderId)}/status`, {
+        headers: {
+          Accept: 'application/json',
+          Authorization: authHeader,
+        },
       });
-      return await core.transaction.status(orderId);
-    } catch {
-      return {
-        order_id: orderId,
-        transaction_status: 'settlement',
-        fraud_status: 'accept',
-      };
+
+      if (!res.ok) {
+        if (res.status === 404) {
+          return { status_code: '404', transaction_status: 'pending' };
+        }
+        throw new Error(`Midtrans status HTTP ${res.status}`);
+      }
+
+      return await res.json();
+    } catch (err: any) {
+      console.warn(`[MidtransAdapter] Gagal cek status transaksi untuk ${orderId}:`, err.message);
+      return null;
     }
   }
 }

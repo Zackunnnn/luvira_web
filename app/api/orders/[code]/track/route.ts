@@ -7,6 +7,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getLast4Digits, generateOrderHelpWhatsAppUrl } from '@/lib/whatsapp';
+import { reconcileMidtransOrder } from '@/lib/payments/reconcile';
+import { OrderStatus } from '@prisma/client';
 
 // Rate Limiting sederhana in-memory: IP -> { count, resetTime }
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -59,7 +61,7 @@ export async function POST(
     }
 
     // 1. Cari pesanan
-    const order = await prisma.order.findUnique({
+    let order = await prisma.order.findUnique({
       where: { code: code.trim().toUpperCase() },
       include: {
         items: true,
@@ -89,12 +91,38 @@ export async function POST(
       );
     }
 
+    // 2b. Active Reconciliation: Jika pesanan masih MENUNGGU_PEMBAYARAN via Midtrans, cek live ke Midtrans
+    if (order.status === OrderStatus.MENUNGGU_PEMBAYARAN && order.paymentMethod === 'MIDTRANS_SNAP') {
+      try {
+        const syncResult = await reconcileMidtransOrder(order.code);
+        if (syncResult.updated) {
+          const refreshed = await prisma.order.findUnique({
+            where: { id: order.id },
+            include: {
+              items: true,
+              region: true,
+              payments: true,
+              statusLogs: {
+                orderBy: { createdAt: 'asc' },
+              },
+            },
+          });
+          if (refreshed) {
+            order = refreshed;
+          }
+        }
+      } catch (syncErr) {
+        console.warn('[Track API Sync Warning]', syncErr);
+      }
+    }
+
     // 3. Bangkitkan tautan bantuan WhatsApp resmi
     const helpUrl = generateOrderHelpWhatsAppUrl(order.code);
 
     return NextResponse.json({
       success: true,
       order: {
+        id: order.id,
         code: order.code,
         status: order.status,
         customerName: order.customerName,

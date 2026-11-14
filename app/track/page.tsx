@@ -36,6 +36,8 @@ function TrackOrderContent() {
   const [error, setError] = useState<string | null>(null);
   const [orderData, setOrderData] = useState<any>(null);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [isCheckingPayment, setIsCheckingPayment] = useState(false);
+  const [checkPaymentMessage, setCheckPaymentMessage] = useState<string | null>(null);
 
   const handleCopyCode = async (text: string) => {
     try {
@@ -89,6 +91,42 @@ function TrackOrderContent() {
       setOrderData(null);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleRecheckPayment = async () => {
+    if (!orderData) return;
+    setIsCheckingPayment(true);
+    setCheckPaymentMessage(null);
+    try {
+      const targetParam = orderData.code || orderData.id;
+      const res = await fetch(`/api/midtrans/order-status/${encodeURIComponent(targetParam)}`);
+      const data = await res.json();
+      if (data.isPaid || data.status === 'DIPROSES') {
+        setCheckPaymentMessage('Pembayaran terverifikasi lunas! Memperbarui status...');
+        // Refresh data pelacakan
+        if (orderCode && phoneLast4) {
+          const reTrack = await fetch(`/api/orders/${encodeURIComponent(orderCode.trim().toUpperCase())}/track`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phoneLast4: phoneLast4.trim() }),
+          });
+          const reData = await reTrack.json();
+          if (reTrack.ok && reData.order) {
+            setOrderData(reData.order);
+          } else {
+            setOrderData((prev: any) => ({ ...prev, status: 'DIPROSES' }));
+          }
+        } else {
+          setOrderData((prev: any) => ({ ...prev, status: 'DIPROSES' }));
+        }
+      } else {
+        setCheckPaymentMessage(data.message || 'Pembayaran belum terkonfirmasi oleh Midtrans.');
+      }
+    } catch {
+      setCheckPaymentMessage('Gagal menghubungi server Midtrans. Coba beberapa saat lagi.');
+    } finally {
+      setIsCheckingPayment(false);
     }
   };
 
@@ -254,6 +292,53 @@ function TrackOrderContent() {
                   </button>
                 </div>
               </div>
+
+              {/* Status Menunggu Pembayaran & Tombol Cek Pembayaran Midtrans */}
+              {orderData.status === 'MENUNGGU_PEMBAYARAN' && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/90 p-4 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <Clock className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold text-amber-950 text-xs sm:text-sm">Menunggu Pembayaran</p>
+                      <p className="text-xs text-amber-900 mt-0.5 leading-relaxed">
+                        {orderData.paymentMethod === 'MIDTRANS_SNAP'
+                          ? 'Jika Anda sudah menyelesaikan pembayaran di Midtrans / scan QRIS namun status belum berubah, klik tombol di bawah untuk menyinkronkan status secara instan.'
+                          : 'Silakan selesaikan pembayaran sesuai instruksi pesanan Anda.'}
+                      </p>
+                    </div>
+                  </div>
+
+                  {orderData.paymentMethod === 'MIDTRANS_SNAP' && (
+                    <div className="pt-1 flex flex-col sm:flex-row sm:items-center gap-2.5">
+                      <button
+                        type="button"
+                        id="btn-recheck-payment-track"
+                        onClick={handleRecheckPayment}
+                        disabled={isCheckingPayment}
+                        className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-800 px-4 py-2.5 text-xs font-bold text-white shadow-sm hover:bg-emerald-900 disabled:opacity-60 cursor-pointer transition active:scale-95"
+                      >
+                        {isCheckingPayment ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Memeriksa Midtrans...</span>
+                          </>
+                        ) : (
+                          <>
+                            <ShieldCheck className="w-3.5 h-3.5" />
+                            <span>Periksa Status Pembayaran</span>
+                          </>
+                        )}
+                      </button>
+
+                      {checkPaymentMessage && (
+                        <p className="text-xs font-medium text-stone-700 animate-in fade-in">
+                          {checkPaymentMessage}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Kurir & Nomor Resi (E2E-02, E2E-15) */}
               {orderData.trackingNumber ? (
