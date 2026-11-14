@@ -80,7 +80,10 @@ export async function PUT(request: NextRequest) {
           { status: 400 }
         );
       }
-      const validCouriers = ['jne', 'sicepat', 'jnt', 'pos', 'tiki'];
+      const validCouriers = [
+        'jne', 'sicepat', 'jnt', 'pos', 'tiki',
+        'anteraja', 'wahana', 'lion', 'ide', 'sap', 'ninja', 'spx'
+      ];
       const normalizedCouriers = activeCouriers.map((c) => String(c).toLowerCase().trim()).filter(Boolean);
       const invalid = normalizedCouriers.filter((c) => !validCouriers.includes(c));
       if (invalid.length > 0) {

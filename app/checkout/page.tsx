@@ -32,7 +32,7 @@ import {
 import { normalizeWhatsAppNumber } from '@/lib/whatsapp';
 import { resolveSockImage } from '@/lib/products/sock-images';
 
-const DEFAULT_PPN_RATE = 0.11;
+const DEFAULT_PPN_RATE = 0;
 
 declare global {
   interface Window {
@@ -178,9 +178,15 @@ export default function CheckoutPage() {
   const totalItems = mounted ? getTotalItems() : 0;
   const baseSubtotal = mounted ? getTotalPrice() : 0;
 
-  // Hitung ongkir otomatis saat alamat (provinsi) dan item berubah
+  // Hitung ongkir otomatis saat alamat (provinsi + kota) dan item berubah
   useEffect(() => {
-    if (!destination.provinceName || cartItems.length === 0) return;
+    // Ongkir hanya dapat dihitung setelah provinsi dan kota/kabupaten tujuan ditentukan
+    if (!destination.provinceName || (!destination.cityName && !destination.cityId) || cartItems.length === 0) {
+      setShippingRates([]);
+      setSelectedRate(null);
+      setIsLoadingShipping(false);
+      return;
+    }
 
     let isSubscribed = true;
     setIsLoadingShipping(true);
@@ -240,7 +246,7 @@ export default function CheckoutPage() {
       isSubscribed = false;
       clearTimeout(timer);
     };
-  }, [destination.provinceName, destination.cityId, destination.subDistrictId, cartItems.length]);
+  }, [destination.provinceName, destination.cityName, destination.cityId, destination.subDistrictId, cartItems.length]);
 
   // Validasi & Terapkan Promo
   const handleApplyPromo = async () => {
@@ -608,12 +614,20 @@ export default function CheckoutPage() {
               <div className="mt-3 space-y-2">
                 {!destination.provinceName ? (
                   <p className="text-xs text-stone-500 italic">
-                    Silakan lengkapi alamat di atas untuk melihat pilihan ongkos kirim.
+                    Silakan pilih provinsi dan kota tujuan di atas untuk melihat pilihan ongkos kirim.
+                  </p>
+                ) : (!destination.cityName && !destination.cityId) ? (
+                  <p className="text-xs text-stone-500 italic">
+                    Silakan tentukan kota/kabupaten tujuan untuk menghitung ongkos kirim.
                   </p>
                 ) : isLoadingShipping ? (
-                  <div className="flex items-center space-x-2 py-3 text-xs text-stone-500">
-                    <Loader2 className="h-4 w-4 animate-spin text-emerald-700" />
-                    <span>Menghitung ongkir terbaik dari RajaOngkir...</span>
+                  <div className="space-y-2 py-1">
+                    <div className="flex items-center space-x-2 text-xs text-stone-500 mb-2">
+                      <Loader2 className="h-4 w-4 animate-spin text-emerald-700 shrink-0" />
+                      <span>Menghitung ongkir terbaik dari RajaOngkir...</span>
+                    </div>
+                    <div className="h-14 rounded-xl bg-stone-100 animate-pulse border border-stone-200/60" />
+                    <div className="h-14 rounded-xl bg-stone-100 animate-pulse border border-stone-200/60" />
                   </div>
                 ) : shippingError ? (
                   <div className="rounded-lg bg-rose-50 p-3 text-xs text-rose-800 border border-rose-200">
@@ -625,14 +639,33 @@ export default function CheckoutPage() {
                 ) : (
                   shippingRates.map((rate, idx) => {
                     const isSelected = selectedRate?.courier === rate.courier && selectedRate?.service === rate.service;
+                    const courierUpper = (rate.courier || '').toUpperCase();
                     const courierColor =
-                      rate.courier === 'JNT'
+                      courierUpper === 'JNT'
                         ? 'bg-red-50 text-red-700 border-red-200'
-                        : rate.courier === 'SICEPAT'
+                        : courierUpper === 'JNE'
+                        ? 'bg-blue-50 text-blue-700 border-blue-200'
+                        : courierUpper === 'SICEPAT'
                         ? 'bg-orange-50 text-orange-700 border-orange-200'
-                        : rate.courier === 'ANTERAJA'
+                        : courierUpper === 'ANTERAJA'
                         ? 'bg-purple-50 text-purple-700 border-purple-200'
-                        : 'bg-blue-50 text-blue-700 border-blue-200';
+                        : courierUpper === 'POS'
+                        ? 'bg-amber-50 text-amber-800 border-amber-200'
+                        : courierUpper === 'TIKI'
+                        ? 'bg-cyan-50 text-cyan-800 border-cyan-200'
+                        : courierUpper === 'LION'
+                        ? 'bg-rose-50 text-rose-700 border-rose-200'
+                        : courierUpper === 'WAHANA'
+                        ? 'bg-yellow-50 text-yellow-800 border-yellow-200'
+                        : courierUpper === 'IDE' || courierUpper === 'IDEXPRESS'
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                        : courierUpper === 'SAP'
+                        ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                        : courierUpper === 'NINJA'
+                        ? 'bg-red-50 text-red-800 border-red-300'
+                        : courierUpper === 'SPX'
+                        ? 'bg-orange-50 text-orange-800 border-orange-300'
+                        : 'bg-stone-50 text-stone-700 border-stone-200';
 
                     return (
                       <label
@@ -863,18 +896,16 @@ export default function CheckoutPage() {
                   </div>
                 )}
 
-                <div className="flex justify-between">
-                  <span>
-                    PPN {ppnRate > 0 ? `(${Math.round(ppnRate * 100)}%)` : '(0%)'}
-                  </span>
-                  <span className="font-medium text-stone-900">
-                    {isFreeTax || ppnRate <= 0 ? (
-                      <span className="text-emerald-700 font-semibold">Bebas PPN (0%)</span>
-                    ) : (
-                      `Rp ${ppnAmount.toLocaleString('id-ID')}`
-                    )}
-                  </span>
-                </div>
+                {ppnRate > 0 && !isFreeTax && (
+                  <div className="flex justify-between">
+                    <span>
+                      PPN ({Math.round(ppnRate * 100)}%)
+                    </span>
+                    <span className="font-medium text-stone-900">
+                      Rp {ppnAmount.toLocaleString('id-ID')}
+                    </span>
+                  </div>
+                )}
 
                 <div className="flex justify-between">
                   <span>Ongkos Kirim</span>

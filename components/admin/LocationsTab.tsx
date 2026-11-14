@@ -21,7 +21,16 @@ interface RegionItem {
 const SUPPORTED_COURIERS = [
   { id: 'jnt', name: 'J&T Express', desc: 'Layanan EZ & COD' },
   { id: 'jne', name: 'JNE Express', desc: 'Layanan REG, OKE, YES' },
-  { id: 'sicepat', name: 'SiCepat Ekspres', desc: 'Layanan REG, HALU' },
+  { id: 'sicepat', name: 'SiCepat Ekspres', desc: 'Layanan REG, HALU, BEST' },
+  { id: 'anteraja', name: 'Anteraja', desc: 'Layanan Reguler & Next Day' },
+  { id: 'pos', name: 'Pos Indonesia', desc: 'Layanan Pos Reguler & Nextday' },
+  { id: 'tiki', name: 'TIKI', desc: 'Layanan REG, ONS, ECO' },
+  { id: 'lion', name: 'Lion Parcel', desc: 'Layanan REGPACK & ONEPACK' },
+  { id: 'wahana', name: 'Wahana Express', desc: 'Layanan Service Normal' },
+  { id: 'ide', name: 'ID Express', desc: 'Layanan Reguler Standard & iDlite' },
+  { id: 'sap', name: 'SAP Express', desc: 'Layanan Reguler & ODS' },
+  { id: 'ninja', name: 'Ninja Xpress', desc: 'Layanan Standard Reguler' },
+  { id: 'spx', name: 'SPX Express', desc: 'Layanan Standard' },
 ];
 
 export function LocationsTab({ user }: { user: any }) {
@@ -190,34 +199,34 @@ export function LocationsTab({ user }: { user: any }) {
                     Pilihan Kurir Ekspedisi Aktif:
                   </p>
 
-                  <div className="space-y-2.5">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                     {SUPPORTED_COURIERS.map((courier) => {
                       const isChecked = regionActiveCouriers.includes(courier.id);
 
                       return (
                         <label
                           key={courier.id}
-                          className={`flex items-center justify-between p-3.5 rounded-xl border transition-all cursor-pointer ${
+                          className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer ${
                             isChecked
-                              ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950 font-medium'
+                              ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950 font-medium shadow-2xs'
                               : 'bg-gray-50 border-gray-200 text-gray-500 hover:bg-gray-100'
                           }`}
                         >
-                          <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2.5 min-w-0 pr-2">
                             <input
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => handleToggleCourier(region.id, courier.id)}
-                              className="w-4 h-4 text-emerald-700 rounded border-gray-300 focus:ring-emerald-500 focus:ring-2 cursor-pointer"
+                              className="w-4 h-4 text-emerald-700 rounded border-gray-300 focus:ring-emerald-500 focus:ring-2 cursor-pointer shrink-0"
                             />
-                            <div>
-                              <div className="text-sm font-semibold">{courier.name}</div>
-                              <div className="text-xs text-gray-500">{courier.desc}</div>
+                            <div className="truncate">
+                              <div className="text-xs sm:text-sm font-semibold truncate">{courier.name}</div>
+                              <div className="text-[11px] text-gray-500 truncate">{courier.desc}</div>
                             </div>
                           </div>
 
                           <span
-                            className={`text-[11px] font-bold px-2 py-0.5 rounded-md ${
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md shrink-0 ${
                               isChecked
                                 ? 'bg-emerald-600 text-white'
                                 : 'bg-gray-200 text-gray-600'

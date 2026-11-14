@@ -94,6 +94,10 @@ export const MOCK_CITIES: City[] = [
   // DKI Jakarta
   { id: '151', provinceId: '31', name: 'Kota Jakarta Selatan', type: 'Kota', postalCode: '12110' },
   { id: '152', provinceId: '31', name: 'Kota Jakarta Pusat', type: 'Kota', postalCode: '10110' },
+  { id: '153', provinceId: '31', name: 'Kota Jakarta Barat', type: 'Kota', postalCode: '11220' },
+  { id: '154', provinceId: '31', name: 'Kota Jakarta Timur', type: 'Kota', postalCode: '13330' },
+  { id: '155', provinceId: '31', name: 'Kota Jakarta Utara', type: 'Kota', postalCode: '14440' },
+  { id: '156', provinceId: '31', name: 'Kabupaten Kepulauan Seribu', type: 'Kabupaten', postalCode: '14510' },
 ];
 
 export const MOCK_DISTRICTS: District[] = [
@@ -110,6 +114,15 @@ export const MOCK_DISTRICTS: District[] = [
   // Kab Sleman
   { id: '5021', cityId: '502', name: 'Depok (Sleman)' },
   { id: '5022', cityId: '502', name: 'Mlati' },
+
+  // Kota Jakarta Pusat
+  { id: '1521', cityId: '152', name: 'Gambir' },
+  { id: '1522', cityId: '152', name: 'Tanah Abang' },
+  { id: '1523', cityId: '152', name: 'Menteng' },
+
+  // Kota Jakarta Selatan
+  { id: '1511', cityId: '151', name: 'Kebayoran Baru' },
+  { id: '1512', cityId: '151', name: 'Cilandak' },
 ];
 
 export const KOMERCE_ID_MAP: Record<string, string> = {
@@ -132,6 +145,10 @@ export const KOMERCE_ID_MAP: Record<string, string> = {
   // Jakarta
   '151': '17549',   // Jaksel
   '152': '17601',   // Jakpus
+  '153': '17650',   // Jakbar
+  '154': '17700',   // Jaktim
+  '155': '17750',   // Jakut
+  '156': '17800',   // Kepulauan Seribu
 };
 
 export function resolveKomerceId(id: string): string {
@@ -152,6 +169,13 @@ export const MOCK_SUBDISTRICTS: SubDistrict[] = [
   // Depok, Sleman (Komerce IDs: 31590, 31592)
   { id: '31590', districtId: '5021', name: 'Caturtunggal', postalCode: '55281' },
   { id: '31592', districtId: '5021', name: 'Maguwoharjo', postalCode: '55282' },
+
+  // Gambir, Jakarta Pusat (Komerce IDs: 17601, 17599)
+  { id: '17601', districtId: '1521', name: 'Gambir', postalCode: '10110' },
+  { id: '17599', districtId: '1521', name: 'Cideng', postalCode: '10150' },
+
+  // Kebayoran Baru, Jakarta Selatan
+  { id: '17549', districtId: '1511', name: 'Melawai', postalCode: '12160' },
 ];
 
 // ----------------------------------------------------------------------------
@@ -359,7 +383,7 @@ export class RajaOngkirService {
     } else {
       try {
         const couriersToQuery = courierKey === 'all'
-          ? ['jne', 'sicepat', 'jnt', 'anteraja']
+          ? ['jne', 'sicepat', 'jnt', 'anteraja', 'pos', 'tiki', 'lion', 'wahana', 'ide', 'sap', 'ninja', 'spx']
           : courierKey.split(',').map((c) => c.trim().toLowerCase());
 
         const promises = couriersToQuery.map(async (c) => {
@@ -465,11 +489,23 @@ export class RajaOngkirService {
     const baseMultiplier = isSameRegion ? 1 : 1.8;
     const c = courier.toLowerCase();
 
+    // Jika dipanggil dengan beberapa kurir (misal: 'jne,sicepat,pos')
+    if (c.includes(',')) {
+      const parts = c.split(',').map((x) => x.trim()).filter(Boolean);
+      const combined = parts.flatMap((part) =>
+        this.generateDeterministicMockRates(originId, destinationId, weightGram, part)
+      );
+      return combined.sort((a, b) => a.cost - b.cost);
+    }
+
     if (c === 'all') {
       const allMock = [
         ...this.generateDeterministicMockRates(originId, destinationId, weightGram, 'sicepat'),
         ...this.generateDeterministicMockRates(originId, destinationId, weightGram, 'jnt'),
         ...this.generateDeterministicMockRates(originId, destinationId, weightGram, 'jne'),
+        ...this.generateDeterministicMockRates(originId, destinationId, weightGram, 'anteraja'),
+        ...this.generateDeterministicMockRates(originId, destinationId, weightGram, 'pos'),
+        ...this.generateDeterministicMockRates(originId, destinationId, weightGram, 'tiki'),
       ];
       return allMock.sort((a, b) => a.cost - b.cost);
     }
@@ -532,6 +568,135 @@ export class RajaOngkirService {
           courier: 'JNT',
           service: 'EZ',
           description: 'J&T EZ Reguler',
+          cost: Math.round(8000 * baseMultiplier * kg),
+          etd: isSameRegion ? '1-2 HARI' : '2-3 HARI',
+        },
+      ];
+    }
+
+    if (c === 'anteraja') {
+      return [
+        {
+          courier: 'ANTERAJA',
+          service: 'REG',
+          description: 'Anteraja Reguler',
+          cost: Math.round(8500 * baseMultiplier * kg),
+          etd: isSameRegion ? '1-2 HARI' : '2-3 HARI',
+        },
+        {
+          courier: 'ANTERAJA',
+          service: 'NDG',
+          description: 'Next Day Guarantee',
+          cost: Math.round(16000 * baseMultiplier * kg),
+          etd: '1 HARI',
+        },
+      ];
+    }
+
+    if (c === 'pos') {
+      return [
+        {
+          courier: 'POS',
+          service: 'Pos Reguler',
+          description: 'Layanan Standar Pos Indonesia',
+          cost: Math.round(7500 * baseMultiplier * kg),
+          etd: isSameRegion ? '2-3 HARI' : '3-5 HARI',
+        },
+        {
+          courier: 'POS',
+          service: 'Pos Nextday',
+          description: 'Layanan Kilat Khusus',
+          cost: Math.round(15000 * baseMultiplier * kg),
+          etd: '1 HARI',
+        },
+      ];
+    }
+
+    if (c === 'tiki') {
+      return [
+        {
+          courier: 'TIKI',
+          service: 'REG',
+          description: 'Regular Service',
+          cost: Math.round(8500 * baseMultiplier * kg),
+          etd: isSameRegion ? '1-2 HARI' : '2-3 HARI',
+        },
+        {
+          courier: 'TIKI',
+          service: 'ONS',
+          description: 'Over Night Services',
+          cost: Math.round(17000 * baseMultiplier * kg),
+          etd: '1 HARI',
+        },
+      ];
+    }
+
+    if (c === 'lion') {
+      return [
+        {
+          courier: 'LION',
+          service: 'REGPACK',
+          description: 'Regular Package',
+          cost: Math.round(8000 * baseMultiplier * kg),
+          etd: isSameRegion ? '1-2 HARI' : '2-3 HARI',
+        },
+      ];
+    }
+
+    if (c === 'wahana') {
+      return [
+        {
+          courier: 'WAHANA',
+          service: 'NORMAL',
+          description: 'Layanan Ekonomis Wahana Express',
+          cost: Math.round(6000 * baseMultiplier * kg),
+          etd: isSameRegion ? '2-3 HARI' : '3-5 HARI',
+        },
+      ];
+    }
+
+    if (c === 'ide' || c === 'idexpress') {
+      return [
+        {
+          courier: 'IDE',
+          service: 'STD',
+          description: 'ID Express Standard',
+          cost: Math.round(7500 * baseMultiplier * kg),
+          etd: isSameRegion ? '1-2 HARI' : '2-3 HARI',
+        },
+      ];
+    }
+
+    if (c === 'sap') {
+      return [
+        {
+          courier: 'SAP',
+          service: 'UDRREG',
+          description: 'SAP Express Reguler',
+          cost: Math.round(8000 * baseMultiplier * kg),
+          etd: isSameRegion ? '1-2 HARI' : '2-3 HARI',
+        },
+      ];
+    }
+
+    if (c === 'ninja') {
+      return [
+        {
+          courier: 'NINJA',
+          service: 'STANDARD',
+          description: 'Ninja Standard Delivery',
+          cost: Math.round(8000 * baseMultiplier * kg),
+          etd: isSameRegion ? '1-2 HARI' : '2-3 HARI',
+        },
+      ];
+    }
+
+    if (c === 'spx') {
+      return [
+        {
+          courier: 'SPX',
+          service: 'STANDARD',
+          description: 'SPX Express Standard',
           cost: Math.round(8000 * baseMultiplier * kg),
           etd: isSameRegion ? '1-2 HARI' : '2-3 HARI',
         },

@@ -69,19 +69,21 @@ export async function POST(request: NextRequest) {
     // Minimum berat ekspedisi 1000 gram (1 kg)
     const effectiveWeight = Math.max(35, totalWeightGram);
 
-    // 4. Panggil layanan RajaOngkir
-    const rawRates = await rajaOngkirService.calculateCost({
-      originId,
-      destinationId,
-      weightGram: effectiveWeight,
-      courier: courier || 'all',
-    });
-
-    // 5. Filter opsi ongkir berdasarkan kurir yang diaktifkan pada wilayah penangan
+    // 4. Filter kurir yang diizinkan sesuai konfigurasi wilayah penangan (Depok / Jogja)
     const allowedCouriers =
       handlingRegion.activeCouriers && handlingRegion.activeCouriers.length > 0
         ? handlingRegion.activeCouriers.map((c: string) => c.toLowerCase())
         : ['jne', 'sicepat', 'jnt'];
+
+    // Panggil layanan RajaOngkir hanya untuk kurir yang diaktifkan di cabang penangan ini
+    const couriersToQuery = courier && courier !== 'all' ? courier : allowedCouriers.join(',');
+
+    const rawRates = await rajaOngkirService.calculateCost({
+      originId,
+      destinationId,
+      weightGram: effectiveWeight,
+      courier: couriersToQuery,
+    });
 
     const rates = rawRates.filter((r) => allowedCouriers.includes(r.courier.toLowerCase()));
 

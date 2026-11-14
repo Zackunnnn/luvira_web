@@ -866,7 +866,7 @@ export default function OwnerDashboardClient() {
                   Kurir Ekspedisi yang Diaktifkan (RajaOngkir Komerce)
                 </label>
                 <div className="flex items-center gap-4 flex-wrap">
-                  {['jne', 'sicepat', 'jnt', 'pos', 'tiki'].map((courier) => {
+                  {['jnt', 'jne', 'sicepat', 'anteraja', 'pos', 'tiki', 'lion', 'wahana', 'ide', 'sap', 'ninja', 'spx'].map((courier) => {
                     const isChecked = settingsForm.activeCouriers.includes(courier);
                     return (
                       <label key={courier} className="flex items-center gap-2 text-xs font-bold text-stone-700 cursor-pointer uppercase">
