@@ -118,7 +118,7 @@ export async function resolveTargetRegion(destination: {
     district: 'Beji',
     subDistrict: 'Kemirimuka',
     postalCode: '16423',
-    phone: '081234567890',
+    phone: '081386829952',
     email: 'pusat@luvira.id',
     isActive: true,
     activeCouriers: ['jne', 'sicepat', 'jnt'],

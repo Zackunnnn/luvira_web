@@ -21,6 +21,10 @@ import {
   ExternalLink,
   MessageCircle,
   MapPin,
+  Copy,
+  Check,
+  BookmarkCheck,
+  Search,
 } from 'lucide-react';
 import { OrderStatus, PaymentMethod } from '@prisma/client';
 
@@ -38,6 +42,27 @@ export default function OrderStatusClientView({
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
+
+  const handleCopyCode = async () => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(order.code);
+        setCodeCopied(true);
+        setTimeout(() => setCodeCopied(false), 2500);
+      }
+    } catch {
+      // Fallback
+      const input = document.createElement('input');
+      input.value = order.code;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+      setCodeCopied(true);
+      setTimeout(() => setCodeCopied(false), 2500);
+    }
+  };
 
   // Status mapping UI
   const getStatusBadge = (status: OrderStatus) => {
@@ -182,14 +207,81 @@ export default function OrderStatusClientView({
 
   return (
     <div className="space-y-6">
+      {/* 0. REMINDER BANNER: SIMPAN KODE PESANAN UNTUK TRACK KEMBALI */}
+      <div className="rounded-2xl border-2 border-amber-300 bg-linear-to-r from-amber-50 to-orange-50 p-4 sm:p-5 shadow-xs">
+        <div className="flex items-start gap-3.5">
+          <div className="rounded-xl bg-amber-500/15 p-2 text-amber-800 shrink-0 mt-0.5">
+            <BookmarkCheck className="h-5 w-5 text-amber-800" />
+          </div>
+          <div className="flex-1 space-y-2">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <h2 className="text-sm font-bold text-amber-950 flex items-center gap-1.5">
+                <span>Penting: Simpan Kode Pesanan Anda!</span>
+              </h2>
+              <button
+                type="button"
+                id="btn-copy-order-code-banner"
+                onClick={handleCopyCode}
+                className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-lg bg-emerald-800 hover:bg-emerald-900 text-white px-3 py-1.5 text-xs font-bold shadow-xs transition-all active:scale-95 cursor-pointer"
+              >
+                {codeCopied ? (
+                  <>
+                    <Check className="h-3.5 w-3.5 text-emerald-300" />
+                    <span>Kode Tersalin!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5 text-white" />
+                    <span>Salin Kode Pesanan</span>
+                  </>
+                )}
+              </button>
+            </div>
+            <p className="text-xs text-amber-900 leading-relaxed">
+              Jika Anda menutup halaman ini atau keluar dari browser, Anda dapat melacak kembali progres pesanan kapan saja melalui menu <strong>Lacak Pesanan</strong> di web Luvira. Cukup gunakan Kode Pesanan Anda: <span className="font-mono font-extrabold bg-amber-200/90 text-amber-950 px-2 py-0.5 rounded-md text-xs tracking-wider">{order.code}</span> dan <strong>4 digit terakhir nomor WhatsApp</strong> yang Anda gunakan saat pemesanan.
+            </p>
+            <div className="pt-0.5 flex items-center gap-3 text-[11px] font-semibold text-amber-900">
+              <Link
+                href={`/track?code=${order.code}`}
+                className="inline-flex items-center gap-1 underline hover:text-amber-950"
+              >
+                <Search className="w-3 h-3" />
+                <span>Buka Menu Lacak Pesanan</span>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* 1. STATUS HEADER CARD */}
       <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-stone-100 pb-4 gap-3">
           <div>
             <p className="text-xs text-stone-500 font-medium">Kode Pesanan:</p>
-            <h1 className="font-mono text-lg font-bold text-stone-900" id="order-code-display">
-              {order.code}
-            </h1>
+            <div className="flex items-center gap-2 mt-0.5">
+              <h1 className="font-mono text-lg font-bold text-stone-900 tracking-wider" id="order-code-display">
+                {order.code}
+              </h1>
+              <button
+                type="button"
+                id="btn-copy-order-code"
+                onClick={handleCopyCode}
+                title="Salin Kode Pesanan"
+                className="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-semibold rounded-lg border border-stone-200 bg-stone-50 hover:bg-stone-100 text-stone-700 transition active:scale-95 cursor-pointer"
+              >
+                {codeCopied ? (
+                  <>
+                    <Check className="h-3.5 w-3.5 text-emerald-600" />
+                    <span className="text-emerald-700 font-bold">Tersalin</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="h-3.5 w-3.5 text-stone-500" />
+                    <span>Salin</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
           <div id="order-status-badge">{getStatusBadge(order.status)}</div>
         </div>
@@ -386,10 +478,12 @@ export default function OrderStatusClientView({
               <span>- Rp {order.discountAmount.toLocaleString('id-ID')}</span>
             </div>
           )}
-          <div className="flex justify-between text-stone-600">
-            <span>PPN (11%)</span>
-            <span className="font-medium">Rp {(order.ppnAmount || 0).toLocaleString('id-ID')}</span>
-          </div>
+          {order.ppnAmount && order.ppnAmount > 0 ? (
+            <div className="flex justify-between text-stone-600">
+              <span>PPN</span>
+              <span className="font-medium">Rp {order.ppnAmount.toLocaleString('id-ID')}</span>
+            </div>
+          ) : null}
           <div className="flex justify-between text-stone-600">
             <span>Ongkos Kirim {order.courierCode ? `(${order.courierCode.toUpperCase()}${order.courierService ? ` - ${order.courierService}` : ''})` : ''}</span>
             <span className="font-medium">Rp {(order.shippingCost || 0).toLocaleString('id-ID')}</span>

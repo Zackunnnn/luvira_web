@@ -33,6 +33,6 @@ test('WhatsApp Helper: Ekstraksi 4 digit terakhir nomor WhatsApp untuk otentikas
 
 test('WhatsApp Helper: Pembuatan tautan wa.me bantuan pesanan resmi', () => {
   const url = generateOrderHelpWhatsAppUrl('LVR-20261024-8899', DEFAULT_STORE_WA);
-  expect(url).toContain('https://wa.me/6281234567890');
+  expect(url).toContain(`https://wa.me/${DEFAULT_STORE_WA}`);
   expect(url).toContain('LVR-20261024-8899');
 });

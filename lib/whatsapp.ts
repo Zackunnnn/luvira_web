@@ -4,7 +4,7 @@
 // Sesuai docs/LUVIRA_2_PLAN.md Bagian 9 & 13
 // ============================================================================
 
-export const DEFAULT_STORE_WA = '6281234567890';
+export const DEFAULT_STORE_WA = process.env.NEXT_PUBLIC_ADMIN_WA || '6281386829952';
 
 /**
  * Menormalkan nomor telepon/WhatsApp ke format standar internasional Indonesia (62...)

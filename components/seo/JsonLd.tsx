@@ -25,11 +25,11 @@ export const JsonLd: React.FC = () => {
         sameAs: [
           'https://www.instagram.com/luvira.official',
           'https://www.tiktok.com/@luvira.socks',
-          'https://wa.me/6281234567890',
+          'https://wa.me/6281386829952',
         ],
         contactPoint: {
           '@type': 'ContactPoint',
-          telephone: '+62-812-3456-7890',
+          telephone: '+62-813-8682-9952',
           contactType: 'customer service',
           areaServed: 'ID',
           availableLanguage: ['Indonesian', 'English'],

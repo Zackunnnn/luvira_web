@@ -54,6 +54,10 @@ export default async function OrderPaymentPage({ params }: { params: Promise<{ i
           </h1>
           
           <div className="space-y-3 text-sm">
+            <div className="flex justify-between items-center">
+              <span className="text-muted-charcoal/70">Kode Pesanan</span>
+              <span className="font-mono font-bold text-deep-forest bg-warm-cream/60 px-2 py-0.5 rounded border border-leaf-olive/30">{finalOrder.code}</span>
+            </div>
             <div className="flex justify-between">
               <span className="text-muted-charcoal/70">No. Invoice</span>
               <span className="font-bold text-deep-forest">{invoiceNumber}</span>

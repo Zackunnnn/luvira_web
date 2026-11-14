@@ -21,6 +21,8 @@ import {
   Loader2,
   MessageCircle,
   MapPin,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { OrderStatus } from '@prisma/client';
 
@@ -33,6 +35,26 @@ function TrackOrderContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orderData, setOrderData] = useState<any>(null);
+  const [copiedCode, setCopiedCode] = useState(false);
+
+  const handleCopyCode = async (text: string) => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard) {
+        await navigator.clipboard.writeText(text);
+        setCopiedCode(true);
+        setTimeout(() => setCopiedCode(false), 2500);
+      }
+    } catch {
+      const input = document.createElement('input');
+      input.value = text;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      document.body.removeChild(input);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2500);
+    }
+  };
 
   const handleTrackSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -205,8 +227,31 @@ function TrackOrderContent() {
                     {orderData.status}
                   </p>
                 </div>
-                <div className="text-xs text-stone-500">
-                  Total: <strong className="text-stone-900">Rp {orderData.totalPrice.toLocaleString('id-ID')}</strong>
+                <div className="flex items-center gap-2">
+                  <div className="text-left sm:text-right">
+                    <p className="text-[11px] text-stone-500 font-medium">Kode Pesanan:</p>
+                    <span className="font-mono text-xs font-bold text-stone-900 bg-stone-100 px-2 py-0.5 rounded border border-stone-200">
+                      {orderData.code}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCopyCode(orderData.code)}
+                    title="Salin Kode Pesanan"
+                    className="mt-3 inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-lg border border-stone-300 bg-stone-50 hover:bg-stone-100 text-stone-700 transition active:scale-95 cursor-pointer"
+                  >
+                    {copiedCode ? (
+                      <>
+                        <Check className="h-3 w-3 text-emerald-600" />
+                        <span className="text-[11px] text-emerald-700 font-bold">Tersalin</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="h-3 w-3 text-stone-500" />
+                        <span className="text-[11px]">Salin</span>
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
 
