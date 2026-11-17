@@ -13,8 +13,12 @@ import {
   MapPin,
   Lock,
   UserCheck,
-  UserX
+  UserX,
+  Phone,
+  Edit3,
+  AlertTriangle
 } from 'lucide-react';
+import { validateAndNormalizeWhatsAppNumber, isValidWhatsAppNumber } from '@/lib/whatsapp';
 
 interface UsersTabProps {
   user: any;
@@ -35,6 +39,80 @@ export const UsersTab: React.FC<UsersTabProps> = ({ user }) => {
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [successMsg, setSuccessMsg] = useState('');
+
+  // Edit phone modal state
+  const [editingUser, setEditingUser] = useState<any | null>(null);
+  const [editPhone, setEditPhone] = useState('');
+  const [phoneValidation, setPhoneValidation] = useState<any>(null);
+  const [overrideSuspicious, setOverrideSuspicious] = useState(false);
+  const [savingPhone, setSavingPhone] = useState(false);
+  const [editPhoneError, setEditPhoneError] = useState('');
+
+  const handleOpenEditPhone = (target: any) => {
+    setEditingUser(target);
+    setEditPhone(target.phone || '');
+    setPhoneValidation(target.phone ? validateAndNormalizeWhatsAppNumber(target.phone) : null);
+    setOverrideSuspicious(false);
+    setEditPhoneError('');
+  };
+
+  const handlePhoneInputChange = (val: string) => {
+    setEditPhone(val);
+    setEditPhoneError('');
+    if (!val.trim()) {
+      setPhoneValidation(null);
+      setOverrideSuspicious(false);
+      return;
+    }
+    const res = validateAndNormalizeWhatsAppNumber(val);
+    setPhoneValidation(res);
+    if (!res.isSuspicious) {
+      setOverrideSuspicious(false);
+    }
+  };
+
+  const handleSavePhone = async () => {
+    if (!editingUser) return;
+    if (editPhone.trim()) {
+      const res = validateAndNormalizeWhatsAppNumber(editPhone);
+      if (!res.valid) {
+        setEditPhoneError(res.error || 'Nomor tidak valid');
+        return;
+      }
+      if (res.isSuspicious && !overrideSuspicious) {
+        setEditPhoneError('Nomor memiliki pola mencurigakan. Klik tombol "Tetap pakai nomor ini" untuk melanjutkan.');
+        return;
+      }
+    }
+
+    setSavingPhone(true);
+    setEditPhoneError('');
+
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingUser.id,
+          phone: editPhone.trim() || null,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || 'Gagal memperbarui nomor WhatsApp.');
+      }
+
+      setSuccessMsg(`Nomor WhatsApp untuk ${editingUser.name} berhasil diperbarui.`);
+      setTimeout(() => setSuccessMsg(''), 5000);
+      setEditingUser(null);
+      fetchUsers();
+    } catch (err: any) {
+      setEditPhoneError(err.message || 'Terjadi kesalahan sistem.');
+    } finally {
+      setSavingPhone(false);
+    }
+  };
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -205,6 +283,7 @@ export const UsersTab: React.FC<UsersTabProps> = ({ user }) => {
                 <tr>
                   <th className="p-3.5">Nama Admin</th>
                   <th className="p-3.5">Email Pengguna</th>
+                  <th className="p-3.5">Nomor WhatsApp</th>
                   <th className="p-3.5">Wilayah Tugas</th>
                   <th className="p-3.5">Terakhir Login</th>
                   <th className="p-3.5">Status Akun</th>
@@ -212,54 +291,81 @@ export const UsersTab: React.FC<UsersTabProps> = ({ user }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100">
-                {users.map((u) => (
-                  <tr key={u.id} className="hover:bg-stone-50/60 transition-colors">
-                    <td className="p-3.5">
-                      <div className="font-extrabold text-stone-900">{u.name}</div>
-                      <div className="text-[11px] text-stone-500">{u.phone || '-'}</div>
-                    </td>
+                {users.map((u) => {
+                  const hasValidPhone = Boolean(u.phone && isValidWhatsAppNumber(u.phone));
+                  return (
+                    <tr key={u.id} className="hover:bg-stone-50/60 transition-colors">
+                      <td className="p-3.5">
+                        <div className="font-extrabold text-stone-900">{u.name}</div>
+                      </td>
 
-                    <td className="p-3.5 font-mono text-stone-700 font-semibold">
-                      {u.email}
-                    </td>
+                      <td className="p-3.5 font-mono text-stone-700 font-semibold">
+                        {u.email}
+                      </td>
 
-                    <td className="p-3.5">
-                      <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-1">
-                        <MapPin className="w-3 h-3" />
-                        {u.region?.name || 'Yogyakarta (DIY)'}
-                      </span>
-                    </td>
+                      <td className="p-3.5">
+                        {hasValidPhone ? (
+                          <div className="flex items-center gap-1.5 font-mono font-bold text-stone-800">
+                            <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>{u.phone}</span>
+                          </div>
+                        ) : (
+                          <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-300 inline-flex items-center gap-1 leading-tight max-w-xs">
+                            <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
+                            <span>⚠️ Belum ada nomor (pesanan baru tidak akan diberi tahu)</span>
+                          </span>
+                        )}
+                      </td>
 
-                    <td className="p-3.5 text-stone-500 text-[11px]">
-                      {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString('id-ID') : 'Belum pernah login'}
-                    </td>
-
-                    <td className="p-3.5">
-                      {u.isActive ? (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" /> Aktif
+                      <td className="p-3.5">
+                        <span className="px-2 py-0.5 rounded-md text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200 inline-flex items-center gap-1">
+                          <MapPin className="w-3 h-3" />
+                          {u.region?.name || 'Yogyakarta (DIY)'}
                         </span>
-                      ) : (
-                        <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-red-50 text-red-700 border border-red-200 inline-flex items-center gap-1">
-                          <UserX className="w-3 h-3" /> Nonaktif
-                        </span>
-                      )}
-                    </td>
+                      </td>
 
-                    <td className="p-3.5 text-right">
-                      <button
-                        onClick={() => handleToggleStatus(u)}
-                        className={`px-2.5 py-1.5 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
-                          u.isActive
-                            ? 'text-red-700 border-red-200 bg-red-50 hover:bg-red-100'
-                            : 'text-emerald-700 border-emerald-200 bg-emerald-50 hover:bg-emerald-100'
-                        }`}
-                      >
-                        {u.isActive ? 'Nonaktifkan' : 'Aktifkan'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      <td className="p-3.5 text-stone-500 text-[11px]">
+                        {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString('id-ID') : 'Belum pernah login'}
+                      </td>
+
+                      <td className="p-3.5">
+                        {u.isActive ? (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 inline-flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3" /> Aktif
+                          </span>
+                        ) : (
+                          <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-red-50 text-red-700 border border-red-200 inline-flex items-center gap-1">
+                            <UserX className="w-3 h-3" /> Nonaktif
+                          </span>
+                        )}
+                      </td>
+
+                      <td className="p-3.5 text-right">
+                        <div className="inline-flex items-center gap-1.5 justify-end">
+                          <button
+                            onClick={() => handleOpenEditPhone(u)}
+                            className="px-2.5 py-1.5 text-xs font-bold rounded-xl border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 transition-all cursor-pointer inline-flex items-center gap-1"
+                            id={`btn-edit-phone-${u.id}`}
+                            title="Edit Nomor WhatsApp"
+                          >
+                            <Edit3 className="w-3.5 h-3.5 text-stone-500" />
+                            <span>Edit WA</span>
+                          </button>
+                          <button
+                            onClick={() => handleToggleStatus(u)}
+                            className={`px-2.5 py-1.5 text-xs font-bold rounded-xl border transition-all cursor-pointer ${
+                              u.isActive
+                                ? 'text-red-700 border-red-200 bg-red-50 hover:bg-red-100'
+                                : 'text-emerald-700 border-emerald-200 bg-emerald-50 hover:bg-emerald-100'
+                            }`}
+                          >
+                            {u.isActive ? 'Nonaktifkan' : 'Aktifkan'}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -384,6 +490,105 @@ export const UsersTab: React.FC<UsersTabProps> = ({ user }) => {
               >
                 {submitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
                 <span>Buat Akun Admin</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================= */}
+      {/* MODAL: EDIT NOMOR WHATSAPP PENGGUNA                       */}
+      {/* ========================================================= */}
+      {editingUser && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-stone-100 space-y-4">
+            <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+              <div className="flex items-center gap-2">
+                <Phone className="w-5 h-5 text-deep-forest" />
+                <div>
+                  <h3 className="font-extrabold text-stone-900 text-sm">
+                    Edit Nomor WhatsApp
+                  </h3>
+                  <p className="text-[11px] text-stone-500">{editingUser.name}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEditingUser(null)}
+                className="p-1 text-stone-400 hover:text-stone-700 rounded-full"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {editPhoneError && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <span>{editPhoneError}</span>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  Nomor WhatsApp Baru:
+                </label>
+                <input
+                  type="tel"
+                  placeholder="Contoh: 081234567890 atau 62812..."
+                  value={editPhone}
+                  onChange={(e) => handlePhoneInputChange(e.target.value)}
+                  className="w-full p-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:border-deep-forest focus:outline-none"
+                  id="input-edit-phone"
+                  autoFocus
+                />
+                <p className="text-[11px] text-stone-500 mt-1">
+                  Format seluler Indonesia (08... / 628..., 11-15 digit). Kosongkan jika ingin menghapus nomor.
+                </p>
+              </div>
+
+              {/* Peringatan Pola Mencurigakan (Koreksi 2) */}
+              {phoneValidation?.isSuspicious && (
+                <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-950 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                    <span>{phoneValidation.warning}</span>
+                  </div>
+                  {!overrideSuspicious ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOverrideSuspicious(true);
+                        setEditPhoneError('');
+                      }}
+                      className="px-3 py-1 bg-amber-200 hover:bg-amber-300 text-amber-900 font-bold rounded-lg text-[11px] transition-all cursor-pointer"
+                      id="btn-override-suspicious"
+                    >
+                      Tetap pakai nomor ini
+                    </button>
+                  ) : (
+                    <span className="text-emerald-700 font-bold text-[11px] block">
+                      ✓ Dikonfirmasi untuk tetap menggunakan nomor ini.
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2 flex gap-2">
+              <button
+                onClick={() => setEditingUser(null)}
+                className="flex-1 py-2.5 border border-stone-200 text-stone-600 text-xs font-bold rounded-xl hover:bg-stone-50 cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleSavePhone}
+                disabled={savingPhone}
+                className="flex-1 py-2.5 bg-deep-forest hover:bg-deep-forest/90 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+                id="btn-save-phone"
+              >
+                {savingPhone ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                <span>Simpan Nomor</span>
               </button>
             </div>
           </div>

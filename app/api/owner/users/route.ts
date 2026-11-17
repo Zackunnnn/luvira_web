@@ -11,6 +11,7 @@ import { can } from '@/lib/permissions';
 import { audit } from '@/lib/audit';
 import { Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { validateAndNormalizeWhatsAppNumber, maskPhoneNumber } from '@/lib/whatsapp';
 
 export const dynamic = 'force-dynamic';
 
@@ -138,18 +139,34 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, isActive, regionId, name, password, role } = body;
+    const { id, userId, isActive, regionId, name, password, role, phone } = body;
+    const targetId = id || userId;
 
-    if (!id) {
+    if (!targetId) {
       return NextResponse.json({ error: 'ID pengguna wajib disertakan' }, { status: 400 });
     }
 
-    const targetUser = await prisma.user.findUnique({ where: { id } });
+    const targetUser = await prisma.user.findUnique({ where: { id: targetId } });
     if (!targetUser) {
       return NextResponse.json({ error: 'Pengguna tidak ditemukan' }, { status: 404 });
     }
 
     const updateData: any = {};
+    let isPhoneUpdate = false;
+
+    if (phone !== undefined) {
+      isPhoneUpdate = true;
+      if (phone === null || phone === '') {
+        updateData.phone = null;
+      } else {
+        const validation = validateAndNormalizeWhatsAppNumber(String(phone));
+        if (!validation.valid) {
+          return NextResponse.json({ error: validation.error }, { status: 400 });
+        }
+        updateData.phone = validation.normalized!;
+      }
+    }
+
     if (isActive !== undefined) updateData.isActive = Boolean(isActive);
     if (regionId !== undefined) updateData.regionId = regionId;
     if (name) updateData.name = name.trim();
@@ -161,7 +178,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const updated = await prisma.user.update({
-      where: { id },
+      where: { id: targetId },
       data: updateData,
       select: {
         id: true,
@@ -169,17 +186,28 @@ export async function PUT(request: NextRequest) {
         email: true,
         role: true,
         regionId: true,
+        phone: true,
         isActive: true,
       },
     });
 
     await audit({
       actor: { id: user.id, name: user.name, role: user.role },
-      action: 'UPDATE_ADMIN_ACCOUNT',
+      action: isPhoneUpdate ? 'UPDATE_ADMIN_PHONE' : 'UPDATE_ADMIN_ACCOUNT',
       entity: 'User',
-      entityId: id,
-      before: { isActive: targetUser.isActive, role: targetUser.role, regionId: targetUser.regionId },
-      after: { isActive: updated.isActive, role: updated.role, regionId: updated.regionId },
+      entityId: targetId,
+      before: {
+        ...(isPhoneUpdate ? { phone: maskPhoneNumber(targetUser.phone) } : {}),
+        isActive: targetUser.isActive,
+        role: targetUser.role,
+        regionId: targetUser.regionId,
+      },
+      after: {
+        ...(isPhoneUpdate ? { phone: maskPhoneNumber(updated.phone) } : {}),
+        isActive: updated.isActive,
+        role: updated.role,
+        regionId: updated.regionId,
+      },
     });
 
     return NextResponse.json({

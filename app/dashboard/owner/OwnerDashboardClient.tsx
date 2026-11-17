@@ -7,8 +7,10 @@ import {
   PackageSearch, Download, Loader2, AlertTriangle, RefreshCcw,
   Sliders, ShieldCheck, History, Users, Building2, CheckCircle2,
   ExternalLink, LogOut, ArrowRight, Save, ToggleLeft, ToggleRight,
-  Layers, Package, Calendar, Eye, FileSpreadsheet, Printer, FlaskConical
+  Layers, Package, Calendar, Eye, FileSpreadsheet, Printer, FlaskConical,
+  Phone, Edit3
 } from 'lucide-react';
+import { validateAndNormalizeWhatsAppNumber, isValidWhatsAppNumber } from '@/lib/whatsapp';
 import SalesReportModal from '@/components/owner/SalesReportModal';
 import GoogleSheetsCard from '@/components/reports/GoogleSheetsCard';
 import WaReportSubscriptionCard from '@/components/reports/WaReportSubscriptionCard';
@@ -262,6 +264,78 @@ export default function OwnerDashboardClient() {
       }
     } catch (e: any) {
       alert(e.message || 'Gagal mengubah status pengguna');
+    }
+  };
+
+  // Edit phone modal state (Owner)
+  const [editingAdminUser, setEditingAdminUser] = useState<any | null>(null);
+  const [editAdminPhone, setEditAdminPhone] = useState('');
+  const [adminPhoneValidation, setAdminPhoneValidation] = useState<any>(null);
+  const [adminOverrideSuspicious, setAdminOverrideSuspicious] = useState(false);
+  const [savingAdminPhone, setSavingAdminPhone] = useState(false);
+  const [editAdminPhoneError, setEditAdminPhoneError] = useState('');
+
+  const handleOpenEditAdminPhone = (target: any) => {
+    setEditingAdminUser(target);
+    setEditAdminPhone(target.phone || '');
+    setAdminPhoneValidation(target.phone ? validateAndNormalizeWhatsAppNumber(target.phone) : null);
+    setAdminOverrideSuspicious(false);
+    setEditAdminPhoneError('');
+  };
+
+  const handleAdminPhoneInputChange = (val: string) => {
+    setEditAdminPhone(val);
+    setEditAdminPhoneError('');
+    if (!val.trim()) {
+      setAdminPhoneValidation(null);
+      setAdminOverrideSuspicious(false);
+      return;
+    }
+    const res = validateAndNormalizeWhatsAppNumber(val);
+    setAdminPhoneValidation(res);
+    if (!res.isSuspicious) {
+      setAdminOverrideSuspicious(false);
+    }
+  };
+
+  const handleSaveAdminPhone = async () => {
+    if (!editingAdminUser) return;
+    if (editAdminPhone.trim()) {
+      const res = validateAndNormalizeWhatsAppNumber(editAdminPhone);
+      if (!res.valid) {
+        setEditAdminPhoneError(res.error || 'Nomor tidak valid');
+        return;
+      }
+      if (res.isSuspicious && !adminOverrideSuspicious) {
+        setEditAdminPhoneError('Nomor memiliki pola mencurigakan. Klik tombol "Tetap pakai nomor ini" untuk melanjutkan.');
+        return;
+      }
+    }
+
+    setSavingAdminPhone(true);
+    setEditAdminPhoneError('');
+
+    try {
+      const res = await fetch('/api/owner/users', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingAdminUser.id,
+          phone: editAdminPhone.trim() || null,
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.error || 'Gagal memperbarui nomor WhatsApp admin.');
+      }
+
+      setEditingAdminUser(null);
+      fetchAdminUsers();
+    } catch (err: any) {
+      setEditAdminPhoneError(err.message || 'Terjadi kesalahan sistem.');
+    } finally {
+      setSavingAdminPhone(false);
     }
   };
 
@@ -1031,6 +1105,7 @@ export default function OwnerDashboardClient() {
                     <thead className="bg-stone-50 border-b border-stone-200 text-stone-500 font-bold uppercase tracking-wider">
                       <tr>
                         <th className="py-3 px-5">Nama & Email</th>
+                        <th className="py-3 px-5">Nomor WhatsApp</th>
                         <th className="py-3 px-5">Peran</th>
                         <th className="py-3 px-5">Wilayah Tugas</th>
                         <th className="py-3 px-5">Status</th>
@@ -1039,51 +1114,77 @@ export default function OwnerDashboardClient() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-stone-100 font-medium text-stone-700">
-                      {adminUsers.map((u: any) => (
-                        <tr key={u.id} className="hover:bg-stone-50/60 transition-colors">
-                          <td className="py-3.5 px-5">
-                            <div className="font-bold text-stone-900">{u.name}</div>
-                            <div className="text-[11px] text-stone-400 font-mono">{u.email}</div>
-                          </td>
-                          <td className="py-3.5 px-5">
-                            <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${
-                              u.role === 'ADMIN_PUSAT' ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-blue-50 text-blue-800 border border-blue-200'
-                            }`}>
-                              {u.role === 'ADMIN_PUSAT' ? 'Admin Pusat (Depok)' : 'Admin Wilayah'}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-5 font-semibold text-stone-700">
-                            {u.region?.name || 'Seluruh Indonesia'}
-                          </td>
-                          <td className="py-3.5 px-5">
-                            {u.isActive ? (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                Aktif
+                      {adminUsers.map((u: any) => {
+                        const hasValidPhone = Boolean(u.phone && isValidWhatsAppNumber(u.phone));
+                        return (
+                          <tr key={u.id} className="hover:bg-stone-50/60 transition-colors">
+                            <td className="py-3.5 px-5">
+                              <div className="font-bold text-stone-900">{u.name}</div>
+                              <div className="text-[11px] text-stone-400 font-mono">{u.email}</div>
+                            </td>
+                            <td className="py-3.5 px-5">
+                              {hasValidPhone ? (
+                                <div className="flex items-center gap-1.5 font-mono font-bold text-stone-800">
+                                  <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                                  <span>{u.phone}</span>
+                                </div>
+                              ) : (
+                                <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-50 text-amber-900 border border-amber-300 inline-flex items-center gap-1 leading-tight whitespace-normal max-w-xs">
+                                  <AlertTriangle className="w-3 h-3 text-amber-600 shrink-0" />
+                                  <span>⚠️ Belum ada nomor (pesanan baru tidak akan diberi tahu)</span>
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-5">
+                              <span className={`px-2.5 py-0.5 rounded-full font-bold text-[10px] ${
+                                u.role === 'ADMIN_PUSAT' ? 'bg-amber-50 text-amber-800 border border-amber-200' : 'bg-blue-50 text-blue-800 border border-blue-200'
+                              }`}>
+                                {u.role === 'ADMIN_PUSAT' ? 'Admin Pusat (Depok)' : 'Admin Wilayah'}
                               </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
-                                Dinonaktifkan
-                              </span>
-                            )}
-                          </td>
-                          <td className="py-3.5 px-5 text-stone-400 text-[11px]">
-                            {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString('id-ID') : 'Belum pernah'}
-                          </td>
-                          <td className="py-3.5 px-5 text-right">
-                            <button
-                              onClick={() => handleToggleUserStatus(u)}
-                              className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                                u.isActive
-                                  ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
-                                  : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
-                              }`}
-                            >
-                              {u.isActive ? 'Nonaktifkan' : 'Aktifkan'}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td className="py-3.5 px-5 font-semibold text-stone-700">
+                              {u.region?.name || 'Seluruh Indonesia'}
+                            </td>
+                            <td className="py-3.5 px-5">
+                              {u.isActive ? (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                                  Aktif
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded-full border border-rose-200">
+                                  Dinonaktifkan
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-5 text-stone-400 text-[11px]">
+                              {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString('id-ID') : 'Belum pernah'}
+                            </td>
+                            <td className="py-3.5 px-5 text-right">
+                              <div className="inline-flex items-center gap-2 justify-end">
+                                <button
+                                  onClick={() => handleOpenEditAdminPhone(u)}
+                                  className="px-2.5 py-1 rounded-xl text-xs font-bold border border-stone-200 bg-white hover:bg-stone-50 text-stone-700 transition-all cursor-pointer inline-flex items-center gap-1"
+                                  title="Edit Nomor WhatsApp"
+                                >
+                                  <Edit3 className="w-3.5 h-3.5 text-stone-500" />
+                                  <span>Edit WA</span>
+                                </button>
+                                <button
+                                  onClick={() => handleToggleUserStatus(u)}
+                                  className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                                    u.isActive
+                                      ? 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
+                                      : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                                  }`}
+                                >
+                                  {u.isActive ? 'Nonaktifkan' : 'Aktifkan'}
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -1098,6 +1199,102 @@ export default function OwnerDashboardClient() {
         onClose={() => setShowReportModal(false)}
         transactions={financeData?.transactions || []}
       />
+
+      {/* ========================================================= */}
+      {/* MODAL: EDIT NOMOR WHATSAPP ADMIN OLEH OWNER               */}
+      {/* ========================================================= */}
+      {editingAdminUser && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-stone-100 space-y-4">
+            <div className="flex items-center justify-between border-b border-stone-100 pb-3">
+              <div className="flex items-center gap-2">
+                <Phone className="w-5 h-5 text-deep-forest" />
+                <div>
+                  <h3 className="font-extrabold text-stone-900 text-sm">
+                    Edit Nomor WhatsApp Admin
+                  </h3>
+                  <p className="text-[11px] text-stone-500">{editingAdminUser.name} ({editingAdminUser.role})</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setEditingAdminUser(null)}
+                className="p-1 text-stone-400 hover:text-stone-700 rounded-full cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            {editAdminPhoneError && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                <span>{editAdminPhoneError}</span>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  Nomor WhatsApp Baru:
+                </label>
+                <input
+                  type="tel"
+                  placeholder="Contoh: 081234567890 atau 62812..."
+                  value={editAdminPhone}
+                  onChange={(e) => handleAdminPhoneInputChange(e.target.value)}
+                  className="w-full p-2.5 text-xs bg-stone-50 border border-stone-200 rounded-xl focus:border-deep-forest focus:outline-none"
+                  autoFocus
+                />
+                <p className="text-[11px] text-stone-500 mt-1">
+                  Format seluler Indonesia (08... / 628..., 11-15 digit). Kosongkan jika ingin menghapus nomor.
+                </p>
+              </div>
+
+              {/* Peringatan Pola Mencurigakan (Koreksi 2) */}
+              {adminPhoneValidation?.isSuspicious && (
+                <div className="p-3 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-950 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+                    <span>{adminPhoneValidation.warning}</span>
+                  </div>
+                  {!adminOverrideSuspicious ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAdminOverrideSuspicious(true);
+                        setEditAdminPhoneError('');
+                      }}
+                      className="px-3 py-1 bg-amber-200 hover:bg-amber-300 text-amber-900 font-bold rounded-lg text-[11px] transition-all cursor-pointer"
+                    >
+                      Tetap pakai nomor ini
+                    </button>
+                  ) : (
+                    <span className="text-emerald-700 font-bold text-[11px] block">
+                      ✓ Dikonfirmasi untuk tetap menggunakan nomor ini.
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="pt-2 flex gap-2">
+              <button
+                onClick={() => setEditingAdminUser(null)}
+                className="flex-1 py-2.5 border border-stone-200 text-stone-600 text-xs font-bold rounded-xl hover:bg-stone-50 cursor-pointer"
+              >
+                Batal
+              </button>
+              <button
+                onClick={handleSaveAdminPhone}
+                disabled={savingAdminPhone}
+                className="flex-1 py-2.5 bg-deep-forest hover:bg-deep-forest/90 text-white text-xs font-bold rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60"
+              >
+                {savingAdminPhone ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+                <span>Simpan Nomor</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       </div>
     </div>
