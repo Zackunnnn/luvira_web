@@ -12,7 +12,7 @@ import { prisma } from '@/lib/db';
 import { AuthUser, can } from '@/lib/permissions';
 import { calculatePricingPure, ProductDataForCalculation, PromoDataForCalculation } from '@/lib/pricing';
 import { audit } from '@/lib/audit';
-import { enqueueWhatsAppNotification } from '@/lib/notify/queue';
+import { enqueueWhatsAppNotification, dispatchWaQueue } from '@/lib/notify/queue';
 import { OrderStatus, PaymentMethod, Role, StockMovementType } from '@prisma/client';
 
 export interface CreateManualCodOrderInput {
@@ -466,6 +466,10 @@ export async function createManualCodOrder(params: CreateManualCodOrderInput) {
         idempotencyKey: `wa:cod_new:${createdOrder.id}`,
         relatedType: 'Order',
         relatedId: createdOrder.id,
+      });
+
+      dispatchWaQueue({ limit: 5 }).catch((err) => {
+        console.warn('[Manual COD] Background WA dispatch warning:', err);
       });
     }
   } catch (err) {

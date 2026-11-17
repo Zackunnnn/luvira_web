@@ -16,7 +16,7 @@ import { can } from '@/lib/permissions';
 import { audit } from '@/lib/audit';
 import { recordLuviChangeLog } from '@/lib/changelog';
 import { notifyOrderShipped } from '@/lib/notify/order-events';
-import { enqueueWhatsAppNotification } from '@/lib/notify/queue';
+import { enqueueWhatsAppNotification, dispatchWaQueue } from '@/lib/notify/queue';
 import { OrderStatus, PaymentMethod, Role, StockMovementType } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
@@ -367,7 +367,11 @@ export async function PUT(
 
     // Notifikasi WA bila pengiriman non-COD
     if (!isCod && toStatus === OrderStatus.DIKIRIM) {
-      notifyOrderShipped(updated, body.courierCode || order.courierCode || 'Kurir', body.trackingNumber || order.trackingNumber || '-').catch((err) =>
+      notifyOrderShipped(updated, body.courierCode || order.courierCode || 'Kurir', body.trackingNumber || order.trackingNumber || '-').then(() => {
+        dispatchWaQueue({ limit: 5 }).catch((err) => {
+          console.warn('[Order Shipped] Background WA dispatch warning:', err);
+        });
+      }).catch((err) =>
         console.error('[Notification Order Shipped Error]', err)
       );
     }
@@ -412,6 +416,10 @@ export async function PUT(
                 idempotencyKey: `wa:reseller_completed:${order.id}:${resellerUser.id}`,
                 relatedType: 'Order',
                 relatedId: order.id,
+              });
+
+              dispatchWaQueue({ limit: 5 }).catch((err) => {
+                console.warn('[Reseller Order Completed] Background WA dispatch warning:', err);
               });
             }
           }

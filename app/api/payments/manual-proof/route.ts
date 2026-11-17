@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { OrderStatus, PaymentVerificationStatus, PaymentMethod, Role } from '@prisma/client';
 import { audit } from '@/lib/audit';
+import { notifyTransferProofUploaded } from '@/lib/notify/order-events';
+import { dispatchWaQueue } from '@/lib/notify/queue';
 
 export const dynamic = 'force-dynamic';
 
@@ -124,6 +126,31 @@ export async function POST(request: NextRequest) {
       before: { status: previousStatus },
       after: { status: OrderStatus.MENUNGGU_VERIFIKASI, proofUrl },
     });
+
+    // Notifikasi WhatsApp ke Admin Penangan (non-blocking)
+    try {
+      await notifyTransferProofUploaded(
+        {
+          id: order.id,
+          code: order.code,
+          regionId: order.regionId,
+          customerName: order.customerName,
+          isTest: Boolean(order.isTest),
+        },
+        {
+          id: order.id,
+          amount: order.totalPrice,
+          bankName: undefined,
+        }
+      );
+
+      // Trigger dispatcher di latar belakang agar segera terkirim tanpa menunggu cron
+      dispatchWaQueue({ limit: 5 }).catch((err) => {
+        console.warn('[Manual Proof] Background WA dispatch warning:', err);
+      });
+    } catch (proofWaErr) {
+      console.error('[Manual Proof] Failed to dispatch admin WA notification:', proofWaErr);
+    }
 
     return NextResponse.json({
       success: true,

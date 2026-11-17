@@ -8,6 +8,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { createOrderWithAtomicReservation } from '@/lib/orders/order-routing';
 import { midtransAdapter } from '@/lib/payments/midtrans-adapter';
+import { notifyNewOrderCreated } from '@/lib/notify/order-events';
+import { dispatchWaQueue } from '@/lib/notify/queue';
 import { PaymentMethod } from '@prisma/client';
 
 export const dynamic = 'force-dynamic';
@@ -148,6 +150,33 @@ export async function POST(request: NextRequest) {
 
     const { order, pricing, routeResult } = result;
 
+    // Helper untuk dispatch notifikasi pesanan baru ke WhatsApp Admin penangan (non-blocking)
+    const triggerAdminOrderNotification = async () => {
+      try {
+        await notifyNewOrderCreated({
+          id: order.id,
+          code: order.code,
+          regionId: order.regionId,
+          totalPrice: order.totalPrice,
+          paymentMethod: order.paymentMethod,
+          isTest: Boolean(order.isTest),
+          region: routeResult.handlingRegion ? { name: routeResult.handlingRegion.name } : undefined,
+          items: (order as any).items?.map((item: any) => ({
+            productName: item.productName,
+            variantName: item.variantName,
+            quantity: item.quantity,
+          })),
+        });
+
+        // Trigger dispatcher antrean di latar belakang agar terkirim segera tanpa harus menunggu siklus cron
+        dispatchWaQueue({ limit: 5 }).catch((err) => {
+          console.warn('[Orders] Background WA dispatch warning:', err);
+        });
+      } catch (waErr) {
+        console.error('[Orders] Failed to dispatch admin WA notification:', waErr);
+      }
+    };
+
     let snapToken: string | undefined = undefined;
     let snapRedirectUrl: string | undefined = undefined;
     let isSandbox = false;
@@ -155,6 +184,7 @@ export async function POST(request: NextRequest) {
 
     // 3. Penanganan Metode Pembayaran
     if (resolvedPaymentMethod === PaymentMethod.TEST_SIMULATION || order.isTest) {
+      await triggerAdminOrderNotification();
       // FT-3: Lewati Midtrans Snap sepenuhnya (F5)
       return NextResponse.json(
         {
@@ -257,6 +287,8 @@ export async function POST(request: NextRequest) {
         orderBy: { createdAt: 'asc' },
       });
     }
+
+    await triggerAdminOrderNotification();
 
     return NextResponse.json(
       {

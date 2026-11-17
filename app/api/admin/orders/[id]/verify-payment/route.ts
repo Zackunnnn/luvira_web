@@ -1,4 +1,5 @@
 import { notifyPaymentConfirmed } from '@/lib/notify/order-events';
+import { dispatchWaQueue } from '@/lib/notify/queue';
 // app/api/admin/orders/[id]/verify-payment/route.ts
 // ============================================================================
 // Verifikasi Bukti Transfer Manual oleh Admin
@@ -126,6 +127,27 @@ export async function POST(
       before: { status: previousStatus, paymentStatus: currentPayment.status },
       after: { status: targetStatus, paymentStatus, reason: rejectionReason || null },
     });
+
+    // 5. Notifikasi WhatsApp ke Pembeli saat pembayaran dikonfirmasi (non-blocking)
+    if (action === 'CONFIRM') {
+      try {
+        await notifyPaymentConfirmed({
+          id: order.id,
+          code: order.code,
+          customerName: order.customerName,
+          customerPhone: order.customerPhone,
+          totalPrice: order.totalPrice,
+          waConsent: order.waConsent,
+          isTest: order.isTest,
+        });
+
+        dispatchWaQueue({ limit: 5 }).catch((err) => {
+          console.warn('[Verify Payment] Background WA dispatch warning:', err);
+        });
+      } catch (waErr) {
+        console.error('[Verify Payment WA Error]', waErr);
+      }
+    }
 
     return NextResponse.json({
       success: true,
