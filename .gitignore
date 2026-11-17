@@ -2,6 +2,7 @@ node_modules/
 .next/
 .env
 .env.local
+.env.testlocal
 data/midtrans-notifications.json
 
 .vercel
