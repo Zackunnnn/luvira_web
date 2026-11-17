@@ -11,6 +11,7 @@ import { can } from '@/lib/permissions';
 import { audit } from '@/lib/audit';
 import { Role } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { validateAndNormalizeWhatsAppNumber, maskPhoneNumber } from '@/lib/whatsapp';
 
 export const dynamic = 'force-dynamic';
 
@@ -138,7 +139,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { id, isActive, regionId, name, password } = body;
+    const { id } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'ID pengguna wajib disertakan' }, { status: 400 });
@@ -149,21 +150,82 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Pengguna tidak ditemukan' }, { status: 404 });
     }
 
-    // Asumsi A2 & Matriks: Dilarang menyentuh Owner, Developer, atau Admin Pusat lain
-    if (targetUser.role !== Role.ADMIN_WILAYAH) {
-      return NextResponse.json({ error: 'Akses ditolak: Admin Pusat tidak dapat memodifikasi akun peran ini.' }, { status: 403 });
+    // ------------------------------------------------------------------------
+    // KONTROL AKSES & PENCEGAHAN ESKALASI HAK AKSES (Koreksi 1)
+    // ------------------------------------------------------------------------
+    const isOwner = user.role === Role.OWNER;
+    const isAdminPusat = user.role === Role.ADMIN_PUSAT;
+    const isSelf = targetUser.id === user.id;
+
+    // 1. Validasi Izin Akses Dasar
+    if (!isOwner && !isSelf) {
+      if (!isAdminPusat) {
+        return NextResponse.json({ error: 'Akses ditolak: Anda tidak memiliki wewenang mengedit akun ini.' }, { status: 403 });
+      }
+      // Admin Pusat HANYA boleh mengelola Admin Wilayah dan Reseller
+      if (targetUser.role !== Role.ADMIN_WILAYAH && targetUser.role !== Role.RESELLER) {
+        return NextResponse.json({ error: 'Akses ditolak: Admin Pusat hanya dapat mengelola Admin Wilayah dan Reseller.' }, { status: 403 });
+      }
     }
 
-    if (!can(user, 'users:manage_regional_admin', { targetRole: targetUser.role })) {
-      return NextResponse.json({ error: 'Akses ditolak' }, { status: 403 });
+    // 2. Proteksi Anti-Eskalasi:
+    // Edit nomor oleh diri sendiri, dan oleh Admin Pusat terhadap Admin Wilayah/Reseller, HANYA boleh mengubah field phone.
+    // Field lain di payload (role, isActive, regionId, password, dll.) harus ditolak 400.
+    if (isSelf || (isAdminPusat && body.phone !== undefined)) {
+      const forbiddenFields = ['role', 'isActive', 'regionId', 'password', 'passwordHash', 'email', 'name', 'permissions'];
+      const attempted = forbiddenFields.filter((f) => body[f] !== undefined);
+      if (attempted.length > 0) {
+        return NextResponse.json(
+          { error: `Eskalasi hak akses dicegah: Field [${attempted.join(', ')}] tidak diizinkan pada pembaruan ini.` },
+          { status: 400 }
+        );
+      }
+    }
+
+    // Jika self-update tanpa field phone, tolak karena self-update hanya untuk nomor
+    if (isSelf && body.phone === undefined) {
+      return NextResponse.json({ error: 'Pengguna hanya diizinkan memperbarui nomor WhatsApp mandiri.' }, { status: 400 });
+    }
+
+    // 3. Validasi & Normalisasi Nomor WhatsApp jika ada
+    let validatedPhone: string | null = null;
+    let isPhoneUpdate = false;
+
+    if (body.phone !== undefined) {
+      isPhoneUpdate = true;
+      if (body.phone === null || body.phone === '') {
+        validatedPhone = null;
+      } else {
+        const validation = validateAndNormalizeWhatsAppNumber(String(body.phone));
+        if (!validation.valid) {
+          return NextResponse.json({ error: validation.error }, { status: 400 });
+        }
+        validatedPhone = validation.normalized!;
+      }
     }
 
     const updateData: any = {};
-    if (isActive !== undefined) updateData.isActive = Boolean(isActive);
-    if (regionId) updateData.regionId = regionId;
-    if (name) updateData.name = name.trim();
-    if (password && password.length >= 8) {
-      updateData.passwordHash = await bcrypt.hash(password, 10);
+    if (isPhoneUpdate) {
+      updateData.phone = validatedPhone;
+    }
+
+    // Jika bukan self-update dan bukan request murni edit phone, izinkan field administratif yang sah:
+    if (!isSelf && !isPhoneUpdate) {
+      if (isAdminPusat && targetUser.role === Role.ADMIN_WILAYAH) {
+        if (body.isActive !== undefined) updateData.isActive = Boolean(body.isActive);
+        if (body.regionId) updateData.regionId = body.regionId;
+        if (body.name) updateData.name = body.name.trim();
+        if (body.password && body.password.length >= 8) {
+          updateData.passwordHash = await bcrypt.hash(body.password, 10);
+        }
+      } else if (isOwner) {
+        if (body.isActive !== undefined) updateData.isActive = Boolean(body.isActive);
+        if (body.regionId !== undefined) updateData.regionId = body.regionId;
+        if (body.name) updateData.name = body.name.trim();
+        if (body.password && body.password.length >= 8) {
+          updateData.passwordHash = await bcrypt.hash(body.password, 10);
+        }
+      }
     }
 
     const updated = await prisma.user.update({
@@ -175,26 +237,37 @@ export async function PUT(request: NextRequest) {
         email: true,
         role: true,
         regionId: true,
+        phone: true,
         isActive: true,
       },
     });
 
     await audit({
       actor: { id: user.id, name: user.name, role: user.role },
-      action: 'UPDATE_REGIONAL_ADMIN',
+      action: isPhoneUpdate ? 'UPDATE_USER_PHONE' : 'UPDATE_REGIONAL_ADMIN',
       entity: 'User',
       entityId: id,
-      before: { isActive: targetUser.isActive, regionId: targetUser.regionId },
-      after: { isActive: updated.isActive, regionId: updated.regionId },
+      before: {
+        ...(isPhoneUpdate ? { phone: maskPhoneNumber(targetUser.phone) } : {}),
+        isActive: targetUser.isActive,
+        regionId: targetUser.regionId,
+      },
+      after: {
+        ...(isPhoneUpdate ? { phone: maskPhoneNumber(updated.phone) } : {}),
+        isActive: updated.isActive,
+        regionId: updated.regionId,
+      },
     });
 
     return NextResponse.json({
       success: true,
-      message: `Data akun ${updated.name} berhasil diperbarui.`,
+      message: isPhoneUpdate
+        ? `Nomor WhatsApp ${updated.name} berhasil diperbarui.`
+        : `Data akun ${updated.name} berhasil diperbarui.`,
       user: updated,
     });
   } catch (error: any) {
     console.error('[API Admin Users PUT Error]', error);
-    return NextResponse.json({ error: error.message || 'Gagal memperbarui akun admin' }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Gagal memperbarui akun pengguna' }, { status: 500 });
   }
 }
