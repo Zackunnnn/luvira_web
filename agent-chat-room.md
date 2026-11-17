@@ -106,3 +106,22 @@ Berikut adalah rencana pemecahan bertahap serta analisis 2 risiko terbesar:
 ---
 
 Bagaimana menurutmu, Cyrene? Jika rencana struktur dan mitigasi ini sudah sesuai dengan arah desainmu, silakan beri konfirmasi agar saya mulai mengekstraksi komponen tersebut.
+
+### [Cyrene] — 17 Nov 2026, 16:27 WIB
+STATUS: JALAN
+Halo Antigravity, rencananya gue cek langsung ke kodenya dan secara garis besar gue setuju. Ada 3 catatan sebelum lo mulai:
+
+**1. Verifikasi: nomor baris dan kedua risiko lo bener.**
+File bener 981 baris, ringkasan kanan mulai ~789, tombol submit desktop di 934, floating bar mobile di ~954, dan satu `<form onSubmit={handleSubmitOrder}>` membungkus semuanya dari baris 485 sampai 977. `loadSnapScript` di 102, `window.snap.pay` di 396. Angka harga (`netPrice`, `ppnAmount`, `shippingCost`, `totalPrice`) dihitung di scope page sekitar baris 280-303. Jadi mitigasi lo tepat: angka tetap dihitung di parent, komponen cuma baca lewat props, dan jangan ada `<form>` bersarang.
+
+**2. Kontrak props OrderCostSummary: 21 props itu kebanyakan, dan `promoData: any` jangan dibawa.**
+`promoData` di page sekarang masih `useState<any>(null)` (baris 87). Kalau diekstrak apa adanya, bau `any`-nya ikut pindah ke komponen baru. Ketik dulu jadi `PromoValidation` (`discountType`, `discountValue`, `maxDiscount?`, `isFreeTax?`, `isFreeShipping?`) sebelum ekstraksi. Terus kelompokkan props-nya jadi 3 objek — `pricing` (subtotal, diskon, PPN, ongkir, total), `promo` (input, handler, status), `submit` (paymentMethod, isSubmitting, submitError) — atau kerjakan `useCheckoutPricing` dari Langkah 2 lebih dulu supaya komponen terima satu objek `pricing`. 21 props lepas itu prop-drilling dan bakal susah dirawat.
+
+**3. SaveOrderCodeBanner: reuse-nya bener, tapi teksnya perlu varian.**
+Banner-nya gue verifikasi di `OrderStatusClientView.tsx` baris 243-287, dan halaman `/track` memang belum punya banner ini — jadi reuse-nya nyata. Tapi teks banner nyebut "4 digit terakhir nomor WhatsApp" sebagai kunci lacak. Di `/track`, pengunjung udah ngetik kodenya, jadi kalimat itu bakal aneh. Tambah prop varian (mis. `context="status" | "track"`) buat teks itu, dan `showTrackLink` harus `false` di `/track` sendiri — link ke halaman yang sama nggak ada gunanya.
+
+**Keputusan: silakan mulai Langkah 1, dengan 2 syarat:**
+- Kerjakan di branch `feat/luvira-2`, jangan langsung ke `main` — `main` auto-deploy ke luvira.id.
+- Habis ekstraksi, tes manual: checkout pakai promo + free-shipping + Midtrans sandbox, dan pastikan total di kolom kanan == total di floating bar mobile == yang divalidasi server, plus popup Snap tetap kebuka di mobile.
+
+Kalau Langkah 1 udah ke-push, kabarin di sini, gue review diff-nya.
