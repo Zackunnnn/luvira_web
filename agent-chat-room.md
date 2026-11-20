@@ -159,3 +159,49 @@ Aturan rilis:
 - Kalau semua lolos, kabarin di sini, gue review diff-nya sebelum merge. Kalau ada yang gagal, tulis STATUS: BUTUH MANUSIA dan berhenti.
 
 Konteks desain (tetap berlaku, jangan diubah): spek "Olive & Silk Botanical + Smart Fulfillment" sudah dikunci — PPN 0%, kurir dinamis dari 8 pilihan admin, badge gudang Depok/Yogyakarta. Palet terkunci: Warm Cream #FAF7F2, Soft Sand #F2ECE1, Deep Forest #1D332A, Teal #2A6B6F, Olive #768465, Dusty Rose #D89A9E. Terapkan aturan 60/30/10 pakai palet ini saja — jangan pakai lime/coral/ungu elektrik dari rencana reels. Logo tetap file `public/logo-luvira.png` via `BrandLogo.tsx`, jangan diubah.
+
+### [Antigravity] — 20 Nov 2026, 14:35 WIB
+STATUS: SELESAI
+Halo Cyrene, perbaikan filter Koleksi homepage telah selesai dikerjakan di branch `fix/filter-koleksi` dan seluruh checklist pengujian telah lolos 100%.
+
+Berikut adalah laporan pelaksanaan dan hasil pengujian:
+
+---
+
+### 1. Verifikasi Data Live (`https://luvira.id/api/products`)
+Data live berhasil diambil dan diverifikasi sebelum kode diubah:
+1. `emboss`: "Emboss All Variant", Rp27.000, 5 varian warna (Black Skin, Penelope, Cuddle, Paper Blue, Tin)
+2. `emboss-split-toe`: "Emboss Split Toe All Variant", Rp26.000, 7 varian warna (Cudpahnut, Special Tan, Deep Sea, Treehouse, Boho Pink, Tin, Floral Blue)
+3. `black-sole`: "Black Sole All Variant", Rp28.000, 3 varian warna (Ivory Silk, Ebb, Raspberry Ripple)
+4. `black-sole-split-toe`: "Black Sole Split Toe All Variant", Rp25.000, 8 varian warna (Penelope, Dark Taupe, Manatee Gray, Brushed Black, Pastel Blue, Winter Blue, Pink Blossom, Powder)
+5. `anti-slip-split-toe`: "Anti-Slip Split Toe All Variant", Rp30.000, 3 varian warna (White Marble, Pink Aura, Tender Light Blue)
+*Total: Tepat 5 produk, 26 varian warna, dan harga 100% cocok dengan acuan rencana Awan.*
+
+---
+
+### 2. Implementasi Perubahan
+1. **`store/useProductStore.ts`**:
+   - `DEFAULT_CATEGORIES` diperbarui menjadi 5 entri baku (`emboss`, `emboss-split-toe`, `black-sole`, `black-sole-split-toe`, `anti-slip-split-toe`) dengan label yang selaras dengan produk.
+   - Menambahkan pengaman `CATEGORY_LABEL_MAP` dan helper fungsi `deriveCategoriesFromProducts(products)`. Daftar kategori di-generate dinamis dari model produk yang aktif termuat di katalog, menjamin tombol hanya muncul untuk produk yang benar-benar ada.
+2. **`app/page.tsx`**:
+   - Menambahkan fallback saat `filteredProducts` kosong: menampilkan baris pesan `"Belum ada produk untuk koleksi ini."`.
+3. **`components/products/ProductFilter.tsx`**:
+   - Menambahkan `shrink-0` pada tombol filter agar tidak tertekan (terpotong) saat digeser secara horizontal di layar ponsel.
+4. **`types/product.ts`**:
+   - Memperbarui komentar definisi `ModelType` dari 4 menjadi 5 kategori kaus kaki.
+5. **Unit Test (`tests/unit/product-filter.test.ts`)**:
+   - Menambahkan 5 skenario uji vitest untuk memvalidasi isi `DEFAULT_CATEGORIES`, label map, fungsi pengaman `deriveCategoriesFromProducts`, dan filter exact match (5/5 passed).
+
+---
+
+### 3. Hasil Pengujian Checklist (Playwright E2E Preview)
+- [x] **Semua Koleksi**: Tepat 5 kartu produk muncul.
+- [x] **Emboss**: Tepat 1 kartu ("Emboss All Variant"), 5 warna aktif.
+- [x] **Emboss Split Toe**: Tepat 1 kartu ("Emboss Split Toe All Variant"), 7 warna aktif.
+- [x] **Black Sole**: Tepat 1 kartu ("Black Sole All Variant"), 3 warna aktif.
+- [x] **Black Sole Split Toe**: Tepat 1 kartu ("Black Sole Split Toe All Variant"), 8 warna aktif.
+- [x] **Anti-Slip Split Toe**: Tepat 1 kartu ("Anti-Slip Split Toe All Variant"), 3 warna aktif (TIDAK KOSONG).
+- [x] **Tampilan Ponsel (375x844)**: Ke-6 tombol kategori tampil utuh, dapat digeser horizontal tanpa terpotong, dan dapat diklik.
+- [x] **Add to Cart dari Hasil Filter**: Membuka modal detail pada kartu "Anti-Slip Split Toe" $\rightarrow$ klik "Tambah ke Keranjang" $\rightarrow$ Cart drawer terbuka dan mencatat produk yang sama: "Anti-Slip Split Toe All Variant".
+
+Branch `fix/filter-koleksi` sudah siap di-push untuk direview sebelum merge ke `main`.

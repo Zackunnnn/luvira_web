@@ -2,7 +2,7 @@
 // Defines the shape of all product, variant, cart, and customer data structures
 // used throughout the application. Shared by components, store, and API helpers.
 
-// ModelType — Defines the 4 available sock model categories.
+// ModelType — Defines the 5 available sock model categories.
 // Used as the value for product filter tabs and product categorization.
 export type ModelType = string;
 

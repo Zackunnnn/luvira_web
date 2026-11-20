@@ -5,11 +5,51 @@ import { create } from 'zustand';
 import { Product, Category } from '@/types/product';
 import { MOCK_PRODUCTS } from '@/data/products';
 
-const DEFAULT_CATEGORIES: Category[] = [
-  { id: 'emboss', label: 'Emboss Split Toe', iconName: 'Sparkles' },
-  { id: 'black-sole', label: 'Black Sole Split Toe', iconName: 'Layers' },
-  { id: 'anti-slip', label: 'Anti Slip Split Toe', iconName: 'ShieldCheck' },
+export const CATEGORY_LABEL_MAP: Record<string, { label: string; iconName: string }> = {
+  'emboss': { label: 'Emboss', iconName: 'Sparkles' },
+  'emboss-split-toe': { label: 'Emboss Split Toe', iconName: 'Sparkles' },
+  'black-sole': { label: 'Black Sole', iconName: 'Layers' },
+  'black-sole-split-toe': { label: 'Black Sole Split Toe', iconName: 'Layers' },
+  'anti-slip-split-toe': { label: 'Anti-Slip Split Toe', iconName: 'ShieldCheck' },
+};
+
+export const DEFAULT_CATEGORIES: Category[] = [
+  { id: 'emboss', label: 'Emboss', iconName: 'Sparkles' },
+  { id: 'emboss-split-toe', label: 'Emboss Split Toe', iconName: 'Sparkles' },
+  { id: 'black-sole', label: 'Black Sole', iconName: 'Layers' },
+  { id: 'black-sole-split-toe', label: 'Black Sole Split Toe', iconName: 'Layers' },
+  { id: 'anti-slip-split-toe', label: 'Anti-Slip Split Toe', iconName: 'ShieldCheck' },
 ];
+
+/**
+ * Pengaman Awan: turunkan daftar kategori langsung dari model produk yang ada di katalog,
+ * diurutkan sesuai urutan baku DEFAULT_CATEGORIES.
+ */
+export function deriveCategoriesFromProducts(products: Product[]): Category[] {
+  if (!products || products.length === 0) {
+    return DEFAULT_CATEGORIES;
+  }
+  const existingModels = new Set(products.map((p) => p.model).filter(Boolean));
+  const categories: Category[] = [];
+
+  for (const def of DEFAULT_CATEGORIES) {
+    if (existingModels.has(def.id)) {
+      categories.push(def);
+    }
+  }
+
+  for (const model of existingModels) {
+    if (!DEFAULT_CATEGORIES.some((c) => c.id === model)) {
+      categories.push({
+        id: model,
+        label: CATEGORY_LABEL_MAP[model]?.label || model,
+        iconName: CATEGORY_LABEL_MAP[model]?.iconName || 'Tag',
+      });
+    }
+  }
+
+  return categories.length > 0 ? categories : DEFAULT_CATEGORIES;
+}
 
 interface ProductState {
   products: Product[];
@@ -34,7 +74,7 @@ interface ProductState {
 
 export const useProductStore = create<ProductState>()((set, get) => ({
   products: MOCK_PRODUCTS,
-  categories: DEFAULT_CATEGORIES,
+  categories: deriveCategoriesFromProducts(MOCK_PRODUCTS),
   isLoading: false,
 
   fetchProducts: async () => {
@@ -44,20 +84,29 @@ export const useProductStore = create<ProductState>()((set, get) => ({
       if (res.ok) {
         const json = await res.json();
         if (json.data && Array.isArray(json.data)) {
-          if (json.warning) {
-            set({ products: MOCK_PRODUCTS });
-          } else {
-            set({ products: json.data });
-          }
+          const loadedProducts = json.warning ? MOCK_PRODUCTS : json.data;
+          set({
+            products: loadedProducts,
+            categories: deriveCategoriesFromProducts(loadedProducts),
+          });
         } else {
-          set({ products: MOCK_PRODUCTS });
+          set({
+            products: MOCK_PRODUCTS,
+            categories: deriveCategoriesFromProducts(MOCK_PRODUCTS),
+          });
         }
       } else {
-        set({ products: MOCK_PRODUCTS });
+        set({
+          products: MOCK_PRODUCTS,
+          categories: deriveCategoriesFromProducts(MOCK_PRODUCTS),
+        });
       }
     } catch (e) {
       console.warn('Failed to fetch products from API, using default catalog', e);
-      set({ products: MOCK_PRODUCTS });
+      set({
+        products: MOCK_PRODUCTS,
+        categories: deriveCategoriesFromProducts(MOCK_PRODUCTS),
+      });
     } finally {
       set({ isLoading: false });
     }
@@ -72,7 +121,13 @@ export const useProductStore = create<ProductState>()((set, get) => ({
       });
       if (res.ok) {
         const { data } = await res.json();
-        set((state) => ({ products: [...state.products, data] }));
+        set((state) => {
+          const nextProducts = [...state.products, data];
+          return {
+            products: nextProducts,
+            categories: deriveCategoriesFromProducts(nextProducts),
+          };
+        });
       }
     } catch (e) {
       console.error(e);
@@ -88,9 +143,13 @@ export const useProductStore = create<ProductState>()((set, get) => ({
       });
       if (res.ok) {
         const { data } = await res.json();
-        set((state) => ({
-          products: state.products.map((p) => (p.id === id ? data : p)),
-        }));
+        set((state) => {
+          const nextProducts = state.products.map((p) => (p.id === id ? data : p));
+          return {
+            products: nextProducts,
+            categories: deriveCategoriesFromProducts(nextProducts),
+          };
+        });
       }
     } catch (e) {
       console.error(e);
@@ -101,9 +160,13 @@ export const useProductStore = create<ProductState>()((set, get) => ({
     try {
       const res = await fetch(`/api/products/${id}`, { method: 'DELETE' });
       if (res.ok) {
-        set((state) => ({
-          products: state.products.filter((p) => p.id !== id),
-        }));
+        set((state) => {
+          const nextProducts = state.products.filter((p) => p.id !== id);
+          return {
+            products: nextProducts,
+            categories: deriveCategoriesFromProducts(nextProducts),
+          };
+        });
       }
     } catch (e) {
       console.error(e);
@@ -151,7 +214,7 @@ export const useProductStore = create<ProductState>()((set, get) => ({
 
   resetToDefaultProducts: async () => {
     await get().fetchProducts();
-    set({ categories: [...DEFAULT_CATEGORIES] });
+    set((state) => ({ categories: deriveCategoriesFromProducts(state.products) }));
   },
 
   getProductById: (id) => get().products.find((p) => p.id === id),

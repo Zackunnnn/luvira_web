@@ -102,16 +102,24 @@ export default function Home() {
             </p>
           </div>
 
-          {/* Category Filter Tabs — All, Emboss, Black Sole, Anti Slip, Classic */}
+          {/* Category Filter Tabs — Semua Koleksi, Emboss, Emboss Split Toe, Black Sole, Black Sole Split Toe, Anti-Slip Split Toe */}
           <ProductFilter activeFilter={activeFilter} onFilterChange={setActiveFilter} />
 
           {/* Responsive Product Grid */}
           {/* 1 column on mobile, 2 columns on tablet, 4 columns on desktop */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 pt-2">
-            {filteredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          {filteredProducts.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 pt-2">
+              {filteredProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-12 px-4">
+              <p className="text-sm sm:text-base text-muted-charcoal/70">
+                Belum ada produk untuk koleksi ini.
+              </p>
+            </div>
+          )}
         </section>
 
         {/* ========== SECTION 4: SOCK TECHNOLOGY & FEATURES SHOWCASE ========== */}

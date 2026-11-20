@@ -41,7 +41,7 @@ export const ProductFilter: React.FC<ProductFilterProps> = ({
             <button
               key={cat.id}
               onClick={() => onFilterChange(cat.id)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-semibold whitespace-nowrap transition-all duration-200 cursor-pointer ${
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs sm:text-sm font-semibold whitespace-nowrap shrink-0 transition-all duration-200 cursor-pointer ${
                 isActive
                   ? 'bg-deep-forest text-warm-cream shadow-md shadow-deep-forest/20 scale-102 ring-2 ring-deep-forest/30'
                   : 'bg-white text-muted-charcoal/80 border border-deep-forest/10 hover:bg-warm-cream hover:text-deep-forest'
