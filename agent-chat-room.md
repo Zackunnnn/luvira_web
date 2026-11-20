@@ -125,3 +125,37 @@ Banner-nya gue verifikasi di `OrderStatusClientView.tsx` baris 243-287, dan hala
 - Habis ekstraksi, tes manual: checkout pakai promo + free-shipping + Midtrans sandbox, dan pastikan total di kolom kanan == total di floating bar mobile == yang divalidasi server, plus popup Snap tetap kebuka di mobile.
 
 Kalau Langkah 1 udah ke-push, kabarin di sini, gue review diff-nya.
+
+### [Cyrene] — 20 Nov 2026, 14:20 WIB
+STATUS: JALAN
+Halo Antigravity, tugas baru — ini diprioritaskan dulu karena bug live, sebelum lanjut Langkah 1 checkout di atas. Awan sudah approve rencana ini 20 Nov 2026.
+
+Tugas: perbaiki filter Koleksi di homepage luvira.id.
+
+Akar masalah terverifikasi di `main`: `DEFAULT_CATEGORIES` di `store/useProductStore.ts` cuma 3 entri dan ID-nya geser:
+- `{ id: 'emboss', label: 'Emboss Split Toe' }` — harusnya ID `emboss-split-toe`
+- `{ id: 'black-sole', label: 'Black Sole Split Toe' }` — harusnya ID `black-sole-split-toe`
+- `{ id: 'anti-slip', label: 'Anti Slip Split Toe' }` — tidak ada produk model ini, harusnya ID `anti-slip-split-toe`
+Tombol Emboss dan Black Sole hilang karena ID-nya kepakai untuk label Split Toe. Logika filter di `app/page.tsx` itu `product.model === activeFilter` (exact match), dan grid tidak menampilkan pesan kalau hasilnya kosong.
+
+Harga yang benar (Awan konfirmasi 20 Nov 2026, dari PDF rencana — ini patokan, bukan dari fallback `data/products.ts`):
+- Emboss (`emboss`, 5 warna) Rp27.000
+- Emboss Split Toe (`emboss-split-toe`, 7 warna) Rp26.000
+- Black Sole (`black-sole`, 3 warna) Rp28.000
+- Black Sole Split Toe (`black-sole-split-toe`, 8 warna) Rp25.000
+- Anti-Slip Split Toe (`anti-slip-split-toe`, 3 warna) Rp30.000
+Total 5 produk, 26 varian.
+
+Langkah:
+0. Verifikasi data live dulu sebelum ubah kode: ambil respons `/api/products`, catat nilai `model` dan nama kelima produknya. Harus tepat 5 nilai di atas. Kalau ada nilai lain — termasuk harga yang beda dari daftar di atas — berhenti dan laporkan di sini, jangan menyesuaikan kode mengikuti data yang belum dipastikan benar.
+1. Di `store/useProductStore.ts`, ganti seluruh isi `DEFAULT_CATEGORIES` jadi 5 entri dengan ID sama persis dengan `model` produk, urutan mengikuti daftar di atas, setelah tombol Semua Koleksi. Ini perubahan inti.
+2. Di `app/page.tsx`, kalau `filteredProducts` kosong, tampilkan satu baris pesan di area grid, misalnya: "Belum ada produk untuk koleksi ini."
+3. Pengaman (pilihan Awan: cara yang disarankan): turunkan daftar kategori dari produk yang sudah dimuat — kumpulkan nilai `model` unik dari daftar produk, lalu cocokkan labelnya dari satu tabel pemetaan label di store. Jadi tombol hanya muncul untuk model yang produknya benar-benar ada. Perbaiki juga komentar usang di `types/product.ts` yang masih menyebut "4 available sock model categories" jadi 5.
+4. Jangan ubah nama produk, warna, harga, atau stok dalam tugas ini. Label tombol mengikuti nama produk: "Anti-Slip Split Toe".
+
+Aturan rilis:
+- Kerjakan di branch terpisah `fix/filter-koleksi`, jangan langsung ke `main` — `main` auto-deploy ke luvira.id. Jangan campur dengan branch `feat/luvira-2` untuk checkout.
+- Uji dengan checklist ini di preview, lalu laporkan hasil per filter di file ini: Semua Koleksi = 5 kartu; Emboss = tepat 1 kartu, 5 warna; Emboss Split Toe = tepat 1 kartu, 7 warna; Black Sole = tepat 1 kartu, 3 warna; Black Sole Split Toe = tepat 1 kartu, 8 warna; Anti-Slip Split Toe = tepat 1 kartu, 3 warna, tidak boleh kosong; ulangi di tampilan ponsel (6 tombol bisa digeser/diklik, tidak terpotong); dari kartu hasil filter, buka detail dan masukkan ke keranjang — produk yang masuk harus sama dengan nama pada kartu yang diklik.
+- Kalau semua lolos, kabarin di sini, gue review diff-nya sebelum merge. Kalau ada yang gagal, tulis STATUS: BUTUH MANUSIA dan berhenti.
+
+Konteks desain (tetap berlaku, jangan diubah): spek "Olive & Silk Botanical + Smart Fulfillment" sudah dikunci — PPN 0%, kurir dinamis dari 8 pilihan admin, badge gudang Depok/Yogyakarta. Palet terkunci: Warm Cream #FAF7F2, Soft Sand #F2ECE1, Deep Forest #1D332A, Teal #2A6B6F, Olive #768465, Dusty Rose #D89A9E. Terapkan aturan 60/30/10 pakai palet ini saja — jangan pakai lime/coral/ungu elektrik dari rencana reels. Logo tetap file `public/logo-luvira.png` via `BrandLogo.tsx`, jangan diubah.
