@@ -333,3 +333,35 @@ Berikut adalah laporan lengkap hasil pengerjaan:
 ---
 
 Branch **`fix/security-next-upgrade`** sudah di-push ke origin. Seluruh hasil pengujian lolos dan pekerjaan berhenti di Langkah 5 untuk menunggu persetujuan tertulis dari Awan sebelum proses merge ke `main`.
+
+### [Cyrene] — 22 Nov 2026, 17:16 WIB
+STATUS: JALAN
+Halo Antigravity, keamanan sudah beres dan Awan approve lanjut: kerjakan lagi checkout Step 1 yang sempat ditunda.
+
+**Status keamanan (sudah selesai, jangan diulang):**
+- PR #2 merge ke main, merge commit `fa092caf` (22 Nov 2026 ~17.10 WIB). `next` sekarang 16.4.6 di main, live sudah diverifikasi 17.09-17.10 WIB: `/api/products` 5 produk 26 varian harga benar, homepage 6 tombol filter.
+- Sisa 14 advisori di rantai dev vitest tetap ditunda — bukan bagian tugas ini.
+
+**Langkah 0 — Bawa branch kerja ke main terbaru:**
+- Branch `feat/luvira-2` saat ini ketinggalan 5 hari: head `2fc3f34` (17 Nov, pesan rencanamu) berbasis `d3c69bd`. Branch itu belum berisi perbaikan filter (PR #1) maupun upgrade next (PR #2).
+- Rebase `feat/luvira-2` ke main terbaru (`fa092caf`). Kalau rebase `agent-chat-room.md` konflik dan ribet, boleh hapus dan buat ulang branch dari main terbaru — satu-satunya commit di branch itu pesan rencana 17 Nov yang isinya sudah diringkas lengkap di bawah, jadi tidak ada kode yang hilang. Jangan force-push ke `main`, jangan hapus `main`.
+
+**Langkah 1 — Ekstraksi (persetujuan 17 Nov 16:27 tetap berlaku):**
+- Dari `app/checkout/page.tsx` (±981 baris, per 17 Nov) ekstrak:
+  - `components/checkout/OrderCostSummary.tsx` (rencana 17 Nov: baris 789–952)
+  - `components/order/SaveOrderCodeBanner.tsx` (dari `app/order/[id]/status/OrderStatusClientView.tsx` baris 243–287)
+- Verifikasi ulang nomor barisnya dulu sebelum ekstrak — jangan percaya nomor lama mentah-mentah, main sudah berubah sejak 17 Nov.
+- 3 catatan wajib dari persetujuan 17 Nov:
+  1. Kelompokkan 21 props jadi 3 objek — `pricing` (subtotal, diskon, PPN, ongkir, total), `promo` (input, handler, status), `submit` (paymentMethod, isSubmitting, submitError) — atau kerjakan `useCheckoutPricing` dulu supaya komponen terima satu objek `pricing`. `promoData: any` (dulu baris 87, `useState<any>(null)`) harus diketik jadi `PromoValidation` (`discountType`, `discountValue`, `maxDiscount?`, `isFreeTax?`, `isFreeShipping?`) sebelum ekstraksi. Tanpa `any`.
+  2. `SaveOrderCodeBanner` butuh prop varian teks untuk `/track` (teks "4 digit terakhir nomor WhatsApp" aneh di sana — pengunjung sudah mengetik kodenya), mis. `context="status" | "track"`, dan `showTrackLink` harus `false` di `/track`.
+  3. Angka harga tetap dihitung terpusat di parent (`CheckoutPage` atau hook murni), komponen cuma baca lewat props. Jangan ada `<form>` bersarang — tombol submit di dalam `OrderCostSummary` tetap `type="submit"` terikat ke form utama, `handleSubmitOrder` dan Midtrans loader tetap di level page.
+- 2 risiko yang harus dijaga (dari rencanamu sendiri): desinkronisasi harga antara ringkasan / floating bar mobile / validasi server; putusnya alur submit / Midtrans Snap (`window.snap.pay`, callback, fallback `redirectUrl`).
+
+**Tes (wajib sebelum laporan):**
+- `npm run build` sukses tanpa error.
+- Tes manual: checkout pakai promo + free-shipping + Midtrans sandbox; total di kolom kanan == total di floating bar mobile == yang divalidasi server; popup Snap tetap kebuka di mobile. Berhenti sebelum pembayaran nyata / pesanan nyata.
+- Jangan ubah nama produk, harga, stok, palet, atau logo. Jangan sentuh kredensial tes di file e2e. Jangan `npm audit fix --force`. Jangan ubah versi `next` (sudah 16.4.6) atau naikkan paket lain di luar kebutuhan Step 1.
+
+**Selesai:** tulis laporan di file ini (file berubah, hasil build, hasil tes per item) dengan STATUS: MENUNGGU APPROVAL, push branch `feat/luvira-2`. JANGAN merge — PR + merge butuh approval tertulis terpisah dari Awan. Kalau mentok, tulis STATUS: BUTUH MANUSIA dan berhenti.
+
+Konteks desain (tetap berlaku): spek "Olive & Silk Botanical + Smart Fulfillment" — PPN 0%, kurir dinamis dari 8 pilihan admin, badge gudang Depok/Yogyakarta. Palet: Warm Cream #FAF7F2, Soft Sand #F2ECE1, Deep Forest #1D332A, Teal #2A6B6F, Olive #768465, Dusty Rose #D89A9E. Logo `public/logo-luvira.png` via `BrandLogo.tsx`, jangan diubah.
