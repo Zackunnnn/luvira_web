@@ -205,3 +205,53 @@ Data live berhasil diambil dan diverifikasi sebelum kode diubah:
 - [x] **Add to Cart dari Hasil Filter**: Membuka modal detail pada kartu "Anti-Slip Split Toe" $\rightarrow$ klik "Tambah ke Keranjang" $\rightarrow$ Cart drawer terbuka dan mencatat produk yang sama: "Anti-Slip Split Toe All Variant".
 
 Branch `fix/filter-koleksi` sudah siap di-push untuk direview sebelum merge ke `main`.
+
+### [Cyrene] — 22 Nov 2026, 16:37 WIB
+STATUS: JALAN
+Halo Antigravity, tugas baru — ini yang paling prioritas sekarang, sebelum lanjut Langkah 1 checkout (feat/luvira-2). Awan sudah setuju hari ini (22 Nov 2026): kerjakan perbaikan kerentanan ini dulu, baru lanjut implementasi lagi.
+
+Sumber: "Rencana Perbaikan Kerentanan Luvira" (DRAF, disusun LuviBot untuk Awan, 22 Nov 2026) dari pemindaian Hostinger 20 Nov 2026 pukul 15.13. Dokumennya ada di tangan gue, bukan di repo — semua angka di bawah dari dokumen itu, dan lo wajib verifikasi ulang di Langkah 0 sebelum ubah kode.
+
+**Koreksi penting soal status di dokumen itu (Bagian 4-nya sudah kedaluwarsa saat lo baca):**
+- `fix/filter-koleksi` SUDAH merge ke main: PR #1, merge commit `d6778be`, 20 Nov 2026 ~15.08 WIB, dan filter sudah diverifikasi live ~15.36 WIB (6 tombol, 5 kartu, harga benar, `/api/products` 5 produk 26 varian). Jadi lo TIDAK perlu nunggu merge filter — branch keamanan langsung dibuat dari main terbaru yang sudah berisi perbaikan filter.
+- `feat/luvira-2` (checkout Step 1) tetap DITUNDA, jangan dicampur. `OrderCostSummary` dan `SaveOrderCodeBanner` masih belum ada di main maupun di `feat/luvira-2` — pekerjaan itu dilanjutkan sesudah keamanan selesai, di-rebase dari main yang sudah aman.
+
+**Temuan (gue verifikasi ke main hari ini, 22 Nov 2026):**
+- `package.json` main: `next` ^16.3.4, `react` 19.2.8, `vitest` ^2.1.9, `eslint-config-next` 16.3.0.
+- `package-lock.json` main: `next` 16.3.4, `vitest` 2.1.9, `tinypool` 1.1.1, `vite` 5.4.21, `esbuild` 0.28.2 (plus 0.21.5 bersarang di vite), `brace-expansion` 1.1.18 (plus 5.0.9 bersarang), `follow-redirects` 1.16.0. Ketujuh paket dari laporan Hostinger memang ada di lockfile.
+- Total 39 kerentanan menurut Hostinger: 6 kritis, 10 tinggi, 22 moderasi, 1 rendah. `next` 14 (3 kritis), `vitest` 7 (2 kritis), `tinypool` 2 (1 kritis), `vite` 6, `esbuild` 3, `brace-expansion` 3, `follow-redirects` 2, paket pendukung lain 2.
+- 3 RCE tanpa login di `next` 16.3.4 (skor tertinggi 9.5): (1) `use cache` yang mengembalikan typed array, (2) Image Optimization API saat memproses SVG, (3) `next/og` ImageResponse. Menurut Hostinger tidak ada workaround — satu-satunya perbaikan adalah naik ke `next` 16.4.1 atau lebih baru.
+
+**Yang TIDAK boleh:**
+- Jangan pakai tombol "Atur otomatis" Hostinger. Semua perbaikan lewat repo, branch, dan approval — kalau server diubah langsung, deploy berikutnya dari main akan menimpa dan perbaikan hilang tanpa jejak commit.
+- Jangan commit langsung ke main. `main` auto-deploy ke luvira.id.
+- Jangan pakai `npm audit fix --force` tanpa approval tertulis terpisah dari Awan. Sisa temuan yang cuma bisa ditutup dengan `--force` dilaporkan sebagai daftar terpisah, bukan dipaksakan.
+- Jangan ubah nama produk, harga, stok, warna/palet, atau logo. Jangan sentuh kredensial tes di file e2e — itu pekerjaan terpisah, bukan bagian tugas ini.
+
+**Langkah (dari rencana, sesuaikan dengan koreksi di atas):**
+- **Langkah 0 — Verifikasi kondisi awal, tanpa ubah apa pun:** posisi di main terbaru, catat commit acuan (saat ini `d6778be`) sebagai titik rollback. Jalankan `npm audit`, simpan hasilnya, cocokkan dengan laporan Hostinger (39 temuan: 6 kritis, 10 tinggi, 22 moderasi, 1 rendah). Kalau angkanya beda, BERHENTI dan laporkan di sini, jangan lanjut menebak. Catat versi persis: `next` 16.3.4, `react`, dan paket terkait. Konfirmasi `/api/products` live mengembalikan 5 produk dan 26 varian — itu baseline yang harus sama setelah perbaikan.
+- **Langkah 1 — Buat branch `fix/security-next-upgrade` dari main terbaru** (`git checkout main`, `git pull`, `git checkout -b fix/security-next-upgrade`).
+- **Langkah 2 — Upgrade `next` ke 16.4.1 atau lebih baru** (`npm install next@^16.4.1`, lalu `npm install`). Kalau saat lo kerjakan sudah ada 16.4.x yang lebih baru dan stabil, pakai itu dan catat versi persisnya. Periksa perubahan pendamping yang diminta Next.js di versi itu (mis. `eslint-config-next` seversi — saat ini 16.3.0 — dan penyesuaian konfigurasi), ikuti catatan rilis resmi. Jangan sekalian menaikkan paket besar lain di luar daftar temuan.
+- **Langkah 3 — `npm audit fix` biasa, lalu `npm audit` lagi, catat sisanya.** Larangan `--force` seperti di atas.
+- **Langkah 4 — Uji lokal:** `npm run build` harus selesai tanpa error (warning baru dicatat, bukan diabaikan), lalu `npm run start` dan jalankan checklist di bawah pada build lokal. Uji TANPA membuat order dan TANPA pembayaran nyata — berhenti sebelum langkah yang memotong saldo atau membuat pesanan produksi.
+- **Langkah 5 — Susun laporan pengerjaan di sini:** versi sebelum/sesudah, hasil `npm audit` sebelum/sesudah, daftar file yang berubah, hasil build, hasil checklist item per item. Status laporan: MENUNGGU APPROVAL. JANGAN merge sebelum Awan menyetujui tertulis dengan menyebut laporan/branch ini. Jendela merge (di luar jam ramai 19.00–22.00 WIB) disepakati dulu sebelum Langkah 6 — jadi Langkah 6 dan 7 baru jalan setelah approval itu ada.
+
+**Checklist verifikasi (dijalankan 2x: build lokal Langkah 4, dan live setelah deploy — tapi live-nya nanti setelah approval merge; untuk tugas ini, yang lo kerjakan dan laporkan adalah versi lokalnya):**
+1. Homepage terbuka normal, tanpa error, tampilan sama seperti sebelum perbaikan.
+2. `/api/products`: 5 produk, 26 varian, harga sama seperti baseline.
+3. Katalog "Koleksi Pilihan": semua produk tampil di Semua Koleksi, tidak ada yang hilang.
+4. Filter koleksi: 5 chip filter tampil dan masing-masing menampilkan produk yang benar, tidak kosong, tidak tertukar.
+5. Halaman/detail produk: foto berganti mengikuti warna, harga dan varian sesuai katalog.
+6. Keranjang: tambah produk, ubah jumlah, total harga benar.
+7. Checkout Midtrans: halaman `/checkout` terbuka, pilihan Midtrans (VA, QRIS, kartu) tampil. Berhenti sebelum pembayaran nyata.
+8. Checkout transfer manual: pilihan BSI / Jago Syariah dan unggah bukti bayar tampil seperti sebelumnya. Berhenti sebelum membuat pesanan.
+9. Kode promo `LUVIONGKIR` diterima di checkout dengan potongan tetap Rp30.000 (dilepas lagi setelah uji, tanpa menyelesaikan pesanan).
+10. Halaman lacak pesanan terbuka dan menerima kode pesanan uji yang sudah ada, tanpa error.
+11. Login dashboard terbuka dan login berjalan seperti biasa (lihat saja, tanpa mengubah data).
+12. (Setelah deploy nanti) Pemindaian ulang Hostinger: 3 RCE di `next` hilang, total temuan turun sesuai `npm audit` lokal. Sisa temuan, jika ada, tercatat di laporan.
+
+**Rollback (disiapkan sebelum merge, bukan sesudah masalah):** kalau verifikasi pasca-deploy gagal pada fungsi kritis (checkout, pembayaran, login), kembalikan main ke commit acuan Langkah 0 dengan `git revert` atas commit merge (bukan reset paksa), biarkan auto-deploy memulihkan versi sebelumnya. Branch `fix/security-next-upgrade` jangan dihapus sampai situs live dinyatakan stabil.
+
+Kalau selesai sampai Langkah 5 (laporan draft + STATUS: MENUNGGU APPROVAL), kabarin di sini, gue review diff dan laporannya sebelum Awan memutuskan merge. Kalau ada yang gagal atau angka audit tidak cocok, tulis STATUS: BUTUH MANUSIA dan berhenti.
+
+Konteks desain (tetap berlaku, jangan diubah): spek "Olive & Silk Botanical + Smart Fulfillment" sudah dikunci — PPN 0%, kurir dinamis dari 8 pilihan admin, badge gudang Depok/Yogyakarta. Palet terkunci: Warm Cream #FAF7F2, Soft Sand #F2ECE1, Deep Forest #1D332A, Teal #2A6B6F, Olive #768465, Dusty Rose #D89A9E. Logo tetap file `public/logo-luvira.png` via `BrandLogo.tsx`, jangan diubah.
