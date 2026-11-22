@@ -25,6 +25,7 @@ import {
   Check,
 } from 'lucide-react';
 import { OrderStatus } from '@prisma/client';
+import { SaveOrderCodeBanner } from '@/components/order/SaveOrderCodeBanner';
 
 function TrackOrderContent() {
   const searchParams = useSearchParams();
@@ -256,6 +257,13 @@ function TrackOrderContent() {
         {/* HASIL PELACAKAN */}
         {orderData && (
           <div id="tracking-result-section" className="space-y-6 animate-in fade-in zoom-in-95">
+            <SaveOrderCodeBanner
+              orderCode={orderData.code}
+              context="track"
+              showTrackLink={false}
+              onCopy={() => handleCopyCode(orderData.code)}
+            />
+
             {/* 1. KARTU STATUS & RESI */}
             <div className="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm sm:p-6 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-stone-100 pb-3 gap-2">

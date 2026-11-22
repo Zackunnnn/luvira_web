@@ -59,3 +59,6 @@ export interface CustomerInfo {
   address: string; // Full delivery address (Alamat Lengkap)
   notes?: string; // Optional order notes (Catatan Pesanan), e.g., "titip di satpam"
 }
+
+// Re-export PromoValidation for convenience
+export type { PromoValidation } from './promo';
